@@ -85,6 +85,41 @@ class McBopomofoInputMethodController: IMKInputController {
             action: #selector(toggleAssociatedPhrasesEnabled(_:)), keyEquivalent: "")
         associatedPhrasesItem.state = Preferences.associatedPhrasesEnabled.state
 
+        // AI 整句修正模型切換器(⌘↵ 觸發時使用;可隨時切換)
+        menu.addItem(NSMenuItem.separator())
+        let aiNames = [
+            "Codex(免費・較慢)", "Claude Haiku(快)", "Claude Opus(最準)",
+            "本地 gemma(離線・免費)",
+        ]
+        let currentBackend = McBopomofoInputMethodController.aiBackend
+        let currentName =
+            (currentBackend >= 0 && currentBackend < aiNames.count)
+            ? aiNames[currentBackend] : "?"
+        // 標題直接顯示目前選的模型,不靠勾勾(輸入法選單的勾勾渲染不一定可靠)。
+        let aiHeader = menu.addItem(
+            withTitle: "AI 修正模型:目前【\(currentName)】", action: nil, keyEquivalent: "")
+        aiHeader.isEnabled = false
+        // 每個後端用各自的 selector,不靠 sender.tag。輸入法選單跨 process 代管,
+        // 回傳的 sender 不是我們建立的 NSMenuItem,讀 tag 會失敗(這也是勾勾/圖示不可靠的同一個原因)。
+        let aiSelectors: [Selector] = [
+            #selector(selectAIBackendCodex(_:)),
+            #selector(selectAIBackendHaiku(_:)),
+            #selector(selectAIBackendOpus(_:)),
+            #selector(selectAIBackendOllama(_:)),
+        ]
+        for (tag, name) in aiNames.enumerated() {
+            // 用標準勾勾(.state)標示目前選用的後端。選單項是我們自己在開選單時建的
+            // NSMenuItem,直接設 .state 渲染正常(先前不可靠的是「讀回 sender 的狀態」,非設定本身)。
+            let item = menu.addItem(
+                withTitle: name, action: aiSelectors[tag],
+                keyEquivalent: "")
+            item.state = (currentBackend == tag) ? .on : .off
+            item.tag = tag
+        }
+        // 開啟 AI 修正設定視窗(填 API key / 端點 / 模型;任何 clone 下來的人自行設定)。
+        menu.addItem(
+            withTitle: "AI 修正設定…", action: #selector(openAISettings(_:)), keyEquivalent: "")
+
         let inputMode = keyHandler.inputMode
 
         // Only Bopomofo mode supports Bopomofo Font Annotation. If support is
@@ -224,6 +259,15 @@ class McBopomofoInputMethodController: IMKInputController {
             return false
         }
 
+        // AI 整句修正熱鍵:⌘ + Return(keyCode 36)。只在有 composing 內容時觸發。
+        if event.modifierFlags.contains(.command), event.keyCode == 36,
+            let inputting = state as? InputState.Inputting,
+            !inputting.composingBuffer.isEmpty
+        {
+            triggerAICorrection(guess: inputting.composingBuffer, client: client)
+            return true
+        }
+
         if event.type == .flagsChanged {
             if state is InputState.Empty {
                 return false
@@ -320,6 +364,26 @@ class McBopomofoInputMethodController: IMKInputController {
     @objc func togglePhraseReplacement(_ sender: Any?) {
         let enabled = Preferences.togglePhraseReplacementEnabled()
         LanguageModelManager.phraseReplacementEnabled = enabled
+    }
+
+    // AI 修正模型切換:定義在主 class 本體(與其他能用的選單 action 同層),
+    // 不放 extension —— IMK 選單 action 派送對 extension 裡的 @objc 不一定找得到。
+    @objc func selectAIBackendCodex(_ sender: Any?) { setAIBackend(0) }
+    @objc func selectAIBackendHaiku(_ sender: Any?) { setAIBackend(1) }
+    @objc func selectAIBackendOpus(_ sender: Any?) { setAIBackend(2) }
+    @objc func selectAIBackendOllama(_ sender: Any?) { setAIBackend(3) }
+
+    // 開啟 AI 修正設定視窗。action 同樣放主 class 本體(IMK 選單派送對 extension 的 @objc 不一定找得到)。
+    @objc func openAISettings(_ sender: Any?) {
+        AISettingsWindowController.shared.showSettings()
+    }
+
+    private func setAIBackend(_ index: Int) {
+        McBopomofoInputMethodController.aiBackend = index
+        UserDefaults.standard.synchronize()
+        let names = ["Codex", "Claude Haiku", "Claude Opus", "本地 gemma"]
+        let name = (index >= 0 && index < names.count) ? names[index] : "?"
+        NotifierController.notify(message: "已切換 AI 修正模型:" + name)
     }
 
     @objc func checkForUpdate(_ sender: Any?) {
@@ -959,5 +1023,225 @@ extension McBopomofoInputMethodController {
                         "Check McBopomofo menu for user file issues", comment: ""), stay: true)
             }
         }
+    }
+}
+
+// MARK: - AI 整句修正(MVP:Codex CLI 後端)
+//
+// 流程:⌘↵ 觸發 → 取 composingBuffer(注音引擎的猜測)+ 游標前文
+//      → 背景跑 codex 校正 → 回主執行緒 → clear → Committing(修正後) → Empty。
+// 後端目前寫死 Codex(免 API key);未來可抽成可插拔後端 + 偏好設定。
+extension McBopomofoInputMethodController {
+
+    func triggerAICorrection(guess: String, client: Any!) {
+        let preceding = Self.precedingTextForAI(from: client, maxChars: 100)
+        let backend = McBopomofoInputMethodController.aiBackend
+        DispatchQueue.global(qos: .userInitiated).async {
+            let corrected: String?
+            switch backend {
+            case 1:
+                corrected = Self.runClaudeCorrection(
+                    guess: guess, preceding: preceding, model: AICorrectionConfig.claudeHaikuModel)
+            case 2:
+                corrected = Self.runClaudeCorrection(
+                    guess: guess, preceding: preceding, model: AICorrectionConfig.claudeOpusModel)
+            case 3:
+                corrected = Self.runOllamaCorrection(guess: guess, preceding: preceding)
+            default:
+                corrected = Self.runCodexCorrection(guess: guess, preceding: preceding)
+            }
+            DispatchQueue.main.async {
+                // 修正失敗(API 額度不足、網路逾時、key 失效等)時別靜默放棄,跳通知讓使用者知道。
+                guard let corrected, !corrected.isEmpty else {
+                    NotifierController.notify(message: "AI 修正失敗(可能 API 額度不足或逾時)")
+                    return
+                }
+                // 整句已正確、無需更動,直接結束。
+                guard corrected != guess else { return }
+                self.keyHandler.clear()
+                self.handle(state: InputState.Committing(poppedText: corrected), client: client)
+                self.handle(state: InputState.Empty(), client: client)
+            }
+        }
+    }
+
+    // 移植 azooKey 的做法:用 IMKTextInput 讀游標前已上字的前文。
+    static func precedingTextForAI(from client: Any!, maxChars: Int) -> String {
+        guard let imk = client as? IMKTextInput else { return "" }
+        let cursor = imk.selectedRange().location
+        guard cursor != NSNotFound, cursor > 0 else { return "" }
+        let start = max(0, cursor - maxChars)
+        let range = NSRange(location: start, length: cursor - start)
+        var actual = NSRange()
+        return imk.string(from: range, actualRange: &actual) ?? ""
+    }
+
+    // 同步呼叫 codex exec,用 <<<R>>> <<<E>>> 夾住結果,避免被 log 污染。
+    static func runCodexCorrection(guess: String, preceding: String) -> String? {
+        let prompt = Self.aiPrompt(guess: guess, preceding: preceding)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: AICorrectionConfig.codexPath)
+        process.arguments = [
+            "exec", "--sandbox", "read-only", "--skip-git-repo-check", prompt,
+        ]
+        let outPipe = Pipe()
+        process.standardOutput = outPipe
+        process.standardError = Pipe()
+        do {
+            try process.run()
+        } catch {
+            NSLog("AI校正: 無法啟動 codex: \(error.localizedDescription)")
+            return nil
+        }
+        process.waitUntilExit()
+
+        let data = outPipe.fileHandleForReading.readDataToEndOfFile()
+        let raw = String(data: data, encoding: .utf8) ?? ""
+
+        return Self.extractResult(from: raw)
+    }
+}
+
+// MARK: - AI 修正:模型切換、共用 prompt/解析、Claude 後端
+extension McBopomofoInputMethodController {
+
+    // 目前選的後端,存 UserDefaults。0=Codex(預設) 1=Claude Haiku 2=Claude Opus
+    static var aiBackend: Int {
+        get { UserDefaults.standard.integer(forKey: "AICorrectionBackend") }
+        set { UserDefaults.standard.set(newValue, forKey: "AICorrectionBackend") }
+    }
+
+    // codex 與 claude 共用的校正 prompt(三類錯誤 + 規則 + 前文/待修正)。
+    static func aiPrompt(guess: String, preceding: String) -> String {
+        return """
+        你是專為「注音輸入法」設計的中文校正引擎。下面「待修正」這句中文是注音輸入法依字詞頻率\
+        猜測產生的,常因下列三類原因出現錯別字。請依「前文」與本句的上下文語意,把整句修正成使用者\
+        真正想表達的正確中文。
+
+        要積極修正的三類錯誤:
+        1. 同音字選錯(最常見):依語意選對「在/再」「的/得/地」「做/作」等。
+           例:「我在去買」→「我再去買」;「期待在相遇」→「期待再相遇」。
+        2. 平翹舌/捲舌不分造成的錯字:ㄓㄔㄕ 與 ㄗㄘㄙ、ㄈ/ㄏ、ㄌ/ㄋ、ㄣ/ㄥ、ㄢ/ㄤ、ㄧㄣ/ㄧㄥ 等混淆。
+           例:「資道」→「知道」;「老蘇」→「老師」。
+        3. 注音鍵在鍵盤上相鄰、手誤打到旁邊鍵造成的錯字。
+           例:「怎摸」→「怎麼」。
+
+        規則:
+        - 只輸出修正後的整句,放在 <<<R>>> 與 <<<E>>> 之間,中間不要任何解釋、引號或其他文字。
+        - 只修正上述錯別字,不要改寫語氣、不要增刪內容、不要過度潤飾。
+        - 若整句已正確,原樣輸出。前文僅供判斷語意,不要輸出前文。
+        前文(僅供語意參考,不要輸出):\(preceding)
+        待修正:\(guess)
+        """
+    }
+
+    // 共用:抽出 <<<R>>>...<<<E>>> 之間的結果,退路取最後一行非空。
+    static func extractResult(from raw: String) -> String? {
+        if let r = raw.range(of: "<<<R>>>"), let e = raw.range(of: "<<<E>>>"),
+            r.upperBound <= e.lowerBound
+        {
+            let s = String(raw[r.upperBound..<e.lowerBound])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return s.isEmpty ? nil : s
+        }
+        return raw.split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .last(where: { !$0.isEmpty })
+    }
+
+    // Claude Messages API(原生 HTTP)。key 從 Keychain 取、endpoint/model 從設定取(見 AICorrectionConfig)。
+    static func runClaudeCorrection(guess: String, preceding: String, model: String) -> String? {
+        guard let key = AICorrectionConfig.claudeAPIKey else {
+            NSLog("AI校正: 找不到 Claude API key(請從輸入法選單『AI 修正設定…』填入)")
+            return nil
+        }
+        guard let endpointURL = URL(string: AICorrectionConfig.claudeEndpoint) else {
+            NSLog("AI校正: Claude 端點設定無效:\(AICorrectionConfig.claudeEndpoint)")
+            return nil
+        }
+        var req = URLRequest(url: endpointURL)
+        req.httpMethod = "POST"
+        req.setValue(key, forHTTPHeaderField: "x-api-key")
+        req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        req.setValue("application/json", forHTTPHeaderField: "content-type")
+        req.timeoutInterval = 30
+        let body: [String: Any] = [
+            "model": model,
+            "max_tokens": 256,
+            "messages": [
+                ["role": "user", "content": aiPrompt(guess: guess, preceding: preceding)]
+            ],
+        ]
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        req.httpBody = httpBody
+
+        let sem = DispatchSemaphore(value: 0)
+        var result: String?
+        URLSession.shared.dataTask(with: req) { data, response, _ in
+            defer { sem.signal() }
+            guard let data,
+                let http = response as? HTTPURLResponse, http.statusCode == 200,
+                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let content = json["content"] as? [[String: Any]],
+                let text = content.first(where: { ($0["type"] as? String) == "text" })?["text"]
+                    as? String
+            else {
+                if let data {
+                    NSLog("AI校正 Claude 回應異常:\(String(data: data, encoding: .utf8) ?? "")")
+                }
+                return
+            }
+            result = Self.extractResult(from: text)
+        }.resume()
+        sem.wait()
+        return result
+    }
+
+    // 本地模型後端(Ollama 原生 /api/chat)。免 API key、離線可跑。
+    // 用 "think": false 關掉 gemma 這類推理模型的思考——否則 content 會空掉(思考全塞
+    // 在 reasoning 欄)且延遲爆增(~12s)。關掉後直接吐答案,暖機後約 2–3 秒。
+    // 共用 aiPrompt(含 <<<R>>><<<E>>> 標記)與 extractResult,與 Codex/Claude 一致。
+    static func runOllamaCorrection(guess: String, preceding: String) -> String? {
+        guard let endpointURL = URL(string: AICorrectionConfig.ollamaEndpoint) else {
+            NSLog("AI校正: Ollama 端點設定無效:\(AICorrectionConfig.ollamaEndpoint)")
+            return nil
+        }
+        var req = URLRequest(url: endpointURL)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "content-type")
+        req.timeoutInterval = 30
+        let body: [String: Any] = [
+            "model": AICorrectionConfig.ollamaModel,
+            "stream": false,
+            "think": false,
+            "options": ["temperature": 0, "num_predict": 128],
+            "messages": [
+                ["role": "user", "content": aiPrompt(guess: guess, preceding: preceding)]
+            ],
+        ]
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        req.httpBody = httpBody
+
+        let sem = DispatchSemaphore(value: 0)
+        var result: String?
+        URLSession.shared.dataTask(with: req) { data, response, _ in
+            defer { sem.signal() }
+            guard let data,
+                let http = response as? HTTPURLResponse, http.statusCode == 200,
+                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let message = json["message"] as? [String: Any],
+                let text = message["content"] as? String
+            else {
+                if let data {
+                    NSLog("AI校正 Ollama 回應異常:\(String(data: data, encoding: .utf8) ?? "")")
+                } else {
+                    NSLog("AI校正: 連不上 Ollama(請確認 ollama serve 正在執行)")
+                }
+                return
+            }
+            result = Self.extractResult(from: text)
+        }.resume()
+        sem.wait()
+        return result
     }
 }
