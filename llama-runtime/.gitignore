@@ -1,0 +1,4 @@
+# 大型二進位產物:由 fetch-runtime.sh 重建,不入一般 git 避免歷史膨脹。
+# Phase 2 會改用 Git LFS + Developer ID 簽章。
+bin/
+models/

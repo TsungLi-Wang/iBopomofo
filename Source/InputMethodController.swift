@@ -89,7 +89,7 @@ class McBopomofoInputMethodController: IMKInputController {
         menu.addItem(NSMenuItem.separator())
         let aiNames = [
             "Codex(較慢)", "Claude Haiku(快)", "Claude Opus(最準)",
-            "本地 gemma(離線・免費)",
+            "本機 AI(內建・離線)",
         ]
         let currentBackend = McBopomofoInputMethodController.aiBackend
         let currentName =
@@ -105,7 +105,7 @@ class McBopomofoInputMethodController: IMKInputController {
             #selector(selectAIBackendCodex(_:)),
             #selector(selectAIBackendHaiku(_:)),
             #selector(selectAIBackendOpus(_:)),
-            #selector(selectAIBackendOllama(_:)),
+            #selector(selectAIBackendLocal(_:)),
         ]
         for (tag, name) in aiNames.enumerated() {
             // 用標準勾勾(.state)標示目前選用的後端。選單項是我們自己在開選單時建的
@@ -371,7 +371,7 @@ class McBopomofoInputMethodController: IMKInputController {
     @objc func selectAIBackendCodex(_ sender: Any?) { setAIBackend(0) }
     @objc func selectAIBackendHaiku(_ sender: Any?) { setAIBackend(1) }
     @objc func selectAIBackendOpus(_ sender: Any?) { setAIBackend(2) }
-    @objc func selectAIBackendOllama(_ sender: Any?) { setAIBackend(3) }
+    @objc func selectAIBackendLocal(_ sender: Any?) { setAIBackend(3) }
 
     // 開啟 AI 修正設定視窗。action 同樣放主 class 本體(IMK 選單派送對 extension 的 @objc 不一定找得到)。
     @objc func openAISettings(_ sender: Any?) {
@@ -381,7 +381,13 @@ class McBopomofoInputMethodController: IMKInputController {
     private func setAIBackend(_ index: Int) {
         McBopomofoInputMethodController.aiBackend = index
         UserDefaults.standard.synchronize()
-        let names = ["Codex", "Claude Haiku", "Claude Opus", "本地 gemma"]
+        // 切到本機後端就先把內嵌 server 暖起來;切走就收掉 server 釋放 ~2GB 記憶體。
+        if index == 3 {
+            LlamaServerManager.shared.startIfNeeded()
+        } else {
+            LlamaServerManager.shared.stop()
+        }
+        let names = ["Codex", "Claude Haiku", "Claude Opus", "本機 AI"]
         let name = (index >= 0 && index < names.count) ? names[index] : "?"
         NotifierController.notify(message: "已切換 AI 修正模型:" + name)
     }
@@ -1046,7 +1052,7 @@ extension McBopomofoInputMethodController {
                 corrected = Self.runClaudeCorrection(
                     guess: guess, preceding: preceding, model: AICorrectionConfig.claudeOpusModel)
             case 3:
-                corrected = Self.runOllamaCorrection(guess: guess, preceding: preceding)
+                corrected = Self.runLocalServerCorrection(guess: guess, preceding: preceding)
             default:
                 corrected = Self.runCodexCorrection(guess: guess, preceding: preceding)
             }
@@ -1109,9 +1115,10 @@ extension McBopomofoInputMethodController {
 // MARK: - AI 修正:模型切換、共用 prompt/解析、Claude 後端
 extension McBopomofoInputMethodController {
 
-    // 目前選的後端,存 UserDefaults。0=Codex(預設) 1=Claude Haiku 2=Claude Opus
+    // 目前選的後端,存 UserDefaults。0=Codex 1=Claude Haiku 2=Claude Opus 3=本機 AI(內建)
     static var aiBackend: Int {
-        // 未設定過時預設「本地 gemma(3)」——實測暖機後最快(~1.7s)、離線、免雲端往返。
+        // 未設定過時預設「本機 AI(3)」——內嵌 llama-server + Qwen3-4B-Instruct-2507(apache-2.0),離線、免雲端往返、
+        // 免 API key、免裝 Ollama。實測延遲 ~0.2–0.3s。
         get {
             guard UserDefaults.standard.object(forKey: "AICorrectionBackend") != nil else { return 3 }
             return UserDefaults.standard.integer(forKey: "AICorrectionBackend")
@@ -1205,29 +1212,44 @@ extension McBopomofoInputMethodController {
         return result
     }
 
-    // 本地模型後端(Ollama 原生 /api/chat)。免 API key、離線可跑。
-    // 用 "think": false 關掉 gemma 這類推理模型的思考——否則 content 會空掉(思考全塞
-    // 在 reasoning 欄)且延遲爆增(~12s)。關掉後直接吐答案,暖機後約 2–3 秒。
-    // 共用 aiPrompt(含 <<<R>>><<<E>>> 標記)與 extractResult,與 Codex/Claude 一致。
-    static func runOllamaCorrection(guess: String, preceding: String) -> String? {
-        guard let endpointURL = URL(string: AICorrectionConfig.ollamaEndpoint) else {
-            NSLog("AI校正: Ollama 端點設定無效:\(AICorrectionConfig.ollamaEndpoint)")
+    // 本機 AI 後端(內嵌 llama-server,OpenAI 相容 /v1/chat/completions)。
+    // 免 API key、離線可跑、免裝 Ollama——server 與 Qwen3-4B-2507 模型都打包在 app 內,
+    // 由 LlamaServerManager 自動啟動(見該檔)。
+    //
+    // 跟 Codex/Claude 不同,這裡用「獨立的 system+user prompt」而非共用 aiPrompt:
+    //  - 共用 aiPrompt 的 <<<R>>><<<E>>> 標記是為了 Codex CLI 會污染 log 才加的;
+    //    走乾淨 HTTP API 不需要,小模型也更容易乖乖只吐整句。
+    //  - 小模型(Qwen)傾向輸出简体 → 最後用 OpenCCBridge 轉繁(專案本來就內建)。
+    static let localSystemPrompt = """
+        你是中文注音輸入法的校正引擎。使用者給你一句注音輸入法依字詞頻率猜測產生的中文,\
+        可能含三類錯字:①同音字選錯(在/再、的/得/地、做/作等)②平翹舌捲舌不分(資道→知道、老蘇→老師)\
+        ③注音鍵相鄰手誤(怎摸→怎麼)。請依語意把整句修正成使用者真正想表達的正確中文。
+        嚴格規則:只回覆修正後的「整句」中文,一個字都不要多。不要解釋、不要引號、不要標點符號以外的符號、\
+        不要接續造句、不要回答句子內容。若整句已正確就原樣回覆。
+        """
+
+    static func runLocalServerCorrection(guess: String, preceding: String) -> String? {
+        // 確保內嵌 server 已啟動且模型載入完成(涵蓋開機後模型還在載入就被按熱鍵的情況)。
+        guard let base = LlamaServerManager.shared.ensureReady(),
+            let endpointURL = URL(string: base + "/v1/chat/completions")
+        else {
+            NSLog("AI校正: 本機 AI server 未就緒")
             return nil
         }
+        let userContent = (preceding.isEmpty ? "" : "前文:\(preceding)\n") + "待修正:\(guess)"
         var req = URLRequest(url: endpointURL)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "content-type")
         req.timeoutInterval = 30
         let body: [String: Any] = [
-            "model": AICorrectionConfig.ollamaModel,
-            "stream": false,
-            "think": false,
-            // 用後保溫 30 分鐘,避免每次都從冷啟動(冷載入約 13s,暖機後約 1.7s)。
-            "keep_alive": "30m",
-            "options": ["temperature": 0, "num_predict": 128],
             "messages": [
-                ["role": "user", "content": aiPrompt(guess: guess, preceding: preceding)]
+                ["role": "system", "content": localSystemPrompt],
+                ["role": "user", "content": userContent],
             ],
+            "temperature": 0,
+            "max_tokens": 64,
+            "stream": false,
+            "stop": ["\n"],
         ]
         guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return nil }
         req.httpBody = httpBody
@@ -1239,59 +1261,38 @@ extension McBopomofoInputMethodController {
             guard let data,
                 let http = response as? HTTPURLResponse, http.statusCode == 200,
                 let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let message = json["message"] as? [String: Any],
+                let choices = json["choices"] as? [[String: Any]],
+                let message = choices.first?["message"] as? [String: Any],
                 let text = message["content"] as? String
             else {
                 if let data {
-                    NSLog("AI校正 Ollama 回應異常:\(String(data: data, encoding: .utf8) ?? "")")
-                } else {
-                    NSLog("AI校正: 連不上 Ollama(請確認 ollama serve 正在執行)")
+                    NSLog("AI校正 本機 server 回應異常:\(String(data: data, encoding: .utf8) ?? "")")
                 }
                 return
             }
-            result = Self.extractResult(from: text)
+            // 無標記,直接取整句。小模型偶爾會把 user 訊息的「待修正:」「前文:」標籤回聲出來,
+            // 取最後一個標籤之後的內容把它剝掉;再去頭尾空白與常見包裹符號,最後 简→繁。
+            var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            for label in ["待修正:", "待修正：", "前文:", "前文："] {
+                if let r = cleaned.range(of: label, options: .backwards) {
+                    cleaned = String(cleaned[r.upperBound...])
+                }
+            }
+            cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "「」\"'。 "))
+            guard !cleaned.isEmpty else { return }
+            result = OpenCCBridge.shared.convertToTraditional(cleaned) ?? cleaned
         }.resume()
         sem.wait()
         return result
     }
 
-    // 啟動暖機:若目前後端是本地 gemma,背景送一個極小請求把模型載進記憶體,
-    // 消掉首次使用的冷啟動(~13s)。開機時 Ollama 伺服器可能比輸入法晚就緒,
-    // 故延遲 5s 再送,失敗(連不上/非 200)就自動重試,最多 3 次、每次間隔 8s
-    // (涵蓋開機後約 21s 窗口)。fire-and-forget,全部失敗就靜默放棄(退回首次使用才載入)。
-    static func warmUpOllamaIfNeeded() {
+    // 啟動時(或切到本機後端時)把內嵌 server 暖起來:spawn llama-server 並開始載入模型,
+    // 消掉首次使用的冷啟動。只有目前後端是本機 AI(3)時才啟動,免得用雲端後端的人白佔 ~2GB。
+    static func startLocalServerIfNeeded() {
         guard aiBackend == 3 else { return }
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 5) {
-            attemptOllamaWarmUp(remaining: 3)
+        DispatchQueue.global(qos: .utility).async {
+            LlamaServerManager.shared.startIfNeeded()
         }
-    }
-
-    private static func attemptOllamaWarmUp(remaining: Int) {
-        guard remaining > 0, let url = URL(string: AICorrectionConfig.ollamaEndpoint) else { return }
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "content-type")
-        req.timeoutInterval = 60
-        let body: [String: Any] = [
-            "model": AICorrectionConfig.ollamaModel,
-            "stream": false,
-            "think": false,
-            "keep_alive": "30m",
-            "options": ["num_predict": 1],
-            "messages": [["role": "user", "content": "hi"]],
-        ]
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return }
-        req.httpBody = httpBody
-        URLSession.shared.dataTask(with: req) { _, response, error in
-            let ok = error == nil && (response as? HTTPURLResponse)?.statusCode == 200
-            if ok {
-                NSLog("AI校正: Ollama 暖機成功(模型已載入)")
-            } else {
-                NSLog("AI校正: Ollama 暖機未就緒,剩餘重試 \(remaining - 1) 次")
-                DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 8) {
-                    attemptOllamaWarmUp(remaining: remaining - 1)
-                }
-            }
-        }.resume()
     }
 }

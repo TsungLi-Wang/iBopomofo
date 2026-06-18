@@ -41,8 +41,6 @@ enum AICorrectionConfig {
     private static let kClaudeEndpoint = "AICorrectionClaudeEndpoint"
     private static let kClaudeHaikuModel = "AICorrectionClaudeHaikuModel"
     private static let kClaudeOpusModel = "AICorrectionClaudeOpusModel"
-    private static let kOllamaEndpoint = "AICorrectionOllamaEndpoint"
-    private static let kOllamaModel = "AICorrectionOllamaModel"
 
     // MARK: 預設值(= 原本寫死的值)
     static let defaultCodexPath = "/opt/homebrew/bin/codex"
@@ -52,8 +50,6 @@ enum AICorrectionConfig {
     static let defaultClaudeEndpoint = "https://api.anthropic.com/v1/messages"
     static let defaultClaudeHaikuModel = "claude-haiku-4-5"
     static let defaultClaudeOpusModel = "claude-opus-4-8"
-    static let defaultOllamaEndpoint = "http://localhost:11434/api/chat"
-    static let defaultOllamaModel = "gemma4:12b"
 
     // MARK: 取值(空字串 → 退回預設,避免使用者清空欄位後整個壞掉)
     private static func value(_ key: String, default def: String) -> String {
@@ -69,13 +65,11 @@ enum AICorrectionConfig {
         value(kClaudeHaikuModel, default: defaultClaudeHaikuModel)
     }
     static var claudeOpusModel: String { value(kClaudeOpusModel, default: defaultClaudeOpusModel) }
-    static var ollamaEndpoint: String { value(kOllamaEndpoint, default: defaultOllamaEndpoint) }
-    static var ollamaModel: String { value(kOllamaModel, default: defaultOllamaModel) }
 
     /// 設定視窗存檔時呼叫:空字串代表「用預設」,所以把 key 移除而不是寫空字串進去。
     static func save(
         codexPath: String, claudeEndpoint: String, claudeHaikuModel: String,
-        claudeOpusModel: String, ollamaEndpoint: String, ollamaModel: String
+        claudeOpusModel: String
     ) {
         let d = UserDefaults.standard
         func set(_ key: String, _ raw: String) {
@@ -86,8 +80,6 @@ enum AICorrectionConfig {
         set(kClaudeEndpoint, claudeEndpoint)
         set(kClaudeHaikuModel, claudeHaikuModel)
         set(kClaudeOpusModel, claudeOpusModel)
-        set(kOllamaEndpoint, ollamaEndpoint)
-        set(kOllamaModel, ollamaModel)
         d.synchronize()
     }
 
@@ -160,8 +152,6 @@ final class AISettingsWindowController: NSWindowController {
     private let claudeEndpointField = NSTextField()
     private let claudeHaikuField = NSTextField()
     private let claudeOpusField = NSTextField()
-    private let ollamaEndpointField = NSTextField()
-    private let ollamaModelField = NSTextField()
     private let codexPathField = NSTextField()
 
     private init() {
@@ -196,8 +186,6 @@ final class AISettingsWindowController: NSWindowController {
             row("Claude 端點:", claudeEndpointField, placeholder: AICorrectionConfig.defaultClaudeEndpoint),
             row("Claude Haiku 模型:", claudeHaikuField, placeholder: AICorrectionConfig.defaultClaudeHaikuModel),
             row("Claude Opus 模型:", claudeOpusField, placeholder: AICorrectionConfig.defaultClaudeOpusModel),
-            row("Ollama 端點:", ollamaEndpointField, placeholder: AICorrectionConfig.defaultOllamaEndpoint),
-            row("Ollama 模型:", ollamaModelField, placeholder: AICorrectionConfig.defaultOllamaModel),
             row("Codex 執行檔路徑:", codexPathField, placeholder: AICorrectionConfig.defaultCodexPath),
         ])
         grid.translatesAutoresizingMaskIntoConstraints = false
@@ -244,8 +232,6 @@ final class AISettingsWindowController: NSWindowController {
         claudeEndpointField.stringValue = AICorrectionConfig.claudeEndpoint
         claudeHaikuField.stringValue = AICorrectionConfig.claudeHaikuModel
         claudeOpusField.stringValue = AICorrectionConfig.claudeOpusModel
-        ollamaEndpointField.stringValue = AICorrectionConfig.ollamaEndpoint
-        ollamaModelField.stringValue = AICorrectionConfig.ollamaModel
         codexPathField.stringValue = AICorrectionConfig.codexPath
         window?.center()
         NSApp.activate(ignoringOtherApps: true)
@@ -259,9 +245,7 @@ final class AISettingsWindowController: NSWindowController {
             codexPath: codexPathField.stringValue,
             claudeEndpoint: claudeEndpointField.stringValue,
             claudeHaikuModel: claudeHaikuField.stringValue,
-            claudeOpusModel: claudeOpusField.stringValue,
-            ollamaEndpoint: ollamaEndpointField.stringValue,
-            ollamaModel: ollamaModelField.stringValue)
+            claudeOpusModel: claudeOpusField.stringValue)
         window?.performClose(nil)
     }
 

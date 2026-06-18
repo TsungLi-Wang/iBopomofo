@@ -1,0 +1,50 @@
+#!/bin/bash
+# 重建內嵌推理 runtime(bin/ + models/)。這些是大型二進位產物,不入一般 git
+# (見 .gitignore);clone 後跑這支腳本即可補齊,讓「Copy Llama Runtime」build phase 有東西可複製。
+# Phase 2 會改用 Git LFS + Developer ID 簽章,屆時此腳本退役。
+#
+# 用法:  cd llama-runtime && ./fetch-runtime.sh
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+BIN="$HERE/bin"
+MODELS="$HERE/models"
+
+# === 1) llama.cpp 官方 release(macos-arm64,自含 @loader_path dylib) ===
+LLAMA_TAG="b9692"
+TARBALL="llama-${LLAMA_TAG}-bin-macos-arm64.tar.gz"
+URL="https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_TAG}/${TARBALL}"
+
+# llama-server 實際依賴的 10 個 dylib(以 @rpath/libX.0.dylib 請求);把版本實體檔直接
+# 命名成請求的名稱,扁平、無 symlink、好簽章。
+echo "[1/3] 下載 llama.cpp ${LLAMA_TAG} …"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+curl -L --fail -o "$TMP/$TARBALL" "$URL"
+mkdir -p "$TMP/x" && tar -xzf "$TMP/$TARBALL" -C "$TMP/x"
+SRC="$TMP/x/llama-${LLAMA_TAG}"
+
+echo "[2/3] 組裝精簡 bin/ …"
+rm -rf "$BIN" && mkdir -p "$BIN"
+cp "$SRC/llama-server" "$BIN/llama-server"
+cp "$SRC/libggml-base.0.15.1.dylib"      "$BIN/libggml-base.0.dylib"
+cp "$SRC/libggml-blas.0.15.1.dylib"      "$BIN/libggml-blas.0.dylib"
+cp "$SRC/libggml-cpu.0.15.1.dylib"       "$BIN/libggml-cpu.0.dylib"
+cp "$SRC/libggml-metal.0.15.1.dylib"     "$BIN/libggml-metal.0.dylib"
+cp "$SRC/libggml-rpc.0.15.1.dylib"       "$BIN/libggml-rpc.0.dylib"
+cp "$SRC/libggml.0.15.1.dylib"           "$BIN/libggml.0.dylib"
+cp "$SRC/libllama.0.0.${LLAMA_TAG#b}.dylib"        "$BIN/libllama.0.dylib"
+cp "$SRC/libllama-common.0.0.${LLAMA_TAG#b}.dylib" "$BIN/libllama-common.0.dylib"
+cp "$SRC/libmtmd.0.0.${LLAMA_TAG#b}.dylib"         "$BIN/libmtmd.0.dylib"
+cp "$SRC/libllama-server-impl.dylib"     "$BIN/libllama-server-impl.dylib"
+xattr -dr com.apple.quarantine "$BIN" 2>/dev/null || true
+for f in "$BIN"/*.dylib "$BIN/llama-server"; do codesign --force -s - "$f"; done
+
+# === 3) 內嵌模型:Qwen3-4B-Instruct-2507 Q4_K_M(apache-2.0) ===
+# Phase 0 對比實測勝出;授權乾淨可發佈。bartowski repo 有 Qwen_ 前綴。
+echo "[3/3] 下載模型 Qwen3-4B-Instruct-2507-Q4_K_M(~2.5GB) …"
+mkdir -p "$MODELS"
+MODEL_URL="https://huggingface.co/bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+curl -L --fail -C - -o "$MODELS/model.gguf" "$MODEL_URL"
+
+echo "✅ 完成。bin/ 與 models/model.gguf 已就緒,可以 xcodebuild 了。"

@@ -187,10 +187,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
 
         enableBopomofoFontAnnotationSupportMenuItemIfRelevantFontsInstalled()
 
-        // 若 AI 修正後端是本地 gemma,啟動時先暖機把模型載入記憶體,消掉首次冷啟動(~13s)。
-        McBopomofoInputMethodController.warmUpOllamaIfNeeded()
+        // 若 AI 修正後端是本機 AI(內建),啟動時就 spawn 內嵌 llama-server 開始載入模型,
+        // 消掉首次使用的冷啟動。
+        McBopomofoInputMethodController.startLocalServerIfNeeded()
 
         checkForUpdate()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // 收掉內嵌 llama-server 子程序,別留孤兒佔記憶體。
+        LlamaServerManager.shared.stop()
     }
 
     @objc func showPreferences() {

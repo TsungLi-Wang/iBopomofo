@@ -68,6 +68,7 @@
 		D449AD612B39506D000C5812 /* ServiceProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D449AD602B39506D000C5812 /* ServiceProviderTests.swift */; };
 		D44FB74527915565003C80A6 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44FB74427915555003C80A6 /* Preferences.swift */; };
 		FACE0002FACE0002FACE0002 /* AICorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0001FACE0001FACE0001 /* AICorrection.swift */; };
+		FACE0004FACE0004FACE0004 /* LlamaServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0003FACE0003FACE0003 /* LlamaServerManager.swift */; };
 		D44FB74D2792189A003C80A6 /* PhraseReplacementMap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D44FB74B2792189A003C80A6 /* PhraseReplacementMap.cpp */; };
 		D456576E279E4F7B00DF6BC9 /* KeyHandlerInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = D456576D279E4F7B00DF6BC9 /* KeyHandlerInput.swift */; };
 		D461B792279DAC010070E734 /* InputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D461B791279DAC010070E734 /* InputState.swift */; };
@@ -218,6 +219,7 @@
 		D449AD602B39506D000C5812 /* ServiceProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceProviderTests.swift; sourceTree = "<group>"; };
 		D44FB74427915555003C80A6 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		FACE0001FACE0001FACE0001 /* AICorrection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrection.swift; sourceTree = "<group>"; };
+		FACE0003FACE0003FACE0003 /* LlamaServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaServerManager.swift; sourceTree = "<group>"; };
 		D44FB74B2792189A003C80A6 /* PhraseReplacementMap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PhraseReplacementMap.cpp; sourceTree = "<group>"; };
 		D44FB74C2792189A003C80A6 /* PhraseReplacementMap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PhraseReplacementMap.h; sourceTree = "<group>"; };
 		D456576D279E4F7B00DF6BC9 /* KeyHandlerInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyHandlerInput.swift; sourceTree = "<group>"; };
@@ -344,6 +346,7 @@
 				D4314F0C2ED369090071DD71 /* NumberInputHelper.swift */,
 				D427F76B278CA1BA004A2160 /* AppDelegate.swift */,
 				FACE0001FACE0001FACE0001 /* AICorrection.swift */,
+				FACE0003FACE0003FACE0003 /* LlamaServerManager.swift */,
 				D44FB74427915555003C80A6 /* Preferences.swift */,
 				D47F7DCF278C0897002F9DD7 /* NonModalAlertWindowController.swift */,
 				D47F7DCD278BFB57002F9DD7 /* PreferencesWindowController.swift */,
@@ -552,6 +555,7 @@
 				6A0D4E9E15FC0D2D00ABF4B3 /* Sources */,
 				6A0D4E9F15FC0D2D00ABF4B3 /* Frameworks */,
 				6A0D4EA015FC0D2D00ABF4B3 /* Resources */,
+				FACE0005FACE0005FACE0005 /* Copy Llama Runtime */,
 			);
 			buildRules = (
 			);
@@ -727,6 +731,25 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		FACE0005FACE0005FACE0005 /* Copy Llama Runtime */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Llama Runtime";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nSRC=\"${SRCROOT}/llama-runtime\"\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/llama\"\nmkdir -p \"$DEST/bin\" \"$DEST/models\"\n/usr/bin/ditto \"$SRC/bin\" \"$DEST/bin\"\nif [ -f \"$SRC/models/model.gguf\" ]; then if [ ! -f \"$DEST/models/model.gguf\" ] || [ \"$(stat -f%z \"$SRC/models/model.gguf\")\" != \"$(stat -f%z \"$DEST/models/model.gguf\")\" ]; then /usr/bin/ditto \"$SRC/models/model.gguf\" \"$DEST/models/model.gguf\"; fi; fi\n# adhoc 簽章內嵌執行檔/動態庫,確保本機可執行(Phase2 改 Developer ID + 移到合規位置)\nfor f in \"$DEST\"/bin/*.dylib \"$DEST\"/bin/llama-server; do /usr/bin/codesign --force -s - \"$f\" || true; done\n";
+		};
 		6A225A2023679F5F00F685C6 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -761,6 +784,7 @@
 				D44FB74D2792189A003C80A6 /* PhraseReplacementMap.cpp in Sources */,
 				D4A13D5A27A59F0B003BE359 /* InputMethodController.swift in Sources */,
 				FACE0002FACE0002FACE0002 /* AICorrection.swift in Sources */,
+				FACE0004FACE0004FACE0004 /* LlamaServerManager.swift in Sources */,
 				D44FB74527915565003C80A6 /* Preferences.swift in Sources */,
 				6A660A702EAF371000D53D7B /* ByteBlockBackedDictionary.cpp in Sources */,
 				6A833E522F0A0FB30086AD0C /* VariantAnnotator.cpp in Sources */,
