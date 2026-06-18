@@ -88,7 +88,7 @@ class McBopomofoInputMethodController: IMKInputController {
         // AI 整句修正模型切換器(⌘↵ 觸發時使用;可隨時切換)
         menu.addItem(NSMenuItem.separator())
         let aiNames = [
-            "Codex(免費・較慢)", "Claude Haiku(快)", "Claude Opus(最準)",
+            "Codex(較慢)", "Claude Haiku(快)", "Claude Opus(最準)",
             "本地 gemma(離線・免費)",
         ]
         let currentBackend = McBopomofoInputMethodController.aiBackend
@@ -1082,7 +1082,11 @@ extension McBopomofoInputMethodController {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: AICorrectionConfig.codexPath)
         process.arguments = [
-            "exec", "--sandbox", "read-only", "--skip-git-repo-check", prompt,
+            "exec", "--sandbox", "read-only", "--skip-git-repo-check",
+            // 指定較快的小模型 + 低推理強度;codex 固定開銷(~3s)無法消除,這是此路徑能擠出的最快設定。
+            "-m", AICorrectionConfig.codexModel,
+            "-c", "model_reasoning_effort=low",
+            prompt,
         ]
         let outPipe = Pipe()
         process.standardOutput = outPipe
@@ -1107,7 +1111,11 @@ extension McBopomofoInputMethodController {
 
     // 目前選的後端,存 UserDefaults。0=Codex(預設) 1=Claude Haiku 2=Claude Opus
     static var aiBackend: Int {
-        get { UserDefaults.standard.integer(forKey: "AICorrectionBackend") }
+        // 未設定過時預設「本地 gemma(3)」——實測暖機後最快(~1.7s)、離線、免雲端往返。
+        get {
+            guard UserDefaults.standard.object(forKey: "AICorrectionBackend") != nil else { return 3 }
+            return UserDefaults.standard.integer(forKey: "AICorrectionBackend")
+        }
         set { UserDefaults.standard.set(newValue, forKey: "AICorrectionBackend") }
     }
 
@@ -1214,6 +1222,8 @@ extension McBopomofoInputMethodController {
             "model": AICorrectionConfig.ollamaModel,
             "stream": false,
             "think": false,
+            // 用後保溫 30 分鐘,避免每次都從冷啟動(冷載入約 13s,暖機後約 1.7s)。
+            "keep_alive": "30m",
             "options": ["temperature": 0, "num_predict": 128],
             "messages": [
                 ["role": "user", "content": aiPrompt(guess: guess, preceding: preceding)]
@@ -1243,5 +1253,28 @@ extension McBopomofoInputMethodController {
         }.resume()
         sem.wait()
         return result
+    }
+
+    // 啟動暖機:若目前後端是本地 gemma,背景送一個極小請求把模型載進記憶體,
+    // 消掉首次使用的冷啟動(~13s)。fire-and-forget,連不上 Ollama 就靜默略過。
+    static func warmUpOllamaIfNeeded() {
+        guard aiBackend == 3, let url = URL(string: AICorrectionConfig.ollamaEndpoint) else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "content-type")
+        req.timeoutInterval = 60
+        let body: [String: Any] = [
+            "model": AICorrectionConfig.ollamaModel,
+            "stream": false,
+            "think": false,
+            "keep_alive": "30m",
+            "options": ["num_predict": 1],
+            "messages": [["role": "user", "content": "hi"]],
+        ]
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return }
+        req.httpBody = httpBody
+        URLSession.shared.dataTask(with: req) { _, _, _ in
+            NSLog("AI校正: Ollama 暖機請求已送出")
+        }.resume()
     }
 }

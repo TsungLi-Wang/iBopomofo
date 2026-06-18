@@ -37,6 +37,7 @@ enum AICorrectionConfig {
 
     // MARK: UserDefaults keys
     private static let kCodexPath = "AICorrectionCodexPath"
+    private static let kCodexModel = "AICorrectionCodexModel"
     private static let kClaudeEndpoint = "AICorrectionClaudeEndpoint"
     private static let kClaudeHaikuModel = "AICorrectionClaudeHaikuModel"
     private static let kClaudeOpusModel = "AICorrectionClaudeOpusModel"
@@ -45,6 +46,9 @@ enum AICorrectionConfig {
 
     // MARK: 預設值(= 原本寫死的值)
     static let defaultCodexPath = "/opt/homebrew/bin/codex"
+    // 實測:預設 gpt-5.5 約 5.7s;改 mini + 低推理約 4s。codex CLI 本身約 3s 固定開銷拿不掉,
+    // mini 是 codex 路徑能擠出的最快設定(minimal 推理會與強掛的 web_search 工具衝突,不可用)。
+    static let defaultCodexModel = "gpt-5.4-mini"
     static let defaultClaudeEndpoint = "https://api.anthropic.com/v1/messages"
     static let defaultClaudeHaikuModel = "claude-haiku-4-5"
     static let defaultClaudeOpusModel = "claude-opus-4-8"
@@ -59,6 +63,7 @@ enum AICorrectionConfig {
     }
 
     static var codexPath: String { value(kCodexPath, default: defaultCodexPath) }
+    static var codexModel: String { value(kCodexModel, default: defaultCodexModel) }
     static var claudeEndpoint: String { value(kClaudeEndpoint, default: defaultClaudeEndpoint) }
     static var claudeHaikuModel: String {
         value(kClaudeHaikuModel, default: defaultClaudeHaikuModel)

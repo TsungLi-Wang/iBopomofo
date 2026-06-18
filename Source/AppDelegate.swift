@@ -187,6 +187,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
 
         enableBopomofoFontAnnotationSupportMenuItemIfRelevantFontsInstalled()
 
+        // 若 AI 修正後端是本地 gemma,啟動時先暖機把模型載入記憶體,消掉首次冷啟動(~13s)。
+        McBopomofoInputMethodController.warmUpOllamaIfNeeded()
+
         checkForUpdate()
     }
 
