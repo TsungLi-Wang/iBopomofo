@@ -17,3 +17,5 @@ xcuserdata
 __pycache__
 codecov_comment.md
 DerivedData
+# Phase 2 打包輸出(dmg 太大,不入 git)
+/dist/
