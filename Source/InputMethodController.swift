@@ -381,9 +381,13 @@ class McBopomofoInputMethodController: IMKInputController {
     private func setAIBackend(_ index: Int) {
         McBopomofoInputMethodController.aiBackend = index
         UserDefaults.standard.synchronize()
-        // 切到本機後端就先把內嵌 server 暖起來;切走就收掉 server 釋放 ~2GB 記憶體。
+        // 切到本機後端:模型在就暖 server;不在就觸發首次下載(會跳通知)。切走就收掉 server 釋放 ~2GB 記憶體。
         if index == 3 {
-            LlamaServerManager.shared.startIfNeeded()
+            if LlamaServerManager.shared.isModelInstalled {
+                LlamaServerManager.shared.startIfNeeded()
+            } else {
+                LlamaServerManager.shared.ensureModelDownloaded()
+            }
         } else {
             LlamaServerManager.shared.stop()
         }
@@ -1042,6 +1046,12 @@ extension McBopomofoInputMethodController {
     func triggerAICorrection(guess: String, client: Any!) {
         let preceding = Self.precedingTextForAI(from: client, maxChars: 100)
         let backend = McBopomofoInputMethodController.aiBackend
+        // 本機 AI 但模型尚未下載:先觸發背景下載(會跳通知說明進度),這次修正先放棄。
+        // 模型一次性下載完成後即永久離線,之後的 ⌘Enter 就正常。
+        if backend == 3, !LlamaServerManager.shared.isModelInstalled {
+            LlamaServerManager.shared.ensureModelDownloaded()
+            return
+        }
         DispatchQueue.global(qos: .userInitiated).async {
             let corrected: String?
             switch backend {
@@ -1292,7 +1302,10 @@ extension McBopomofoInputMethodController {
     static func startLocalServerIfNeeded() {
         guard aiBackend == 3 else { return }
         DispatchQueue.global(qos: .utility).async {
-            LlamaServerManager.shared.startIfNeeded()
+            // 模型已裝才暖 server;未裝不在啟動時自動拉 2.9GB,等使用者首次 ⌘Enter 或選單選本機時再下載。
+            if LlamaServerManager.shared.isModelInstalled {
+                LlamaServerManager.shared.startIfNeeded()
+            }
         }
     }
 }

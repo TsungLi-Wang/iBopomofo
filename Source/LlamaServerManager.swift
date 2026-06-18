@@ -23,6 +23,7 @@
 
 import Cocoa
 import Darwin
+import NotifierUI
 
 // MARK: - 本機 AI 推理伺服器管理(內嵌 llama-server)
 //
@@ -44,6 +45,12 @@ final class LlamaServerManager: NSObject {
     private var process: Process?
     private var serverPort: Int = 0
 
+    // 模型下載狀態(由 ensureModelDownloaded 管理)。
+    private var downloadSession: URLSession?
+    private var downloadTask: URLSessionDownloadTask?
+    private var isDownloading = false
+    private var lastNotifiedDecile = -1
+
     private override init() { super.init() }
 
     // MARK: bundle 內 runtime 路徑
@@ -53,9 +60,35 @@ final class LlamaServerManager: NSObject {
         Bundle.main.url(forResource: "llama-server", withExtension: nil, subdirectory: "llama/bin")
     }
 
-    /// Contents/Resources/llama/models/model.gguf(打包的量化模型)。
-    private var modelURL: URL? {
-        Bundle.main.url(forResource: "model", withExtension: "gguf", subdirectory: "llama/models")
+    // MARK: 模型(不內嵌,首次使用時下載到 Application Support)
+    //
+    // 模型 2.9GB 內嵌會讓發佈 dmg 爆過 GitHub Release 的 2GiB 上限。改成「裝完不含模型,
+    // 首次使用本機 AI 時才從 HuggingFace 下載」——dmg 瘦到 ~25MB 可直接上 GitHub Release,
+    // 模型由 HF CDN 免費代管;下載一次後永久離線(與 Adobe 等「基本安裝包 + 按需下載大資產」同套路)。
+    // 存 Application Support(可寫、不在唯讀的 app bundle 內、不被 quarantine 連坐)。
+
+    /// HuggingFace 上的 Q5_K_M 模型(apache-2.0)。與 llama-runtime/fetch-runtime.sh 同一條。
+    static let modelDownloadURLString =
+        "https://huggingface.co/bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
+    /// 完整檔大小(bytes)。下載後核對,半途中斷的殘檔不會被當成已安裝。
+    static let modelExpectedSize: Int64 = 2_889_513_696
+
+    /// ~/Library/Application Support/McBopomofo/AIModel/
+    private var modelDirectoryURL: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("McBopomofo", isDirectory: true)
+            .appendingPathComponent("AIModel", isDirectory: true)
+    }
+
+    /// 下載後的模型檔位置。
+    private var modelFileURL: URL { modelDirectoryURL.appendingPathComponent("model.gguf") }
+
+    /// 模型是否已完整安裝(存在且大小符合,排除半途殘檔)。
+    @objc var isModelInstalled: Bool {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: modelFileURL.path),
+            let size = attrs[.size] as? Int64
+        else { return false }
+        return size == Self.modelExpectedSize
     }
 
     // MARK: 對外狀態
@@ -75,10 +108,15 @@ final class LlamaServerManager: NSObject {
         lock.lock()
         defer { lock.unlock() }
         guard process == nil else { return }
-        guard let bin = serverBinaryURL, let model = modelURL else {
-            NSLog("LlamaServer: 找不到 bundle 內的 llama-server 或模型,本機後端不可用")
+        guard let bin = serverBinaryURL else {
+            NSLog("LlamaServer: 找不到 bundle 內的 llama-server,本機後端不可用")
             return
         }
+        guard isModelInstalled else {
+            NSLog("LlamaServer: 模型尚未下載,先不啟動 server(請呼叫 ensureModelDownloaded)")
+            return
+        }
+        let model = modelFileURL
 
         killStaleInstances(modelPath: model.path)
 
@@ -120,6 +158,41 @@ final class LlamaServerManager: NSObject {
         }
         process = nil
         serverPort = 0
+    }
+
+    /// 首次使用本機 AI 時呼叫:若模型尚未安裝,從 HuggingFace 背景下載到 Application Support。
+    /// 冪等——已安裝或正在下載都直接返回。下載完成後自動 spawn server。
+    @objc func ensureModelDownloaded() {
+        lock.lock()
+        if isModelInstalled || isDownloading {
+            lock.unlock()
+            if isModelInstalled { startIfNeeded() }
+            return
+        }
+        isDownloading = true
+        lastNotifiedDecile = -1
+        lock.unlock()
+
+        guard let url = URL(string: Self.modelDownloadURLString) else {
+            lock.lock(); isDownloading = false; lock.unlock()
+            return
+        }
+        try? FileManager.default.createDirectory(
+            at: modelDirectoryURL, withIntermediateDirectories: true)
+
+        notify("首次使用本機 AI:正在下載模型(約 2.9GB,一次性),完成後即可永久離線使用…")
+
+        let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+        let task = session.downloadTask(with: url)
+        lock.lock()
+        downloadSession = session
+        downloadTask = task
+        lock.unlock()
+        task.resume()
+    }
+
+    fileprivate func notify(_ message: String) {
+        DispatchQueue.main.async { NotifierController.notify(message: message) }
     }
 
     /// 確保 server 已啟動且模型載入完成(/health=200)。回傳就緒的 base URL,逾時回 nil。
@@ -184,5 +257,77 @@ final class LlamaServerManager: NSObject {
         pkill.standardError = FileHandle.nullDevice
         try? pkill.run()
         pkill.waitUntilExit()
+    }
+}
+
+// MARK: - 模型下載進度/完成處理
+extension LlamaServerManager: URLSessionDownloadDelegate {
+
+    /// 下載進度:每跨過一個 10% 里程碑就通知一次,避免洗版。
+    func urlSession(
+        _ session: URLSession, downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        // HF 可能不回 Content-Length;沒有就退用已知的完整大小估算。
+        let total = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : Self.modelExpectedSize
+        guard total > 0 else { return }
+        let decile = Int(Double(totalBytesWritten) / Double(total) * 10)
+        lock.lock()
+        let shouldNotify = decile > lastNotifiedDecile && decile >= 1 && decile <= 9
+        if shouldNotify { lastNotifiedDecile = decile }
+        lock.unlock()
+        if shouldNotify {
+            notify("本機 AI 模型下載中… \(decile * 10)%")
+        }
+    }
+
+    /// 下載完成:搬到正式位置 + 核對大小。大小不符視為失敗,刪除殘檔。
+    func urlSession(
+        _ session: URLSession, downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        let fm = FileManager.default
+        let dest = modelFileURL
+        do {
+            try? fm.removeItem(at: dest)
+            try fm.moveItem(at: location, to: dest)
+        } catch {
+            NSLog("LlamaServer: 模型搬移失敗 — \(error.localizedDescription)")
+            notify("本機 AI 模型下載失敗(寫入錯誤),稍後可重試或改用雲端後端。")
+            finishDownload()
+            return
+        }
+        guard isModelInstalled else {
+            // 大小不符:可能下載被截斷。刪除殘檔,下次重新下載。
+            let got = ((try? fm.attributesOfItem(atPath: dest.path))?[.size] as? Int64) ?? 0
+            NSLog("LlamaServer: 模型大小不符(得 \(got),期望 \(Self.modelExpectedSize)),刪除殘檔")
+            try? fm.removeItem(at: dest)
+            notify("本機 AI 模型下載不完整,請重試(再按一次 ⌘Enter)。")
+            finishDownload()
+            return
+        }
+        notify("本機 AI 模型已就緒,正在載入…首次載入約需數秒。")
+        finishDownload()
+        startIfNeeded()
+    }
+
+    /// 下載出錯(網路中斷等)。
+    func urlSession(
+        _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
+    ) {
+        guard let error = error else { return }  // 成功的情形已在 didFinishDownloadingTo 處理
+        NSLog("LlamaServer: 模型下載失敗 — \(error.localizedDescription)")
+        notify("本機 AI 模型下載失敗(網路問題),請連網後再按一次 ⌘Enter 重試,或改用雲端後端。")
+        finishDownload()
+    }
+
+    private func finishDownload() {
+        lock.lock()
+        isDownloading = false
+        downloadTask = nil
+        downloadSession?.finishTasksAndInvalidate()
+        downloadSession = nil
+        lock.unlock()
     }
 }

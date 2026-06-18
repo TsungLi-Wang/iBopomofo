@@ -4,8 +4,9 @@
 打完一句注音後按 **⌘ + Return**,把注音引擎依字詞頻率猜出來的整句 + 游標前文丟給 LLM,
 回傳修正後的整句(挑對同音字、平翹舌、鄰鍵手誤),直接塞回輸入區。
 
-**預設後端是內嵌的本機 AI——裝了就能用,離線、免 API key、免裝任何外部程式。**
-模型與推理引擎(`llama-server` + Qwen3-4B-Instruct-2507)都打包在 app 內。
+**預設後端是本機 AI——離線、免 API key、免裝任何外部程式。**
+推理引擎(`llama-server`)打包在 app 內;模型(Qwen3-4B-Instruct-2507,~2.9GB)於**首次使用時自動下載一次**
+(讓安裝包維持輕量、可直接從 GitHub 下載),之後永久離線。
 
 > 本專案是 McBopomofo 的 fork,**不改動原本的注音引擎**,只在 input controller 層多掛一條 AI 修正路徑。
 > 原專案以 MIT 授權釋出,版權與授權見 [`LICENSE.txt`](LICENSE.txt) 與 [`README.markdown`](README.markdown)。
@@ -16,7 +17,7 @@
 - **多後端可即時切換**(輸入法選單 →「AI 修正模型」):
   | 後端 | 說明 |
   |---|---|
-  | **本機 AI(內建・離線)** | **預設**。內嵌 `llama-server` + Qwen3-4B-Instruct-2507,離線、免 API key、免裝任何外部程式;校正約 0.3 秒 |
+  | **本機 AI(內建・離線)** | **預設**。內嵌 `llama-server`;模型 Qwen3-4B-Instruct-2507 首次使用自動下載(~2.9GB,一次性),之後離線、免 API key、校正約 0.3 秒 |
   | Claude Haiku | Anthropic API,快;同音字等語意難題最準 |
   | Claude Opus | Anthropic API,最準 |
   | Codex CLI | 走本機 `codex` 執行檔,免 API key,較慢(需自行裝 codex) |
@@ -28,6 +29,9 @@
 
 1. 雙擊 dmg 內的 **`安裝.command`**(會自動清除 Gatekeeper quarantine 並複製到 `~/Library/Input Methods/`)。
 2. 到「系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯」加入「老王注音」。
+3. **首次**按 `⌘ + Return` 使用本機 AI 時,會自動下載模型(~2.9GB,需連網,一次性,會跳進度通知);
+   下載完成後即可使用並永久離線。不想等可先在選單切到 Claude 雲端後端(需自備 API key)。
+   模型存於 `~/Library/Application Support/McBopomofo/AIModel/`。
 
 > ⚠️ 本 app **未經 Apple 公證(notarize)**。下載來的 app 會被 macOS 標記 quarantine,
 > **若不清除,內嵌的 `llama-server` 一啟動就會被 Gatekeeper 直接 SIGKILL**(本機 AI 後端會無聲失效)。
@@ -55,17 +59,17 @@
 xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
 ```
 
-內嵌推理 runtime(`llama-server` + 模型)是大型二進位,不入 git;clone 後先補齊:
+推理 runtime(`llama-server` + dylib)不入 git;clone 後先補齊(**建置只需 `bin/`**,模型由 app 執行時自行下載):
 
 ```bash
-cd llama-runtime && ./fetch-runtime.sh   # 下載 llama-server 與 Qwen3-4B-2507 模型
+cd llama-runtime && ./fetch-runtime.sh   # 取得 llama-server 與 dylib(也會下載模型供本機開發測試,建置非必需)
 ```
 
-打包可發佈的 dmg:`./package-dmg.sh`。完整建置 / 安裝步驟同上游,見 [`README.markdown`](README.markdown) 與 `AGENTS.md`。
+打包可發佈的 dmg:`./package-dmg.sh`(模型不打包,dmg 僅約 18MB)。完整建置 / 安裝步驟同上游,見 [`README.markdown`](README.markdown) 與 `AGENTS.md`。
 
 ## 現況
 
-可日常使用。內嵌本機 AI 後端離線即時(校正約 0.3 秒),裝了就能用。
+可日常使用。本機 AI 後端離線即時(校正約 0.3 秒);首次使用一次性下載模型(~2.9GB)後永久離線。
 
 已知限制:**「在/再」這類純語意同音字**,所有本地小模型(含 7B)都不易判對——這是本地模型對雲端的先天差距。
 追求極準時可在選單切到 Claude 後端(需填 API key)。

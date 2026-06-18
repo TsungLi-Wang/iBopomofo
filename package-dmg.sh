@@ -34,7 +34,7 @@ killall McBopomofo 2>/dev/null || true
 rm -rf "$DEST"
 ditto "$APP" "$DEST"
 xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
-osascript -e 'display dialog "老王注音已安裝完成!\n\n請到 系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯,加入「老王注音」即可使用。\n\n首次按 ⌘Enter 觸發 AI 修正時,需等約 3 秒載入本機模型,之後約 0.2 秒。" buttons {"好的"} default button 1 with title "老王注音"'
+osascript -e 'display dialog "老王注音已安裝完成!\n\n請到 系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯,加入「老王注音」即可使用。\n\n首次使用本機 AI(按 ⌘Enter)會自動下載模型約 2.9GB(需連網、一次性),會跳進度通知;下載完成後永久離線,每次約 0.3 秒。不想等可先在選單切到 Claude 雲端後端。" buttons {"好的"} default button 1 with title "老王注音"'
 CMD
 chmod +x "$STAGE/安裝.command"
 
@@ -42,7 +42,7 @@ cat > "$STAGE/安裝說明.txt" <<'TXT'
 老王注音 — 安裝說明
 ====================
 
-老王注音內建離線 AI 整句修正(不必裝 Ollama、不必連網)。
+老王注音的離線 AI 整句修正(不必裝 Ollama)。模型於首次使用時自動下載一次,之後永久離線。
 因為沒有 Apple 付費憑證,從網路下載需要一個步驟解除 macOS 的安全隔離。
 
 【方法 A:一鍵安裝(推薦)】
@@ -59,8 +59,10 @@ cat > "$STAGE/安裝說明.txt" <<'TXT'
 
 【使用】
   切到老王注音,打注音、組字中(底線狀態)按 ⌘Enter,AI 會把整句修正。
-  首次約 3 秒(載入本機模型),之後約 0.2 秒。
-  選單「AI 修正模型」預設「本機 AI(內建・離線)」;也可切 Claude 等雲端後端。
+  ★ 首次使用本機 AI 會自動下載模型(約 2.9GB,需連網,一次性),期間會跳進度通知;
+     下載完成後即可使用,並永久離線,每次修正約 0.3 秒。
+  ★ 不想等下載,可先在選單「AI 修正模型」切到 Claude 等雲端後端(需自備 API key)。
+  選單「AI 修正模型」預設「本機 AI(內建・離線)」。
 TXT
 
 echo "[3/4] 產生 .dmg …"
