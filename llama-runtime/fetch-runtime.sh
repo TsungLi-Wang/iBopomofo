@@ -40,11 +40,12 @@ cp "$SRC/libllama-server-impl.dylib"     "$BIN/libllama-server-impl.dylib"
 xattr -dr com.apple.quarantine "$BIN" 2>/dev/null || true
 for f in "$BIN"/*.dylib "$BIN/llama-server"; do codesign --force -s - "$f"; done
 
-# === 3) 內嵌模型:Qwen3-4B-Instruct-2507 Q4_K_M(apache-2.0) ===
+# === 3) 內嵌模型:Qwen3-4B-Instruct-2507 Q5_K_M(apache-2.0) ===
 # Phase 0 對比實測勝出;授權乾淨可發佈。bartowski repo 有 Qwen_ 前綴。
-echo "[3/3] 下載模型 Qwen3-4B-Instruct-2507-Q4_K_M(~2.5GB) …"
+# 2026-06-18 由 Q4_K_M 升 Q5_K_M(~2.89GB):同模型純降量化誤差、零相容性風險。
+echo "[3/3] 下載模型 Qwen3-4B-Instruct-2507-Q5_K_M(~2.89GB) …"
 mkdir -p "$MODELS"
-MODEL_URL="https://huggingface.co/bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+MODEL_URL="https://huggingface.co/bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
 curl -L --fail -C - -o "$MODELS/model.gguf" "$MODEL_URL"
 
 echo "✅ 完成。bin/ 與 models/model.gguf 已就緒,可以 xcodebuild 了。"

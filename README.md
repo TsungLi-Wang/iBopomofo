@@ -4,22 +4,38 @@
 打完一句注音後按 **⌘ + Return**,把注音引擎依字詞頻率猜出來的整句 + 游標前文丟給 LLM,
 回傳修正後的整句(挑對同音字、平翹舌、鄰鍵手誤),直接塞回輸入區。
 
+**預設後端是內嵌的本機 AI——裝了就能用,離線、免 API key、免裝任何外部程式。**
+模型與推理引擎(`llama-server` + Qwen3-4B-Instruct-2507)都打包在 app 內。
+
 > 本專案是 McBopomofo 的 fork,**不改動原本的注音引擎**,只在 input controller 層多掛一條 AI 修正路徑。
 > 原專案以 MIT 授權釋出,版權與授權見 [`LICENSE.txt`](LICENSE.txt) 與 [`README.markdown`](README.markdown)。
 
 ## 功能
 
 - **熱鍵**:`⌘ + Return` 在有輸入內容時觸發整句修正。
-- **多後端可即時切換**(輸入法選單):
+- **多後端可即時切換**(輸入法選單 →「AI 修正模型」):
   | 後端 | 說明 |
   |---|---|
-  | Codex CLI | 走本機 `codex` 執行檔,免 API key,較慢 |
-  | Claude Haiku | Anthropic API,快 |
+  | **本機 AI(內建・離線)** | **預設**。內嵌 `llama-server` + Qwen3-4B-Instruct-2507,離線、免 API key、免裝任何外部程式;校正約 0.3 秒 |
+  | Claude Haiku | Anthropic API,快;同音字等語意難題最準 |
   | Claude Opus | Anthropic API,最準 |
-  | 本地 Ollama | 離線、免 API key,需自行裝 Ollama 與模型 |
+  | Codex CLI | 走本機 `codex` 執行檔,免 API key,較慢(需自行裝 codex) |
 - **針對注音的校正 prompt**:只修同音字 / 平翹舌 / 鄰鍵手誤,不改寫語氣、不增刪內容。
 
+## 下載與安裝
+
+到[發佈頁](https://github.com/TsungLi-Wang/laowang-bopomofo/releases)下載 `LaoWangBopomofo.dmg`,掛載後:
+
+1. 雙擊 dmg 內的 **`安裝.command`**(會自動清除 Gatekeeper quarantine 並複製到 `~/Library/Input Methods/`)。
+2. 到「系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯」加入「老王注音」。
+
+> ⚠️ 本 app **未經 Apple 公證(notarize)**。下載來的 app 會被 macOS 標記 quarantine,
+> **若不清除,內嵌的 `llama-server` 一啟動就會被 Gatekeeper 直接 SIGKILL**(本機 AI 後端會無聲失效)。
+> `安裝.command` 已代為處理;若想手動,見 dmg 內的「安裝說明.txt」(`xattr -dr com.apple.quarantine`)。
+
 ## 設定(所有金鑰與端點都從 UI 填,不必改原始碼)
+
+本機 AI 後端**不需要任何設定**。只有用 Claude / Codex 後端時才需要下列項目。
 
 輸入法選單 →「**AI 修正設定…**」開啟設定視窗,可填:
 
@@ -29,26 +45,33 @@
 | Claude 端點 | `https://api.anthropic.com/v1/messages` | 可改走代理 / 相容端點 |
 | Claude Haiku 模型 | `claude-haiku-4-5` | |
 | Claude Opus 模型 | `claude-opus-4-8` | |
-| Ollama 端點 | `http://localhost:11434/api/chat` | |
-| Ollama 模型 | `gemma4:12b` | 需先 `ollama pull` 對應模型 |
 | Codex 執行檔路徑 | `/opt/homebrew/bin/codex` | Intel Mac 或自訂安裝請改這裡 |
 
 留空的欄位會自動使用預設值。要用 Claude 後端,**只需填 API key**,其餘留空即可。
 
-## 建置
+## 從原始碼建置
 
 ```bash
 xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
 ```
 
-完整建置 / 安裝步驟同上游,見 [`README.markdown`](README.markdown) 與 `AGENTS.md`。
+內嵌推理 runtime(`llama-server` + 模型)是大型二進位,不入 git;clone 後先補齊:
+
+```bash
+cd llama-runtime && ./fetch-runtime.sh   # 下載 llama-server 與 Qwen3-4B-2507 模型
+```
+
+打包可發佈的 dmg:`./package-dmg.sh`。完整建置 / 安裝步驟同上游,見 [`README.markdown`](README.markdown) 與 `AGENTS.md`。
 
 ## 現況
 
-可用的原型(MVP)。已知限制:**延遲**——所有後端(含本地模型)觸發後到回填都還偏慢,
-拿來日常用體感仍不夠即時,屬待優化項目。
+可日常使用。內嵌本機 AI 後端離線即時(校正約 0.3 秒),裝了就能用。
+
+已知限制:**「在/再」這類純語意同音字**,所有本地小模型(含 7B)都不易判對——這是本地模型對雲端的先天差距。
+追求極準時可在選單切到 Claude 後端(需填 API key)。
 
 ## 致謝
 
 - 注音引擎與整套輸入法框架:[openvanilla/McBopomofo](https://github.com/openvanilla/McBopomofo)(MIT)
 - 前文擷取做法參考:[azooKey-Desktop](https://github.com/ensan-hcl/azooKey-Desktop)
+- 內嵌推理:[llama.cpp](https://github.com/ggml-org/llama.cpp)(MIT)、模型 [Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507)(Apache-2.0)
