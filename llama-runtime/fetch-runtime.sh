@@ -1,7 +1,10 @@
 #!/bin/bash
-# 重建內嵌推理 runtime(bin/ + models/)。這些是大型二進位產物,不入一般 git
-# (見 .gitignore);clone 後跑這支腳本即可補齊,讓「Copy Llama Runtime」build phase 有東西可複製。
-# Phase 2 會改用 Git LFS + Developer ID 簽章,屆時此腳本退役。
+# 重建本機推理 runtime(bin/ + models/)。這些是大型二進位產物,不入一般 git(見 .gitignore)。
+# clone 後跑這支腳本:
+#   - bin/    = 建置必需,「Copy Llama Runtime」build phase 會打包進 app。
+#   - models/ = 僅供本機開發測試;發佈版不打包模型,改由 app 首次使用時從 HF 下載
+#               (見 Source/LlamaServerManager.swift)。本機開發若想免於 app 端下載,
+#               可把這顆 cp 到 ~/Library/Application Support/McBopomofo/AIModel/model.gguf。
 #
 # 用法:  cd llama-runtime && ./fetch-runtime.sh
 set -euo pipefail
@@ -40,7 +43,8 @@ cp "$SRC/libllama-server-impl.dylib"     "$BIN/libllama-server-impl.dylib"
 xattr -dr com.apple.quarantine "$BIN" 2>/dev/null || true
 for f in "$BIN"/*.dylib "$BIN/llama-server"; do codesign --force -s - "$f"; done
 
-# === 3) 內嵌模型:Qwen3-4B-Instruct-2507 Q5_K_M(apache-2.0) ===
+# === 3) 本機模型:Qwen3-4B-Instruct-2507 Q5_K_M(apache-2.0) ===
+# 僅供本機開發測試;發佈版不打包,改由 app 首次使用時從同一條 HF URL 下載(見 LlamaServerManager)。
 # Phase 0 對比實測勝出;授權乾淨可發佈。bartowski repo 有 Qwen_ 前綴。
 # 2026-06-18 由 Q4_K_M 升 Q5_K_M(~2.89GB):同模型純降量化誤差、零相容性風險。
 echo "[3/3] 下載模型 Qwen3-4B-Instruct-2507-Q5_K_M(~2.89GB) …"

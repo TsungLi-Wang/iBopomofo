@@ -28,8 +28,9 @@ import NotifierUI
 // MARK: - 本機 AI 推理伺服器管理(內嵌 llama-server)
 //
 // 仿 azooKey 的 ConverterServer:把 llama.cpp 的 `llama-server`(OpenAI 相容 HTTP)
-// 連同精簡 dylib 與量化模型一起打包進 app(Contents/Resources/llama/),
-// app 啟動時自動 spawn、結束時 kill。使用者裝 app 就能離線用本機 AI 修正,
+// 連同精簡 dylib 打包進 app(Contents/Resources/llama/bin/),app 啟動時自動 spawn、結束時 kill。
+// 模型本身不打包(太大會讓 dmg 爆 GitHub 2GiB 上限),改由首次使用時下載到 Application Support
+// (見下方「模型」段)。使用者裝 app、首次下載一次後就能離線用本機 AI 修正,
 // 完全不必自己裝 Ollama、不必開任何外部伺服器。
 //
 // 設計重點:

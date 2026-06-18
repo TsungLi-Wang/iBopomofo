@@ -1223,8 +1223,8 @@ extension McBopomofoInputMethodController {
     }
 
     // 本機 AI 後端(內嵌 llama-server,OpenAI 相容 /v1/chat/completions)。
-    // 免 API key、離線可跑、免裝 Ollama——server 與 Qwen3-4B-2507 模型都打包在 app 內,
-    // 由 LlamaServerManager 自動啟動(見該檔)。
+    // 免 API key、離線可跑、免裝 Ollama——llama-server 打包在 app 內,Qwen3-4B-2507 模型則
+    // 首次使用時下載到 Application Support;均由 LlamaServerManager 管理(見該檔)。
     //
     // 跟 Codex/Claude 不同,這裡用「獨立的 system+user prompt」而非共用 aiPrompt:
     //  - 共用 aiPrompt 的 <<<R>>><<<E>>> 標記是為了 Codex CLI 會污染 log 才加的;
