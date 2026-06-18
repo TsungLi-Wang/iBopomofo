@@ -1256,9 +1256,18 @@ extension McBopomofoInputMethodController {
     }
 
     // 啟動暖機:若目前後端是本地 gemma,背景送一個極小請求把模型載進記憶體,
-    // 消掉首次使用的冷啟動(~13s)。fire-and-forget,連不上 Ollama 就靜默略過。
+    // 消掉首次使用的冷啟動(~13s)。開機時 Ollama 伺服器可能比輸入法晚就緒,
+    // 故延遲 5s 再送,失敗(連不上/非 200)就自動重試,最多 3 次、每次間隔 8s
+    // (涵蓋開機後約 21s 窗口)。fire-and-forget,全部失敗就靜默放棄(退回首次使用才載入)。
     static func warmUpOllamaIfNeeded() {
-        guard aiBackend == 3, let url = URL(string: AICorrectionConfig.ollamaEndpoint) else { return }
+        guard aiBackend == 3 else { return }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 5) {
+            attemptOllamaWarmUp(remaining: 3)
+        }
+    }
+
+    private static func attemptOllamaWarmUp(remaining: Int) {
+        guard remaining > 0, let url = URL(string: AICorrectionConfig.ollamaEndpoint) else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "content-type")
@@ -1273,8 +1282,16 @@ extension McBopomofoInputMethodController {
         ]
         guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return }
         req.httpBody = httpBody
-        URLSession.shared.dataTask(with: req) { _, _, _ in
-            NSLog("AI校正: Ollama 暖機請求已送出")
+        URLSession.shared.dataTask(with: req) { _, response, error in
+            let ok = error == nil && (response as? HTTPURLResponse)?.statusCode == 200
+            if ok {
+                NSLog("AI校正: Ollama 暖機成功(模型已載入)")
+            } else {
+                NSLog("AI校正: Ollama 暖機未就緒,剩餘重試 \(remaining - 1) 次")
+                DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 8) {
+                    attemptOllamaWarmUp(remaining: remaining - 1)
+                }
+            }
         }.resume()
     }
 }
