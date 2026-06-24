@@ -443,7 +443,7 @@
             <point key="canvasLocation" x="168" y="-350"/>
         </view>
         <view id="L2Q-IX-SXc">
-            <rect key="frame" x="0.0" y="0.0" width="436" height="309"/>
+            <rect key="frame" x="0.0" y="0.0" width="436" height="359"/>
             <autoresizingMask key="autoresizingMask"/>
             <subviews>
                 <textField focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="cks-CZ-m7g">
@@ -608,6 +608,32 @@
                         <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                     </textFieldCell>
                 </textField>
+                <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="AiL-zh-cHK">
+                    <rect key="frame" x="48" y="60" width="130" height="16"/>
+                    <textFieldCell key="cell" lineBreakMode="clipping" title="AI 候選建議：" id="AiL-zh-cEL">
+                        <font key="font" metaFont="system"/>
+                        <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                        <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                    </textFieldCell>
+                </textField>
+                <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="AiC-zh-cHK">
+                    <rect key="frame" x="184" y="60" width="216" height="16"/>
+                    <buttonCell key="cell" type="check" title="啟用 AI 候選建議" bezelStyle="regularSquare" imagePosition="left" state="on" inset="2" id="AiC-zh-cEL">
+                        <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                    <connections>
+                        <binding destination="32" name="value" keyPath="values.EnableAICandidateRerank" id="AiC-zh-bnd"/>
+                    </connections>
+                </button>
+                <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="AiH-zh-cHK">
+                    <rect key="frame" x="182" y="18" width="236" height="34"/>
+                    <textFieldCell key="cell" selectable="YES" title="啟用後，AI 會依前後文重排容易混淆的候選字；可按 Tab 採用建議。" id="AiH-zh-cEL">
+                        <font key="font" metaFont="smallSystem"/>
+                        <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                        <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                    </textFieldCell>
+                </textField>
             </subviews>
             <constraints>
                 <constraint firstItem="4tN-fq-xBR" firstAttribute="top" secondItem="mgj-mT-xZ6" secondAttribute="bottom" constant="55" id="0di-FM-1fJ"/>
@@ -616,7 +642,15 @@
                 <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="i1G-1y-ihS" secondAttribute="trailing" constant="20" symbolic="YES" id="55u-1x-Gza"/>
                 <constraint firstItem="QYl-R0-PIq" firstAttribute="leading" secondItem="L2Q-IX-SXc" secondAttribute="leading" constant="93" id="654-qr-PVz"/>
                 <constraint firstItem="NXk-oc-9oz" firstAttribute="leading" secondItem="i1G-1y-ihS" secondAttribute="leading" id="6dV-lR-fQW"/>
-                <constraint firstItem="BKA-Sp-uuc" firstAttribute="top" secondItem="L2Q-IX-SXc" secondAttribute="top" constant="217" id="8Kb-ij-Hfa"/>
+                <constraint firstItem="AiC-zh-cHK" firstAttribute="leading" secondItem="L2Q-IX-SXc" secondAttribute="leading" constant="184" id="AiC-zh-lea"/>
+                <constraint firstItem="AiC-zh-cHK" firstAttribute="top" secondItem="NXk-oc-9oz" secondAttribute="bottom" constant="8" symbolic="YES" id="AiC-zh-top"/>
+                <constraint firstAttribute="trailing" secondItem="AiC-zh-cHK" secondAttribute="trailing" constant="36" id="AiC-zh-tra"/>
+                <constraint firstItem="AiH-zh-cHK" firstAttribute="leading" secondItem="AiC-zh-cHK" secondAttribute="leading" id="AiH-zh-lea"/>
+                <constraint firstItem="AiH-zh-cHK" firstAttribute="top" secondItem="AiC-zh-cHK" secondAttribute="bottom" constant="4" id="AiH-zh-top"/>
+                <constraint firstItem="AiH-zh-cHK" firstAttribute="trailing" secondItem="2rb-rs-r3j" secondAttribute="trailing" id="AiH-zh-tra"/>
+                <constraint firstItem="AiL-zh-cHK" firstAttribute="leading" secondItem="L2Q-IX-SXc" secondAttribute="leading" constant="50" id="AiL-zh-lea"/>
+                <constraint firstItem="AiL-zh-cHK" firstAttribute="baseline" secondItem="AiC-zh-cHK" secondAttribute="baseline" id="AiL-zh-bas"/>
+                <constraint firstItem="BKA-Sp-uuc" firstAttribute="top" secondItem="AiH-zh-cHK" secondAttribute="bottom" constant="8" symbolic="YES" id="8Kb-ij-Hfa"/>
                 <constraint firstItem="PuO-lM-5fF" firstAttribute="top" secondItem="L2Q-IX-SXc" secondAttribute="top" constant="20" symbolic="YES" id="8RB-nU-gsQ"/>
                 <constraint firstItem="2rb-rs-r3j" firstAttribute="top" secondItem="k5j-ZT-zUm" secondAttribute="bottom" constant="8" symbolic="YES" id="9lq-9e-Rby"/>
                 <constraint firstAttribute="trailing" secondItem="mgj-mT-xZ6" secondAttribute="trailing" constant="256" id="Ag7-HU-Mrb"/>
@@ -643,7 +677,7 @@
                 <constraint firstItem="92X-g9-wsi" firstAttribute="top" secondItem="L2Q-IX-SXc" secondAttribute="top" constant="121" id="cWS-6m-SvY"/>
                 <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="QYl-R0-PIq" secondAttribute="trailing" constant="20" symbolic="YES" id="clc-vZ-J9H"/>
                 <constraint firstItem="PuO-lM-5fF" firstAttribute="leading" secondItem="L2Q-IX-SXc" secondAttribute="leading" constant="184" id="d9p-FP-caF"/>
-                <constraint firstItem="k5j-ZT-zUm" firstAttribute="top" secondItem="L2Q-IX-SXc" secondAttribute="top" constant="229" id="dQb-5B-fcp"/>
+                <constraint firstItem="k5j-ZT-zUm" firstAttribute="top" secondItem="BKA-Sp-uuc" secondAttribute="bottom" constant="11" id="dQb-5B-fcp"/>
                 <constraint firstItem="cks-CZ-m7g" firstAttribute="top" secondItem="L2Q-IX-SXc" secondAttribute="top" constant="20" symbolic="YES" id="ePS-tF-QAw"/>
                 <constraint firstItem="mgj-mT-xZ6" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="L2Q-IX-SXc" secondAttribute="leading" constant="20" symbolic="YES" id="eSK-x8-O9u"/>
                 <constraint firstItem="i1G-1y-ihS" firstAttribute="leading" secondItem="L2Q-IX-SXc" secondAttribute="leading" constant="184" id="g9S-38-Fym"/>

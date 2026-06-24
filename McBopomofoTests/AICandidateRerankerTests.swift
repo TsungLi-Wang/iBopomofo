@@ -28,16 +28,20 @@ import Testing
 @Suite("AICandidateReranker Tests")
 struct AICandidateRerankerTests {
 
-    @Test("rerankPrompt 會帶入前文、組字與候選")
+    @Test("rerankPrompt 會帶入前文、組字、候選與注音")
     func rerankPromptEmbedsContext() {
         let prompt = AICorrectionPrompt.rerankPrompt(context: .init(
             preceding: "水果店",
             composingBuffer: "我在去買",
-            candidates: ["我在去買", "我再去買"]))
+            candidates: [
+                .init(value: "我在去買", reading: "ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ"),
+                .init(value: "我再去買", reading: "ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ"),
+            ]))
 
         #expect(prompt.contains("前文:水果店"))
         #expect(prompt.contains("目前組字:我在去買"))
-        #expect(prompt.contains("候選:我在去買|我再去買"))
+        #expect(prompt.contains("我在去買(ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ)"))
+        #expect(prompt.contains("我再去買(ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ)"))
         #expect(prompt.contains("<<<R>>>"))
         #expect(prompt.contains("<<<E>>>"))
     }
@@ -46,6 +50,7 @@ struct AICandidateRerankerTests {
     func extractRerankSuggestionBetweenMarkers() {
         #expect(AICorrectionPrompt.extractRerankSuggestion(from: "<<<R>>>我再去買<<<E>>>") == "我再去買")
         #expect(AICorrectionPrompt.extractRerankSuggestion(from: "<<<R>>> 知道 <<<E>>>") == "知道")
+        #expect(AICorrectionPrompt.extractRerankSuggestion(from: "<<<R>>>怎麼<<<E>>>") == "怎麼")
     }
 
     @Test("extractRerankSuggestion 清理模型常見前綴")
@@ -54,21 +59,63 @@ struct AICandidateRerankerTests {
         #expect(AICorrectionPrompt.extractRerankSuggestion(from: "建議：知道") == "知道")
     }
 
-    @Test("extractRerankSuggestion 空結果回傳 nil")
-    func extractRerankSuggestionReturnsNilForEmptyResult() {
-        #expect(AICorrectionPrompt.extractRerankSuggestion(from: "<<<R>>>   <<<E>>>") == nil)
-        #expect(AICorrectionPrompt.extractRerankSuggestion(from: "「」") == nil)
+    @Test("hasReadingCollision 偵測同音候選")
+    func hasReadingCollisionDetectsHomophones() {
+        let entries = [
+            AICandidateRerankEntry(value: "在", reading: "ㄗㄞˋ"),
+            AICandidateRerankEntry(value: "再", reading: "ㄗㄞˋ"),
+            AICandidateRerankEntry(value: "載", reading: "ㄗㄞˋ"),
+        ]
+        #expect(AICandidateReranker.hasReadingCollision(in: entries))
     }
 
-    @Test("shouldTrigger 會尊重新偏好設定")
-    func shouldTriggerRespectsPreference() {
+    @Test("needsSemanticRerank 對水果店案例會觸發")
+    func needsSemanticRerankForFruitShopCase() {
+        let context = AICandidateRerankContext(
+            preceding: "水果店",
+            composingBuffer: "我在去買",
+            candidates: [
+                .init(value: "我在去買", reading: "ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ"),
+                .init(value: "我再去買", reading: "ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ"),
+            ])
+        #expect(AICandidateReranker.needsSemanticRerank(for: context))
+    }
+
+    @Test("needsSemanticRerank 對資道案例會觸發")
+    func needsSemanticRerankForZiDaoCase() {
+        let context = AICandidateRerankContext(
+            preceding: "",
+            composingBuffer: "資道",
+            candidates: [
+                .init(value: "資道", reading: "ㄗ ㄉㄠˋ"),
+                .init(value: "知道", reading: "ㄓ ㄉㄠˋ"),
+            ])
+        #expect(AICandidateReranker.needsSemanticRerank(for: context))
+    }
+
+    @Test("needsSemanticRerank 對無歧義單候選不觸發")
+    func needsSemanticRerankSkipsUnambiguousSingleCandidate() {
+        let context = AICandidateRerankContext(
+            preceding: "",
+            composingBuffer: "你好",
+            candidates: [.init(value: "你好", reading: "ㄋㄧˇ ㄏㄠˇ")])
+        #expect(!AICandidateReranker.needsSemanticRerank(for: context))
+    }
+
+    @Test("shouldSchedule 會尊重新偏好設定")
+    func shouldScheduleRespectsPreference() {
         let original = Preferences.enableAICandidateRerank
         Preferences.enableAICandidateRerank = false
         defer { Preferences.enableAICandidateRerank = original }
 
         let context = AICandidateRerankContext(
-            preceding: "水果店", composingBuffer: "我在去買", candidates: ["我在去買"])
-        #expect(AICandidateReranker.shouldTrigger(for: context) == false)
+            preceding: "水果店",
+            composingBuffer: "我在去買",
+            candidates: [
+                .init(value: "我在去買", reading: "ㄗㄞˋ"),
+                .init(value: "我再去買", reading: "ㄗㄞˋ"),
+            ])
+        #expect(!AICandidateReranker.shouldSchedule(for: context))
     }
 
     @Test("reorderedCandidates 會把命中的 AI 建議移到第一位")

@@ -63,10 +63,17 @@ enum AICorrectionPrompt {
         """
 
     static func rerankPrompt(context: AICandidateRerankContext) -> String {
-        """
+        let candidateLines = context.candidates.map { entry in
+            if entry.reading.isEmpty {
+                entry.value
+            } else {
+                "\(entry.value)(\(entry.reading))"
+            }
+        }.joined(separator: "|")
+        return """
         前文:\(context.preceding)
         目前組字:\(context.composingBuffer)
-        候選:\(context.candidates.joined(separator: "|"))
+        候選:\(candidateLines)
         請輸出最合適的目前組字或候選。若目前組字已正確,原樣輸出。
         輸出格式:<<<R>>>建議文字<<<E>>>
         """

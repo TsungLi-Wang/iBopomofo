@@ -16,18 +16,18 @@
 四層推理架構的實作進度：
 
 - L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。
-- L1 快速語義：已完成第一版候選語意重排 MVP。
+- L1 快速語義：Phase 1 MVP 已加強（debounce、暖機重試、候選同音觸發、選單與偏好設定開關）。
 - L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
 - L3 語音輸入：未實作。
 
 Phase 狀態：
 
-- Phase 1：部分完成。已做 ambiguity-triggered L1 候選重排：AI 命中候選清單時會把候選移到第一位；AI 回傳候選清單外結果時顯示 AI 建議並支援 Tab 採用。
+- Phase 1：約 85% 完成。L1 候選重排 + debounce + server 重試 + 選單/偏好設定開關已完成；完整 xcodebuild test 仍待做。
 - Phase 2：未做。自動 L2 尚未實作。
 - Phase 3：未做。語音輸入尚未實作。
 - Phase 4：未做。注音領域微調尚未實作。
 
-## 已完成的 Phase 1 MVP
+## 已完成的 Phase 1 工作
 
 關鍵檔案：
 
@@ -40,13 +40,14 @@ Phase 狀態：
 
 目前行為：
 
-1. 使用者開候選視窗後，controller 從 `InputState.ChoosingCandidate` 擷取 top candidates。
-2. 僅在 `Preferences.enableAICandidateRerank == true`、組字長度足夠、且文字含歧義字時觸發 L1。
-3. 本機模型已安裝但 server 未 ready 時，背景啟動 server 並提示一次，不阻塞候選視窗。
-4. server ready 時，背景呼叫本機 llama-server `/v1/chat/completions`。
+1. 使用者開候選視窗後，controller 從 `InputState.ChoosingCandidate` 擷取 top candidates（含注音）。
+2. `needsSemanticRerank` 會在候選同音、多候選差異、或歧義字 + 多候選時觸發 L1。
+3. 150ms debounce 後才送本機 server 請求。
+4. 模型已安裝但 server 未 ready 時，背景啟動 server 並每 2 秒重試（最多 6 次）。
 5. AI 結果回到主執行緒後，檢查 serial 與 composing buffer，過期結果丟棄。
-6. 如果 AI 建議命中候選清單，重建 `InputState.ChoosingCandidate` 並把該候選移到第一位。
-7. 如果 AI 建議不在候選清單內，顯示 `AI Suggestion: ... (Tab)`，使用者按 Tab 採用。
+6. AI 建議命中候選清單時，重建 state 並把候選移到第一位。
+7. AI 建議不在候選清單內時，顯示 tooltip「AI 建議：… (Tab)」，Tab 採用。
+8. 輸入法選單與偏好設定「進階」分頁可切換「AI 候選建議」。
 
 ## 開發約束
 
@@ -65,32 +66,24 @@ Phase 狀態：
 
 ## 測試狀態
 
-已驗證：
+單元測試（`AICandidateRerankerTests`）涵蓋 prompt、解析、觸發條件、重排邏輯。
+
+建置：
 
 ```bash
 xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
-xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build-for-testing
 ```
 
-兩者皆成功。
-
-未完整驗證：
-
-```bash
-xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug test
-```
-
-完整 test 曾卡在 macOS app test runner，未取得完整 pass/fail。不可宣稱完整測試全通過。
+完整 `xcodebuild test` 在 IMK test runner 環境可能卡住，不可宣稱全測通過。
 
 ## 下一步建議
 
 優先順序：
 
-1. 讓 L1 觸發條件更準確：目前歧義偵測是保守字集，可加入候選差異與 reading 判斷。
-2. 改善 L1 prompt golden tests：加入「水果店 + 我在去買」、「資道」、「怎摸」等案例的解析與重排驗證。
-3. 做可控的 L1 開關 UI：目前只有 `Preferences.enableAICandidateRerank`，尚未掛到偏好設定視窗。
-4. 解決完整 `xcodebuild test` 卡住問題，建立穩定 CI 驗證方式。
-5. Phase 2 才開始做自動 L2，不要與 Phase 1 混在同一個 PR。
+1. 解決完整 `xcodebuild test` 卡住問題，或抽出純邏輯測試 target。
+2. 觀察 L1 實際命中率，必要時調整 `hasPhraseAlternativeCollision` 避免過度觸發。
+3. Phase 2：句末自動 L2（獨立 PR）。
+4. Phase 3：語音輸入（獨立 PR）。
 
 ## 後續 AI 回覆使用者時
 
@@ -101,4 +94,4 @@ xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug
 - L2 是按快捷鍵後整句修正。
 - L3 是語音輸入。
 
-不要只說「已完成 Phase 1-4」。目前只有 Phase 1 的 MVP 部分完成。
+不要只說「已完成 Phase 1-4」。目前 Phase 1 約 85%，Phase 2-4 未開始。

@@ -460,6 +460,11 @@ extension Preferences {
 
     @UserDefault(key: kEnableAICandidateRerankKey, defaultValue: true)
     @objc static var enableAICandidateRerank: Bool
+
+    @objc static func toggleAICandidateRerankEnabled() -> Bool {
+        enableAICandidateRerank = !enableAICandidateRerank
+        return enableAICandidateRerank
+    }
 }
 
 @objc enum ControlEnterOutput: Int {
@@ -671,6 +676,9 @@ extension Preferences {
             "  - Beep Upon Errors: \(Preferences.beepUponInputError ? "Enabled" : "Disabled")")
         lines.append(
             "  - Moving Cursor When Choosing Candidates: \(Preferences.allowMovingCursorWhenChoosingCandidates)"
+        )
+        lines.append(
+            "  - AI Candidate Suggestions: \(Preferences.enableAICandidateRerank ? "Enabled" : "Disabled")"
         )
         return lines.joined(separator: "\n")
     }

@@ -24,23 +24,89 @@
 import Foundation
 import OpenCCBridge
 
+struct AICandidateRerankEntry: Equatable {
+    let value: String
+    let reading: String
+}
+
 struct AICandidateRerankContext: Equatable {
     let preceding: String
     let composingBuffer: String
-    let candidates: [String]
+    let candidates: [AICandidateRerankEntry]
 }
 
 enum AICandidateReranker {
 
     static let maxCandidateCount = 8
+    static let debounceInterval: TimeInterval = 0.15
+    static let serverRetryInterval: TimeInterval = 2.0
+    static let maxServerRetryAttempts = 6
 
-    static func shouldTrigger(for context: AICandidateRerankContext) -> Bool {
+    private static let ambiguousCharacters = Set("在再的得地做作知資麼摸裡裏裡哪那裡这這")
+
+    /// 是否值得啟動 L1（不檢查 server 就緒；暖機重試由 controller 處理）。
+    static func shouldSchedule(for context: AICandidateRerankContext) -> Bool {
         guard Preferences.enableAICandidateRerank else { return false }
         guard context.composingBuffer.count >= 2 else { return false }
-        guard LocalServerAICorrector.isModelInstalled, LocalServerAICorrector.isReady else {
-            return false
+        guard LocalServerAICorrector.isModelInstalled else { return false }
+        return needsSemanticRerank(for: context)
+    }
+
+    /// 可立即呼叫本機 server 執行 L1。
+    static func canInvokeLocalModel() -> Bool {
+        LocalServerAICorrector.isModelInstalled && LocalServerAICorrector.isReady
+    }
+
+    static func needsSemanticRerank(for context: AICandidateRerankContext) -> Bool {
+        let entries = Array(context.candidates.prefix(maxCandidateCount))
+        guard !entries.isEmpty else { return false }
+
+        if hasReadingCollision(in: entries) {
+            return true
         }
-        return containsAmbiguity(in: context.composingBuffer)
+
+        if hasPhraseAlternativeCollision(in: entries) {
+            return true
+        }
+
+        if containsAmbiguity(in: context.composingBuffer), entries.count >= 2 {
+            let distinctValues = Set(entries.map(\.value))
+            if distinctValues.count >= 2 {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    static func hasReadingCollision(in entries: [AICandidateRerankEntry]) -> Bool {
+        var readingToValues: [String: Set<String>] = [:]
+        for entry in entries {
+            let reading = entry.reading.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !reading.isEmpty else { continue }
+            readingToValues[reading, default: []].insert(entry.value)
+        }
+        return readingToValues.values.contains { $0.count >= 2 }
+    }
+
+    static func hasPhraseAlternativeCollision(in entries: [AICandidateRerankEntry]) -> Bool {
+        guard entries.count >= 2 else { return false }
+        let values = entries.map(\.value)
+        guard Set(values).count >= 2 else { return false }
+
+        for index in 0..<(values.count - 1) {
+            for next in (index + 1)..<values.count {
+                if values[index] == values[next] { continue }
+                if values[index].count >= 2, values[next].count >= 2 {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    static func containsAmbiguity(in text: String) -> Bool {
+        text.contains { ambiguousCharacters.contains($0) }
     }
 
     static func rerank(context: AICandidateRerankContext) -> Result<String, AICorrectionError> {
@@ -123,10 +189,5 @@ enum AICandidateReranker {
         let selected = reordered.remove(at: selectedIndex)
         reordered.insert(selected, at: 0)
         return reordered
-    }
-
-    static func containsAmbiguity(in text: String) -> Bool {
-        let ambiguousCharacters = Set("在再的得地做作知資麼摸")
-        return text.contains { ambiguousCharacters.contains($0) }
     }
 }

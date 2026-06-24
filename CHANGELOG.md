@@ -4,6 +4,20 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
+## [Unreleased]
+
+### 新增
+
+- L1 候選語意重排：150ms debounce、本機 server 暖機後自動重試（最多 6 次）。
+- 觸發條件改為候選同音（相同注音、不同字）+ 歧義字 + 多候選差異判斷。
+- 輸入法選單新增「AI 候選建議」開關。
+- 偏好設定「進階」分頁新增「AI 候選建議」checkbox（與選單開關同步）。
+
+### 變更
+
+- `AICandidateRerankContext` 改為帶入候選注音；rerank prompt 會附上 `(注音)` 輔助判斷。
+- L1 測試補強：水果店、資道、同音候選等 golden case。
+
 ## [v1.4] - 2026-06-24
 
 ### 變更

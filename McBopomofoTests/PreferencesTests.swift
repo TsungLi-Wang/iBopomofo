@@ -200,6 +200,15 @@ final class PreferencesTests {
         #expect(Preferences.chineseConversionStyle == .model)
     }
 
+    @Test("Test AI candidate rerank toggle")
+    func testEnableAICandidateRerank() {
+        #expect(Preferences.enableAICandidateRerank == true)
+        Preferences.enableAICandidateRerank = false
+        #expect(Preferences.enableAICandidateRerank == false)
+        _ = Preferences.toggleAICandidateRerankEnabled()
+        #expect(Preferences.enableAICandidateRerank == true)
+    }
+
 }
 
 final class CandidateKeyValidationTests {

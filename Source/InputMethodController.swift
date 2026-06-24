@@ -59,6 +59,8 @@ class McBopomofoInputMethodController: IMKInputController {
     var aiCandidateRequestSerial: UInt = 0
     var aiCandidateDidNotifyLocalServerLoading = false
     var aiCandidateRerankedValue: String?
+    var aiCandidateRerankWorkItem: DispatchWorkItem?
+    var aiCandidateServerRetryWorkItem: DispatchWorkItem?
 
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
@@ -88,6 +90,11 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: NSLocalizedString("Associated Phrases", comment: ""),
             action: #selector(toggleAssociatedPhrasesEnabled(_:)), keyEquivalent: "")
         associatedPhrasesItem.state = Preferences.associatedPhrasesEnabled.state
+
+        let aiCandidateRerankItem = menu.addItem(
+            withTitle: NSLocalizedString("AI Candidate Suggestions", comment: ""),
+            action: #selector(toggleAICandidateRerankEnabled(_:)), keyEquivalent: "")
+        aiCandidateRerankItem.state = Preferences.enableAICandidateRerank.state
 
         // AI 整句修正模型切換器(⌘↵ 觸發時使用;可隨時切換)
         menu.addItem(NSMenuItem.separator())
@@ -364,6 +371,10 @@ class McBopomofoInputMethodController: IMKInputController {
         _ = Preferences.toggleAssociatedPhrasesEnabled()
     }
 
+    @objc func toggleAICandidateRerankEnabled(_ sender: Any?) {
+        _ = Preferences.toggleAICandidateRerankEnabled()
+    }
+
     @objc func toggleBopomofoFontAnnotationSupport(_ sender: Any?) {
         let enabled = Preferences.toggleBopomofoFontAnnotationSupportEnabled()
         NotifierController.notify(
@@ -485,16 +496,13 @@ extension McBopomofoInputMethodController {
             handle(state: newState, previous: previous, client: client)
             state = .Empty()
         case let newState as InputState.Empty:
-            aiCandidateSuggestion = nil
-            aiCandidateRerankedValue = nil
+            resetAICandidateAssistState()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.EmptyIgnoringPreviousState:
-            aiCandidateSuggestion = nil
-            aiCandidateRerankedValue = nil
+            resetAICandidateAssistState()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Committing:
-            aiCandidateSuggestion = nil
-            aiCandidateRerankedValue = nil
+            resetAICandidateAssistState()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Inputting:
             handle(state: newState, previous: previous, client: client)

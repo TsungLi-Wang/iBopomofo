@@ -182,6 +182,7 @@
 
 /* Used in the candidate window tooltip when L1 AI suggests a better composing buffer. */
 "AI Suggestion: %@ (Tab)" = "AI 建議：%@ (Tab)";
+"AI Candidate Suggestions" = "AI 候選建議";
 
 /* Used in the notification when L1 AI needs the local server to finish starting. */
 "Local AI candidate suggestions are loading" = "本機 AI 候選建議載入中";
