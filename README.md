@@ -75,29 +75,7 @@
 
 ## 版本更新歷程
 
-### v1.1 - 本機 AI 發佈流程穩定版
-
-- 本機 AI server 加入就緒狀態與暖機提示，避免模型載入中時靜默失敗。
-- AI 修正加入逾時保護，避免 Claude、本機 server 或 Codex 卡住輸入流程。
-- AI 修正結果回來時會檢查目前組字內容，避免過期結果覆蓋使用者新的輸入。
-- 首次下載模型後加入 SHA256 完整性驗證。
-- DMG 打包腳本可直接執行，會先 Release build 再產出 `dist/LaoWangBopomofo.dmg`。
-- 修正命令列 build 的 SwiftPM package 依賴解析。
-
-### v1.0 - 注音 + 離線 AI 整句修正
-
-- 首次正式 GitHub Release。
-- 發佈包改為不內含模型，DMG 從約 2.9GB 降到約 18-19MB。
-- 本機 AI 模型改為首次使用時下載，下載後可離線使用。
-- 內嵌 `llama-server` runtime，使用者不需要自行安裝 Ollama。
-- DMG 內附 `安裝.command` 與安裝說明，處理未 notarize app 的 quarantine 問題。
-
-### 早期開發里程碑
-
-- 接入 AI 整句修正熱鍵。
-- 加入 Claude、Codex、本機推理後端。
-- 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
-- 建立自架 DMG 打包流程。
+完整版本變更請見 [CHANGELOG.md](CHANGELOG.md)。正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-bopomofo/releases)。
 
 ## 從原始碼建置
 
