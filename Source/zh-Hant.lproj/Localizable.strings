@@ -179,3 +179,9 @@
 "Cannot add new phrases when Bopomofo annotation is on" = "注音字型破音字標記模式開啟時，不能增加新詞";
 
 "Add Variant Annotation (Need BPMF IVS Font Support)" = "加上破音字標記 (需要使用注音字體)";
+
+/* Used in the candidate window tooltip when L1 AI suggests a better composing buffer. */
+"AI Suggestion: %@ (Tab)" = "AI 建議：%@ (Tab)";
+
+/* Used in the notification when L1 AI needs the local server to finish starting. */
+"Local AI candidate suggestions are loading" = "本機 AI 候選建議載入中";

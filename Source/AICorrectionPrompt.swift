@@ -56,6 +56,22 @@ enum AICorrectionPrompt {
         不要接續造句、不要回答句子內容。若整句已正確就原樣回覆。
         """
 
+    static let rerankSystemPrompt = """
+        你是中文注音輸入法的即時候選語意判斷器。請依前文、目前組字與候選,判斷使用者最可能想輸入的\
+        繁體中文。只修正注音輸入常見錯字:同音字、平翹舌捲舌不分、鄰鍵手誤。不要改寫語氣,不要增刪內容。
+        嚴格規則:只把建議文字放在 <<<R>>> 與 <<<E>>> 中間,不要解釋。
+        """
+
+    static func rerankPrompt(context: AICandidateRerankContext) -> String {
+        """
+        前文:\(context.preceding)
+        目前組字:\(context.composingBuffer)
+        候選:\(context.candidates.joined(separator: "|"))
+        請輸出最合適的目前組字或候選。若目前組字已正確,原樣輸出。
+        輸出格式:<<<R>>>建議文字<<<E>>>
+        """
+    }
+
     static func extractTaggedResult(from raw: String) -> String? {
         if let r = raw.range(of: "<<<R>>>"), let e = raw.range(of: "<<<E>>>"),
             r.upperBound <= e.lowerBound
@@ -74,6 +90,19 @@ enum AICorrectionPrompt {
         for label in ["待修正:", "待修正：", "前文:", "前文："] {
             if let r = cleaned.range(of: label, options: .backwards) {
                 cleaned = String(cleaned[r.upperBound...])
+            }
+        }
+        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "「」\"'。 "))
+        return cleaned.isEmpty ? nil : cleaned
+    }
+
+    static func extractRerankSuggestion(from raw: String) -> String? {
+        let tagged = extractTaggedResult(from: raw) ?? raw
+        var cleaned = tagged.trimmingCharacters(in: .whitespacesAndNewlines)
+        for label in ["AI建議:", "AI建議：", "建議:", "建議："] {
+            if cleaned.hasPrefix(label) {
+                cleaned = String(cleaned.dropFirst(label.count))
             }
         }
         cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)

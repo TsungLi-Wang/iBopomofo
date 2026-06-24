@@ -56,6 +56,7 @@ private let kRepeatedPunctuationToSelectCandidateEnabledKey =
     "RepeatedPunctuationToSelectCandidateEnabled"
 private let kUseCustomUserPhraseLocation = "UseCustomUserPhraseLocation"
 private let kCustomUserPhraseLocation = "CustomUserPhraseLocation"
+private let kEnableAICandidateRerankKey = "EnableAICandidateRerank"
 
 private let kDefaultCandidateListTextSize: CGFloat = 16
 private let kMinCandidateListTextSize: CGFloat = 12
@@ -235,6 +236,7 @@ class Preferences: NSObject {
             kRepeatedPunctuationToSelectCandidateEnabledKey,
             kUseCustomUserPhraseLocation,
             kCustomUserPhraseLocation,
+            kEnableAICandidateRerankKey,
         ]
     }
 
@@ -266,6 +268,7 @@ class Preferences: NSObject {
         Preferences.enableUserPhrasesInPlainBopomofo = Preferences.enableUserPhrasesInPlainBopomofo
         Preferences.allowMovingCursorWhenChoosingCandidates =
             Preferences.allowMovingCursorWhenChoosingCandidates
+        Preferences.enableAICandidateRerank = Preferences.enableAICandidateRerank
     }
 
     @EnumUserDefault(key: kKeyboardLayoutPreferenceKey, defaultValue: KeyboardLayout.standard)
@@ -454,6 +457,9 @@ extension Preferences {
 
     @UserDefault(key: kRepeatedPunctuationToSelectCandidateEnabledKey, defaultValue: false)
     @objc static var repeatedPunctuationToSelectCandidateEnabled: Bool
+
+    @UserDefault(key: kEnableAICandidateRerankKey, defaultValue: true)
+    @objc static var enableAICandidateRerank: Bool
 }
 
 @objc enum ControlEnterOutput: Int {

@@ -86,7 +86,7 @@ extension McBopomofoInputMethodController {
         }
     }
 
-    private func applyAICorrectionResult(
+    func applyAICorrectionResult(
         _ outcome: Result<String, AICorrectionError>, originalGuess guess: String, client: Any!
     ) {
         guard let currentInputting = state as? InputState.Inputting,
@@ -118,7 +118,7 @@ extension McBopomofoInputMethodController {
     }
 
     // 移植 azooKey 的做法:用 IMKTextInput 讀游標前已上字的前文。
-    private static func precedingTextForAI(from client: Any!, maxChars: Int) -> String {
+    static func precedingTextForAI(from client: Any!, maxChars: Int) -> String {
         guard let imk = client as? IMKTextInput else { return "" }
         let cursor = imk.selectedRange().location
         guard cursor != NSNotFound, cursor > 0 else { return "" }

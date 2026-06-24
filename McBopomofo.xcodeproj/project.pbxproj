@@ -74,6 +74,8 @@
 		FACE0011FACE0011FACE0011 /* InputMethodController+AICorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0010FACE0010FACE0010 /* InputMethodController+AICorrection.swift */; };
 		FACE0013FACE0013FACE0013 /* AICorrectionPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0012FACE0012FACE0012 /* AICorrectionPrompt.swift */; };
 		FACE0021FACE0021FACE0021 /* AICorrectionError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0020FACE0020FACE0020 /* AICorrectionError.swift */; };
+		FACE0031FACE0031FACE0031 /* AICandidateReranker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0030FACE0030FACE0030 /* AICandidateReranker.swift */; };
+		FACE0033FACE0033FACE0033 /* InputMethodController+AIRerank.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0032FACE0032FACE0032 /* InputMethodController+AIRerank.swift */; };
 		FACE0015FACE0015FACE0015 /* CodexAICorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */; };
 		FACE0017FACE0017FACE0017 /* ClaudeAICorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */; };
 		FACE0019FACE0019FACE0019 /* LocalServerAICorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */; };
@@ -90,6 +92,7 @@
 		D47F7DD0278C0897002F9DD7 /* NonModalAlertWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47F7DCF278C0897002F9DD7 /* NonModalAlertWindowController.swift */; };
 		D47F7DD3278C1263002F9DD7 /* UserOverrideModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D47F7DD2278C1263002F9DD7 /* UserOverrideModel.cpp */; };
 		AC00DE0000000000000000F2 /* AICorrectionPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00DE0000000000000000F1 /* AICorrectionPromptTests.swift */; };
+		AC00DE0000000000000000F4 /* AICandidateRerankerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00DE0000000000000000F3 /* AICandidateRerankerTests.swift */; };
 		D485D3B92796A8A000657FF3 /* PreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D485D3B82796A8A000657FF3 /* PreferencesTests.swift */; };
 		D485D3C02796CE3200657FF3 /* VersionUpdateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D485D3BF2796CE3200657FF3 /* VersionUpdateTests.swift */; };
 		D48F853E2EACDB6C00C2FDAB /* RomanNumbers in Frameworks */ = {isa = PBXBuildFile; productRef = D48F853D2EACDB6C00C2FDAB /* RomanNumbers */; };
@@ -232,6 +235,8 @@
 		FACE0010FACE0010FACE0010 /* InputMethodController+AICorrection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+AICorrection.swift"; sourceTree = "<group>"; };
 		FACE0012FACE0012FACE0012 /* AICorrectionPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrectionPrompt.swift; sourceTree = "<group>"; };
 		FACE0020FACE0020FACE0020 /* AICorrectionError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrectionError.swift; sourceTree = "<group>"; };
+		FACE0030FACE0030FACE0030 /* AICandidateReranker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICandidateReranker.swift; sourceTree = "<group>"; };
+		FACE0032FACE0032FACE0032 /* InputMethodController+AIRerank.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+AIRerank.swift"; sourceTree = "<group>"; };
 		FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAICorrector.swift; sourceTree = "<group>"; };
 		FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAICorrector.swift; sourceTree = "<group>"; };
 		FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServerAICorrector.swift; sourceTree = "<group>"; };
@@ -250,6 +255,7 @@
 		D47F7DD2278C1263002F9DD7 /* UserOverrideModel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = UserOverrideModel.cpp; sourceTree = "<group>"; };
 		D485D3B62796A8A000657FF3 /* McBopomofoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = McBopomofoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC00DE0000000000000000F1 /* AICorrectionPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrectionPromptTests.swift; sourceTree = "<group>"; };
+		AC00DE0000000000000000F3 /* AICandidateRerankerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICandidateRerankerTests.swift; sourceTree = "<group>"; };
 		D485D3B82796A8A000657FF3 /* PreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesTests.swift; sourceTree = "<group>"; };
 		D485D3BF2796CE3200657FF3 /* VersionUpdateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionUpdateTests.swift; sourceTree = "<group>"; };
 		D48F853C2EACCDE900C2FDAB /* RomanNumbers */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = RomanNumbers; path = Packages/RomanNumbers; sourceTree = "<group>"; };
@@ -351,6 +357,7 @@
 				6A0D4F4715FC0EB900ABF4B3 /* Resources */,
 				D4A13D5927A59D5C003BE359 /* InputMethodController.swift */,
 				FACE0010FACE0010FACE0010 /* InputMethodController+AICorrection.swift */,
+				FACE0032FACE0032FACE0032 /* InputMethodController+AIRerank.swift */,
 				D43737C82DF9C35100D9707C /* InputMethodController+KeyHandlerDelegate.swift */,
 				D43737CA2DF9C48200D9707C /* InputMethodController+CandidateControllerDelegate.swift */,
 				D41355D6278D7409005E5CBD /* LanguageModelManager.h */,
@@ -367,6 +374,7 @@
 				FACE0001FACE0001FACE0001 /* AICorrection.swift */,
 				FACE0012FACE0012FACE0012 /* AICorrectionPrompt.swift */,
 				FACE0020FACE0020FACE0020 /* AICorrectionError.swift */,
+				FACE0030FACE0030FACE0030 /* AICandidateReranker.swift */,
 				FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */,
 				FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */,
 				FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */,
@@ -538,6 +546,7 @@
 		D485D3B72796A8A000657FF3 /* McBopomofoTests */ = {
 			isa = PBXGroup;
 			children = (
+				AC00DE0000000000000000F3 /* AICandidateRerankerTests.swift */,
 				AC00DE0000000000000000F1 /* AICorrectionPromptTests.swift */,
 				D436E23E2CD20B9E00C6155D /* AssociatedPhrasesTests.swift */,
 				D47D73A327A5D43900255A50 /* KeyHandlerBopomofoTests.swift */,
@@ -826,8 +835,10 @@
 				D4A13D5A27A59F0B003BE359 /* InputMethodController.swift in Sources */,
 				FACE0002FACE0002FACE0002 /* AICorrection.swift in Sources */,
 				FACE0011FACE0011FACE0011 /* InputMethodController+AICorrection.swift in Sources */,
+				FACE0033FACE0033FACE0033 /* InputMethodController+AIRerank.swift in Sources */,
 				FACE0013FACE0013FACE0013 /* AICorrectionPrompt.swift in Sources */,
 				FACE0021FACE0021FACE0021 /* AICorrectionError.swift in Sources */,
+				FACE0031FACE0031FACE0031 /* AICandidateReranker.swift in Sources */,
 				FACE0015FACE0015FACE0015 /* CodexAICorrector.swift in Sources */,
 				FACE0017FACE0017FACE0017 /* ClaudeAICorrector.swift in Sources */,
 				FACE0019FACE0019FACE0019 /* LocalServerAICorrector.swift in Sources */,
@@ -872,6 +883,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D4A8E43627A9E982002F7A07 /* KeyHandlerPlainBopomofoTests.swift in Sources */,
+				AC00DE0000000000000000F4 /* AICandidateRerankerTests.swift in Sources */,
 				AC00DE0000000000000000F2 /* AICorrectionPromptTests.swift in Sources */,
 				D436E23F2CD20BA700C6155D /* AssociatedPhrasesTests.swift in Sources */,
 				D449AD5F2B393C00000C5812 /* InputMacroTests.swift in Sources */,

@@ -55,6 +55,10 @@ class McBopomofoInputMethodController: IMKInputController {
     var keyHandler: KeyHandler = KeyHandler()
     var state: InputState = InputState.Empty()
     lazy var charInfo: SystemCharacterInfo? = try? SystemCharacterInfo()
+    var aiCandidateSuggestion: AICandidateSuggestion?
+    var aiCandidateRequestSerial: UInt = 0
+    var aiCandidateDidNotifyLocalServerLoading = false
+    var aiCandidateRerankedValue: String?
 
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
@@ -268,6 +272,13 @@ class McBopomofoInputMethodController: IMKInputController {
             return true
         }
 
+        if event.keyCode == 48,
+            acceptAICandidateSuggestionFromCandidateWindowIfAvailable(client: client)
+                || acceptAICandidateSuggestionIfAvailable(client: client)
+        {
+            return true
+        }
+
         if event.type == .flagsChanged {
             if state is InputState.Empty {
                 return false
@@ -474,10 +485,16 @@ extension McBopomofoInputMethodController {
             handle(state: newState, previous: previous, client: client)
             state = .Empty()
         case let newState as InputState.Empty:
+            aiCandidateSuggestion = nil
+            aiCandidateRerankedValue = nil
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.EmptyIgnoringPreviousState:
+            aiCandidateSuggestion = nil
+            aiCandidateRerankedValue = nil
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Committing:
+            aiCandidateSuggestion = nil
+            aiCandidateRerankedValue = nil
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Inputting:
             handle(state: newState, previous: previous, client: client)
@@ -665,6 +682,7 @@ extension McBopomofoInputMethodController {
             state.attributedString, selectionRange: NSMakeRange(Int(state.cursorIndex), 0),
             replacementRange: NSMakeRange(NSNotFound, NSNotFound))
         show(candidateWindowWith: state, client: client)
+        scheduleAICandidateRerankIfNeeded(for: state, client: client)
     }
 
     private func handle(state: InputState.AssociatedPhrases, previous: InputState, client: Any?) {
@@ -909,6 +927,11 @@ extension McBopomofoInputMethodController {
 
         gCurrentCandidateController?.tooltip =
             switch state {
+            case let state as InputState.ChoosingCandidate
+                where aiCandidateSuggestion?.originalComposingBuffer == state.composingBuffer:
+                String(
+                    format: NSLocalizedString("AI Suggestion: %@ (Tab)", comment: ""),
+                    aiCandidateSuggestion?.suggestion ?? "")
             case let state as InputState.SelectingDictionary:
                 String(format: NSLocalizedString("Look up %@", comment: ""), state.selectedPhrase)
             case let state as InputState.AssociatedPhrases:
