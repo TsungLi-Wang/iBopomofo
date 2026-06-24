@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [v1.5.3] - 2026-06-24
+
+### 新增
+
+- **終端機一鍵安裝** `scripts/install.sh`：不需打開 `.app`，完全避開 Gatekeeper。
+- DMG 內附 `若 Gatekeeper 擋住請看這裡.txt` 說明。
+
 ## [v1.5.2] - 2026-06-24
 
 修正安裝流程過於混亂的問題。
@@ -135,6 +142,7 @@ AI 架構重構與 README 產品化。
 - 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
 - 建立自架 DMG 打包流程。
 
+[v1.5.3]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.3
 [v1.5.2]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.1
 [v1.5]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5

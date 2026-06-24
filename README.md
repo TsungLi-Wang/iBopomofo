@@ -24,17 +24,29 @@
 | 網路 | 首次使用本機 AI 需下載模型，之後可離線 |
 | 磁碟空間 | app 約數十 MB；本機 AI 模型約 2.9GB |
 
-本 app 目前未經 Apple notarize。首次執行安裝程式時，若 macOS 顯示「無法驗證開發者」，對圖示按右鍵 →「打開」即可（開源 Mac 軟體常見的一次性步驟）。
+本 app 目前未經 Apple notarize，雙擊 `.app` 時 macOS 可能顯示「無法驗證開發者」。**建議用終端機一鍵安裝**（不需打開任何 `.app`）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/laowang-zhuyin/master/scripts/install.sh | bash
+```
 
 ## 下載與安裝
 
-1. 到 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases) 下載最新版 `LaoWangZhuyin.dmg`。
-2. 雙擊 DMG 掛載。
-3. 雙擊 **「安裝老王注音」**（DMG 裡只有這一個檔案）。
-   - 若 macOS 顯示「無法驗證開發者」：對圖示 **右鍵 → 打開 → 再打開**（只需一次）。
-4. 按 **「同意安裝」**，完成後會自動開啟系統設定的輸入法頁面。
-5. 按 **「編輯」→「+」→「中文」→「老王注音」→「加入」**。
-6. 切到老王注音後，在組字狀態按 **Command + Return** 使用 AI 修正。
+### 方式 A：終端機一鍵安裝（推薦）
+
+1. 打開「終端機」(Terminal)。
+2. 貼上上方 `curl … | bash` 指令，按 Enter。
+3. 到「系統設定」→「鍵盤」→「文字輸入」→「輸入法」→「編輯」，加入「老王注音」。
+
+### 方式 B：DMG 圖形安裝
+
+1. 到 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases) 下載 `LaoWangZhuyin.dmg` 並掛載。
+2. 雙擊「安裝老王注音」→ 按「同意安裝」。
+   - 若被 Gatekeeper 擋住：看 DMG 內的 `若 Gatekeeper 擋住請看這裡.txt`，或改用法 A。
+   - 或對圖示 **右鍵 → 打開 → 再打開**（只需一次）。
+3. 到系統設定加入「老王注音」輸入法。
+
+安裝後，組字中按 **Command + Return** 可使用 AI 整句修正。
 
 首次使用本機 AI 時會下載模型，約 2.9GB。模型下載完成後會存放在：
 
