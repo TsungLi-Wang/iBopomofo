@@ -1,5 +1,5 @@
-CFBundleName = "McBopomofo";
-CFBundleDisplayName = "McBopomofo";
+CFBundleName = "LaoWang Bopomofo";
+CFBundleDisplayName = "LaoWang Bopomofo";
 NSHumanReadableCopyright = "Copyright © 2011-2026 Mengjuei Hsieh et al.\nAll Rights Reserved.";
 "org.openvanilla.inputmethod.McBopomofo.Bopomofo" = "Bopomofo";
 "org.openvanilla.inputmethod.McBopomofo.PlainBopomofo" = "Plain Bopomofo";
