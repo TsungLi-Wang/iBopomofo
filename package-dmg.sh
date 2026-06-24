@@ -41,10 +41,11 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 APP="$DIR/McBopomofo.app"
 DEST="$HOME/Library/Input Methods/McBopomofo.app"
 echo "安裝老王注音中 …"
-xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
 killall McBopomofo 2>/dev/null || true
 rm -rf "$DEST"
 ditto "$APP" "$DEST"
+# 清除 quarantine 是安裝成敗的關鍵:對複製到目的地後的 app 清才有效
+# (DMG 內的來源在唯讀掛載上,清不掉也不需要清)。
 xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
 osascript -e 'display dialog "老王注音已安裝完成!\n\n請到 系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯,加入「老王注音」即可使用。\n\n首次使用本機 AI(按 ⌘Enter)會自動下載模型約 2.9GB(需連網、一次性),會跳進度通知;下載完成後永久離線,每次約 0.3 秒。不想等可先在選單切到 Claude 雲端後端。" buttons {"好的"} default button 1 with title "老王注音"'
 CMD
