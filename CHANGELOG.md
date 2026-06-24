@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+## [v1.5.2] - 2026-06-24
+
+修正安裝流程過於混亂的問題。
+
+### 變更
+
+- DMG 內**只保留一個**「安裝老王注音.app」，移除其他檔案。
+- 安裝完成後自動開啟「系統設定 → 鍵盤 → 輸入法」，並顯示逐步加入輸入法的說明。
+
+### 移除
+
+- DMG 內多餘的「老王注音.app」「拖曳到這個資料夾.app」「安裝說明.txt」（造成使用者不知道該點哪個）。
+
 ## [v1.5.1] - 2026-06-24
 
 安裝體驗大幅簡化。
@@ -122,6 +135,7 @@ AI 架構重構與 README 產品化。
 - 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
 - 建立自架 DMG 打包流程。
 
+[v1.5.2]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.1
 [v1.5]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5
 [v1.4]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.4

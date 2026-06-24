@@ -53,6 +53,18 @@ class AppDelegate: NSWindowController, NSApplicationDelegate {
 
     private var installed = false
 
+    private func openInputSourceSettings() {
+        let urlString: String
+        if #available(macOS 13.0, *) {
+            urlString = "x-apple.systempreferences:com.apple.Keyboard-Settings.extension?InputSources"
+        } else {
+            urlString = "x-apple.systempreferences:com.apple.preference.keyboard?Text"
+        }
+        if let url = URL(string: urlString) {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     func runAlertPanel(title: String, message: String, buttonTitle: String) {
         let alert = NSAlert()
         alert.alertStyle = .informational
@@ -271,7 +283,8 @@ class AppDelegate: NSWindowController, NSApplicationDelegate {
                     NSAttributedString.Key.foregroundColor : NSColor.textColor
                 ]
                 let message = NSMutableAttributedString(string: NSLocalizedString("Installation Successful", comment: ""), attributes: headlineAttr)
-                let details = NSAttributedString(string: NSLocalizedString("McBopomofo is ready to use.", comment: ""), attributes: bodyAttr)
+                let details = NSAttributedString(
+                    string: NSLocalizedString("McBopomofo is ready to use.", comment: ""), attributes: bodyAttr)
                 message.append(NSAttributedString(string: "\n\n"))
                 message.append(details)
                 textView.textStorage?.setAttributedString(message)
@@ -283,7 +296,7 @@ class AppDelegate: NSWindowController, NSApplicationDelegate {
                 actionButton.title = NSLocalizedString("Close Installer", comment: "")
                 actionButton.isEnabled = true
 
-                // System Settings now asks the user whether to activate the IME; auto-close the installer
+                openInputSourceSettings()
                 scheduleAutoClose()
             }
         }

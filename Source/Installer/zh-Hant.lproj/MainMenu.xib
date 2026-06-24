@@ -158,7 +158,7 @@ Gw
                     </textField>
                     <textField verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="623">
                         <rect key="frame" x="18" y="332" width="604" height="16"/>
-                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="歡迎您安裝「老王注音」！在安裝之前，請您閱讀本軟體的使用授權：" id="624">
+                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="歡迎安裝老王注音。請閱讀授權後按「同意安裝」；完成後會自動開啟系統設定的輸入法頁面，請按「編輯」加入老王注音。" id="624">
                             <font key="font" metaFont="system"/>
                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>

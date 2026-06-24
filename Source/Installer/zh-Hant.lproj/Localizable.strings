@@ -26,7 +26,7 @@
 "Close Installer" = "關閉安裝程式";
 
 /* No comment provided by engineer. */
-"McBopomofo is ready to use." = "老王注音輸入法安裝成功";
+"McBopomofo is ready to use." = "老王注音已安裝完成。\n\n已為您開啟「系統設定 → 鍵盤 → 輸入法」。\n請按左下角「編輯」→ 按「+」→ 選「中文」→ 選「老王注音」→ 按「加入」。";
 
 "Finish" = "結束";
 "Attention" = "請注意";
