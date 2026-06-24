@@ -37,12 +37,14 @@ enum LocalServerAICorrector {
         LlamaServerManager.shared.startIfNeeded()
     }
 
-    static func correct(guess: String, preceding: String) -> String? {
+    static func correct(guess: String, preceding: String) -> Result<String, AICorrectionError> {
+        let name = AICorrectionBackendName.local
         guard let base = LlamaServerManager.shared.ensureReady(),
             let endpointURL = URL(string: base + "/v1/chat/completions")
         else {
             NSLog("AI校正: 本機 AI server 未就緒")
-            return nil
+            return .failure(
+                .unavailable(backend: name, detail: "模型 server 未就緒,請稍候幾秒再按一次 ⌘Enter"))
         }
 
         let userContent = (preceding.isEmpty ? "" : "前文:\(preceding)\n") + "待修正:\(guess)"
@@ -61,15 +63,32 @@ enum LocalServerAICorrector {
             "stream": false,
             "stop": ["\n"],
         ]
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else {
+            return .failure(.malformedResponse(backend: name))
+        }
         req.httpBody = httpBody
 
         let sem = DispatchSemaphore(value: 0)
-        var result: String?
-        URLSession.shared.dataTask(with: req) { data, response, _ in
+        var result: Result<String, AICorrectionError> = .failure(.malformedResponse(backend: name))
+        URLSession.shared.dataTask(with: req) { data, response, error in
             defer { sem.signal() }
+            if let error {
+                NSLog("AI校正 本機 server 連線失敗:\(error.localizedDescription)")
+                result = .failure(.unavailable(backend: name, detail: "模型 server 連線失敗,請稍候再試"))
+                return
+            }
+            guard let http = response as? HTTPURLResponse else {
+                result = .failure(.malformedResponse(backend: name))
+                return
+            }
+            guard http.statusCode == 200 else {
+                if let data {
+                    NSLog("AI校正 本機 server HTTP \(http.statusCode):\(String(data: data, encoding: .utf8) ?? "")")
+                }
+                result = .failure(.httpError(backend: name, status: http.statusCode))
+                return
+            }
             guard let data,
-                let http = response as? HTTPURLResponse, http.statusCode == 200,
                 let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                 let choices = json["choices"] as? [[String: Any]],
                 let message = choices.first?["message"] as? [String: Any],
@@ -78,15 +97,19 @@ enum LocalServerAICorrector {
                 if let data {
                     NSLog("AI校正 本機 server 回應異常:\(String(data: data, encoding: .utf8) ?? "")")
                 }
+                result = .failure(.malformedResponse(backend: name))
                 return
             }
-            guard let cleaned = AICorrectionPrompt.cleanLocalResult(text) else { return }
-            result = OpenCCBridge.shared.convertToTraditional(cleaned) ?? cleaned
+            guard let cleaned = AICorrectionPrompt.cleanLocalResult(text) else {
+                result = .failure(.emptyResult(backend: name))
+                return
+            }
+            result = .success(OpenCCBridge.shared.convertToTraditional(cleaned) ?? cleaned)
         }.resume()
 
         guard sem.wait(timeout: .now() + 35) == .success else {
             NSLog("AI校正: 本機 server 請求逾時")
-            return nil
+            return .failure(.timeout(backend: name))
         }
         return result
     }

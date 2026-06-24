@@ -53,9 +53,9 @@ extension McBopomofoInputMethodController {
         }
 
         DispatchQueue.global(qos: .userInitiated).async {
-            let corrected = Self.correctAIGuess(guess: guess, preceding: preceding, backend: backend)
+            let outcome = Self.correctAIGuess(guess: guess, preceding: preceding, backend: backend)
             DispatchQueue.main.async {
-                self.applyAICorrectionResult(corrected, originalGuess: guess, client: client)
+                self.applyAICorrectionResult(outcome, originalGuess: guess, client: client)
             }
         }
     }
@@ -69,7 +69,9 @@ extension McBopomofoInputMethodController {
         }
     }
 
-    private static func correctAIGuess(guess: String, preceding: String, backend: Int) -> String? {
+    private static func correctAIGuess(guess: String, preceding: String, backend: Int)
+        -> Result<String, AICorrectionError>
+    {
         switch backend {
         case 1:
             return ClaudeAICorrector.correct(
@@ -84,7 +86,9 @@ extension McBopomofoInputMethodController {
         }
     }
 
-    private func applyAICorrectionResult(_ corrected: String?, originalGuess guess: String, client: Any!) {
+    private func applyAICorrectionResult(
+        _ outcome: Result<String, AICorrectionError>, originalGuess guess: String, client: Any!
+    ) {
         guard let currentInputting = state as? InputState.Inputting,
             currentInputting.composingBuffer == guess
         else {
@@ -92,11 +96,21 @@ extension McBopomofoInputMethodController {
             return
         }
 
-        guard let corrected, !corrected.isEmpty else {
-            NotifierController.notify(message: "AI 修正失敗(可能 API 額度不足或逾時)")
+        let corrected: String
+        switch outcome {
+        case let .success(text):
+            corrected = text
+        case let .failure(error):
+            // 把後端的具體原因顯示給使用者,而不是泛用的「修正失敗」。
+            NotifierController.notify(message: error.userMessage)
             return
         }
-        guard corrected != guess else { return }
+
+        // 後端回了結果但與原句相同:代表 AI 認為已正確,給個明確回饋免得像沒反應。
+        guard corrected != guess else {
+            NotifierController.notify(message: "AI 未更動:整句看起來已正確")
+            return
+        }
 
         keyHandler.clear()
         handle(state: InputState.Committing(poppedText: corrected), client: client)

@@ -25,7 +25,8 @@ import Foundation
 
 enum CodexAICorrector {
 
-    static func correct(guess: String, preceding: String) -> String? {
+    static func correct(guess: String, preceding: String) -> Result<String, AICorrectionError> {
+        let name = AICorrectionBackendName.codex
         let prompt = AICorrectionPrompt.taggedPrompt(guess: guess, preceding: preceding)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: AICorrectionConfig.codexPath)
@@ -43,7 +44,7 @@ enum CodexAICorrector {
             try process.run()
         } catch {
             NSLog("AI校正: 無法啟動 codex: \(error.localizedDescription)")
-            return nil
+            return .failure(.launchFailed(backend: name, detail: error.localizedDescription))
         }
 
         let deadline = Date().addingTimeInterval(15)
@@ -54,11 +55,19 @@ enum CodexAICorrector {
             process.terminate()
             process.waitUntilExit()
             NSLog("AI校正: codex 執行逾時")
-            return nil
+            return .failure(.timeout(backend: name))
         }
 
         let data = outPipe.fileHandleForReading.readDataToEndOfFile()
         let raw = String(data: data, encoding: .utf8) ?? ""
-        return AICorrectionPrompt.extractTaggedResult(from: raw)
+        if process.terminationStatus != 0 {
+            NSLog("AI校正: codex 結束碼 \(process.terminationStatus),輸出:\(raw)")
+            return .failure(
+                .unavailable(backend: name, detail: "codex 執行失敗(可能未登入或無訂閱)"))
+        }
+        if let extracted = AICorrectionPrompt.extractTaggedResult(from: raw), !extracted.isEmpty {
+            return .success(extracted)
+        }
+        return .failure(.emptyResult(backend: name))
     }
 }

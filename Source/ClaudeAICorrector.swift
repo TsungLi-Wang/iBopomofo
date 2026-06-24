@@ -25,14 +25,15 @@ import Foundation
 
 enum ClaudeAICorrector {
 
-    static func correct(guess: String, preceding: String, model: String) -> String? {
+    static func correct(guess: String, preceding: String, model: String)
+        -> Result<String, AICorrectionError>
+    {
+        let name = AICorrectionBackendName.claude
         guard let key = AICorrectionConfig.claudeAPIKey else {
-            NSLog("AI校正: 找不到 Claude API key(請從輸入法選單『AI 修正設定…』填入)")
-            return nil
+            return .failure(.missingAPIKey(backend: name))
         }
         guard let endpointURL = URL(string: AICorrectionConfig.claudeEndpoint) else {
-            NSLog("AI校正: Claude 端點設定無效:\(AICorrectionConfig.claudeEndpoint)")
-            return nil
+            return .failure(.invalidEndpoint(backend: name, endpoint: AICorrectionConfig.claudeEndpoint))
         }
 
         var req = URLRequest(url: endpointURL)
@@ -49,15 +50,36 @@ enum ClaudeAICorrector {
                 ["role": "user", "content": AICorrectionPrompt.taggedPrompt(guess: guess, preceding: preceding)]
             ],
         ]
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else {
+            return .failure(.malformedResponse(backend: name))
+        }
         req.httpBody = httpBody
 
         let sem = DispatchSemaphore(value: 0)
-        var result: String?
-        URLSession.shared.dataTask(with: req) { data, response, _ in
+        var result: Result<String, AICorrectionError> = .failure(.malformedResponse(backend: name))
+        URLSession.shared.dataTask(with: req) { data, response, error in
             defer { sem.signal() }
+            if let error {
+                NSLog("AI校正 Claude 連線失敗:\(error.localizedDescription)")
+                result = .failure(.network(backend: name))
+                return
+            }
+            guard let http = response as? HTTPURLResponse else {
+                result = .failure(.malformedResponse(backend: name))
+                return
+            }
+            guard http.statusCode == 200 else {
+                if let data {
+                    NSLog("AI校正 Claude HTTP \(http.statusCode):\(String(data: data, encoding: .utf8) ?? "")")
+                }
+                switch http.statusCode {
+                case 401, 403: result = .failure(.unauthorized(backend: name))
+                case 429: result = .failure(.rateLimited(backend: name))
+                default: result = .failure(.httpError(backend: name, status: http.statusCode))
+                }
+                return
+            }
             guard let data,
-                let http = response as? HTTPURLResponse, http.statusCode == 200,
                 let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                 let content = json["content"] as? [[String: Any]],
                 let text = content.first(where: { ($0["type"] as? String) == "text" })?["text"]
@@ -66,14 +88,19 @@ enum ClaudeAICorrector {
                 if let data {
                     NSLog("AI校正 Claude 回應異常:\(String(data: data, encoding: .utf8) ?? "")")
                 }
+                result = .failure(.malformedResponse(backend: name))
                 return
             }
-            result = AICorrectionPrompt.extractTaggedResult(from: text)
+            if let extracted = AICorrectionPrompt.extractTaggedResult(from: text), !extracted.isEmpty {
+                result = .success(extracted)
+            } else {
+                result = .failure(.emptyResult(backend: name))
+            }
         }.resume()
 
         guard sem.wait(timeout: .now() + 35) == .success else {
             NSLog("AI校正: Claude 請求逾時")
-            return nil
+            return .failure(.timeout(backend: name))
         }
         return result
     }
