@@ -1,0 +1,83 @@
+// Copyright (c) 2022 and onwards The McBopomofo Authors.
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use,
+// copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following
+// conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+
+import Foundation
+
+enum AICorrectionPrompt {
+
+    static func taggedPrompt(guess: String, preceding: String) -> String {
+        """
+        你是專為「注音輸入法」設計的中文校正引擎。下面「待修正」這句中文是注音輸入法依字詞頻率\
+        猜測產生的,常因下列三類原因出現錯別字。請依「前文」與本句的上下文語意,把整句修正成使用者\
+        真正想表達的正確中文。
+
+        要積極修正的三類錯誤:
+        1. 同音字選錯(最常見):依語意選對「在/再」「的/得/地」「做/作」等。
+           例:「我在去買」→「我再去買」;「期待在相遇」→「期待再相遇」。
+        2. 平翹舌/捲舌不分造成的錯字:ㄓㄔㄕ 與 ㄗㄘㄙ、ㄈ/ㄏ、ㄌ/ㄋ、ㄣ/ㄥ、ㄢ/ㄤ、ㄧㄣ/ㄧㄥ 等混淆。
+           例:「資道」→「知道」;「老蘇」→「老師」。
+        3. 注音鍵在鍵盤上相鄰、手誤打到旁邊鍵造成的錯字。
+           例:「怎摸」→「怎麼」。
+
+        規則:
+        - 只輸出修正後的整句,放在 <<<R>>> 與 <<<E>>> 之間,中間不要任何解釋、引號或其他文字。
+        - 只修正上述錯別字,不要改寫語氣、不要增刪內容、不要過度潤飾。
+        - 若整句已正確,原樣輸出。前文僅供判斷語意,不要輸出前文。
+        前文(僅供語意參考,不要輸出):\(preceding)
+        待修正:\(guess)
+        """
+    }
+
+    static let localSystemPrompt = """
+        你是中文注音輸入法的校正引擎。使用者給你一句注音輸入法依字詞頻率猜測產生的中文,\
+        可能含三類錯字:①同音字選錯(在/再、的/得/地、做/作等)②平翹舌捲舌不分(資道→知道、老蘇→老師)\
+        ③注音鍵相鄰手誤(怎摸→怎麼)。請依語意把整句修正成使用者真正想表達的正確中文。
+        嚴格規則:只回覆修正後的「整句」中文,一個字都不要多。不要解釋、不要引號、不要標點符號以外的符號、\
+        不要接續造句、不要回答句子內容。若整句已正確就原樣回覆。
+        """
+
+    static func extractTaggedResult(from raw: String) -> String? {
+        if let r = raw.range(of: "<<<R>>>"), let e = raw.range(of: "<<<E>>>"),
+            r.upperBound <= e.lowerBound
+        {
+            let s = String(raw[r.upperBound..<e.lowerBound])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return s.isEmpty ? nil : s
+        }
+        return raw.split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .last(where: { !$0.isEmpty })
+    }
+
+    static func cleanLocalResult(_ text: String) -> String? {
+        var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        for label in ["待修正:", "待修正：", "前文:", "前文："] {
+            if let r = cleaned.range(of: label, options: .backwards) {
+                cleaned = String(cleaned[r.upperBound...])
+            }
+        }
+        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "「」\"'。 "))
+        return cleaned.isEmpty ? nil : cleaned
+    }
+}

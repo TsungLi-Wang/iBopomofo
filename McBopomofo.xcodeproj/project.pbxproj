@@ -71,6 +71,11 @@
 		D44FB74527915565003C80A6 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44FB74427915555003C80A6 /* Preferences.swift */; };
 		FACE0002FACE0002FACE0002 /* AICorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0001FACE0001FACE0001 /* AICorrection.swift */; };
 		FACE0004FACE0004FACE0004 /* LlamaServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0003FACE0003FACE0003 /* LlamaServerManager.swift */; };
+		FACE0011FACE0011FACE0011 /* InputMethodController+AICorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0010FACE0010FACE0010 /* InputMethodController+AICorrection.swift */; };
+		FACE0013FACE0013FACE0013 /* AICorrectionPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0012FACE0012FACE0012 /* AICorrectionPrompt.swift */; };
+		FACE0015FACE0015FACE0015 /* CodexAICorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */; };
+		FACE0017FACE0017FACE0017 /* ClaudeAICorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */; };
+		FACE0019FACE0019FACE0019 /* LocalServerAICorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */; };
 		D44FB74D2792189A003C80A6 /* PhraseReplacementMap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D44FB74B2792189A003C80A6 /* PhraseReplacementMap.cpp */; };
 		D456576E279E4F7B00DF6BC9 /* KeyHandlerInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = D456576D279E4F7B00DF6BC9 /* KeyHandlerInput.swift */; };
 		D461B792279DAC010070E734 /* InputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D461B791279DAC010070E734 /* InputState.swift */; };
@@ -222,6 +227,11 @@
 		D44FB74427915555003C80A6 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		FACE0001FACE0001FACE0001 /* AICorrection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrection.swift; sourceTree = "<group>"; };
 		FACE0003FACE0003FACE0003 /* LlamaServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaServerManager.swift; sourceTree = "<group>"; };
+		FACE0010FACE0010FACE0010 /* InputMethodController+AICorrection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+AICorrection.swift"; sourceTree = "<group>"; };
+		FACE0012FACE0012FACE0012 /* AICorrectionPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrectionPrompt.swift; sourceTree = "<group>"; };
+		FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAICorrector.swift; sourceTree = "<group>"; };
+		FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAICorrector.swift; sourceTree = "<group>"; };
+		FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServerAICorrector.swift; sourceTree = "<group>"; };
 		D44FB74B2792189A003C80A6 /* PhraseReplacementMap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PhraseReplacementMap.cpp; sourceTree = "<group>"; };
 		D44FB74C2792189A003C80A6 /* PhraseReplacementMap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PhraseReplacementMap.h; sourceTree = "<group>"; };
 		D456576D279E4F7B00DF6BC9 /* KeyHandlerInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyHandlerInput.swift; sourceTree = "<group>"; };
@@ -336,6 +346,7 @@
 				6ACA41E715FC1D9000935EF6 /* Installer */,
 				6A0D4F4715FC0EB900ABF4B3 /* Resources */,
 				D4A13D5927A59D5C003BE359 /* InputMethodController.swift */,
+				FACE0010FACE0010FACE0010 /* InputMethodController+AICorrection.swift */,
 				D43737C82DF9C35100D9707C /* InputMethodController+KeyHandlerDelegate.swift */,
 				D43737CA2DF9C48200D9707C /* InputMethodController+CandidateControllerDelegate.swift */,
 				D41355D6278D7409005E5CBD /* LanguageModelManager.h */,
@@ -350,6 +361,10 @@
 				D4314F0C2ED369090071DD71 /* NumberInputHelper.swift */,
 				D427F76B278CA1BA004A2160 /* AppDelegate.swift */,
 				FACE0001FACE0001FACE0001 /* AICorrection.swift */,
+				FACE0012FACE0012FACE0012 /* AICorrectionPrompt.swift */,
+				FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */,
+				FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */,
+				FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */,
 				FACE0003FACE0003FACE0003 /* LlamaServerManager.swift */,
 				D44FB74427915555003C80A6 /* Preferences.swift */,
 				D47F7DCF278C0897002F9DD7 /* NonModalAlertWindowController.swift */,
@@ -804,6 +819,11 @@
 				D44FB74D2792189A003C80A6 /* PhraseReplacementMap.cpp in Sources */,
 				D4A13D5A27A59F0B003BE359 /* InputMethodController.swift in Sources */,
 				FACE0002FACE0002FACE0002 /* AICorrection.swift in Sources */,
+				FACE0011FACE0011FACE0011 /* InputMethodController+AICorrection.swift in Sources */,
+				FACE0013FACE0013FACE0013 /* AICorrectionPrompt.swift in Sources */,
+				FACE0015FACE0015FACE0015 /* CodexAICorrector.swift in Sources */,
+				FACE0017FACE0017FACE0017 /* ClaudeAICorrector.swift in Sources */,
+				FACE0019FACE0019FACE0019 /* LocalServerAICorrector.swift in Sources */,
 				FACE0004FACE0004FACE0004 /* LlamaServerManager.swift in Sources */,
 				D44FB74527915565003C80A6 /* Preferences.swift in Sources */,
 				6A660A702EAF371000D53D7B /* ByteBlockBackedDictionary.cpp in Sources */,

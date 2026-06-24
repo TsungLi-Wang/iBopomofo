@@ -1,81 +1,197 @@
-# 老王注音(McBopomofo + AI 整句修正)
+# 老王注音
 
-在 [小麥注音(McBopomofo)](https://github.com/openvanilla/McBopomofo) 之上,加一條 **AI 整句修正**岔路:
-打完一句注音後按 **⌘ + Return**,把注音引擎依字詞頻率猜出來的整句 + 游標前文丟給 LLM,
-回傳修正後的整句(挑對同音字、平翹舌、鄰鍵手誤),直接塞回輸入區。
+老王注音是 macOS 注音輸入法，基於 McBopomofo 的成熟注音引擎，加入「AI 整句修正」與產品化發佈流程。
 
-**預設後端是本機 AI——離線、免 API key、免裝任何外部程式。**
-推理引擎(`llama-server`)打包在 app 內;模型(Qwen3-4B-Instruct-2507,~2.9GB)於**首次使用時自動下載一次**
-(讓安裝包維持輕量、可直接從 GitHub 下載),之後永久離線。
+使用方式很單純：照平常打注音，在組字中的一句話按 **Command + Return**，老王注音會依上下文修正常見錯字，例如同音字、平翹舌混淆、鄰鍵手誤，然後把修正後的整句送回輸入區。
 
-> 本專案是 McBopomofo 的 fork,**不改動原本的注音引擎**,只在 input controller 層多掛一條 AI 修正路徑。
-> 原專案以 MIT 授權釋出,版權與授權見 [`LICENSE.txt`](LICENSE.txt) 與 [`README.markdown`](README.markdown)。
+預設後端是本機 AI：離線、免 API key、免安裝 Ollama。推理程式 `llama-server` 會打包在 app 內，模型第一次使用時自動下載一次，之後可離線使用。
 
-## 功能
+## 重點功能
 
-- **熱鍵**:`⌘ + Return` 在有輸入內容時觸發整句修正。
-- **多後端可即時切換**(輸入法選單 →「AI 修正模型」):
-  | 後端 | 說明 |
-  |---|---|
-  | **本機 AI(內建・離線)** | **預設**。內嵌 `llama-server`;模型 Qwen3-4B-Instruct-2507 首次使用自動下載(~2.9GB,一次性),之後離線、免 API key、校正約 0.3 秒 |
-  | Claude Haiku | Anthropic API,快;同音字等語意難題最準 |
-  | Claude Opus | Anthropic API,最準 |
-  | Codex CLI | 走本機 `codex` 執行檔,免 API key,較慢(需自行裝 codex) |
-- **針對注音的校正 prompt**:只修同音字 / 平翹舌 / 鄰鍵手誤,不改寫語氣、不增刪內容。
+- 注音輸入：沿用 McBopomofo 的注音引擎、詞庫、候選字與使用者詞彙機制。
+- AI 整句修正：組字中按 **Command + Return** 觸發。
+- 本機 AI 預設開啟：內建 `llama-server`，模型首次使用自動下載到使用者資料夾。
+- 雲端後端可切換：支援 Claude Haiku、Claude Opus 與 Codex CLI。
+- 前文輔助判斷：修正時會讀取游標前方文字作為語意參考。
+- 發佈包輕量：DMG 不內含 2.9GB 模型，目前約 19MB。
+
+## 系統需求
+
+| 項目 | 需求 |
+|---|---|
+| 作業系統 | macOS 11.0 或以上 |
+| CPU | Apple Silicon 建議；Intel 可安裝，但本機 AI 效能未作為主要優化目標 |
+| 網路 | 首次使用本機 AI 需下載模型，之後可離線 |
+| 磁碟空間 | app 約數十 MB；本機 AI 模型約 2.9GB |
+
+本 app 目前未經 Apple notarize。下載後請用 DMG 內的 `安裝.command` 安裝，它會處理 macOS quarantine，避免內嵌的 `llama-server` 被 Gatekeeper 擋下。
 
 ## 下載與安裝
 
-到[發佈頁](https://github.com/TsungLi-Wang/laowang-bopomofo/releases)下載 `LaoWangBopomofo.dmg`,掛載後:
+1. 到 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-bopomofo/releases) 下載最新版 `LaoWangBopomofo.dmg`。
+2. 掛載 DMG。
+3. 對 `安裝.command` 按右鍵，選「打開」。
+4. 依提示完成安裝。
+5. 到「系統設定」->「鍵盤」->「文字輸入」->「輸入法」加入「老王注音」。
+6. 切到老王注音後，打一句注音，在組字狀態按 **Command + Return** 使用 AI 修正。
 
-1. 雙擊 dmg 內的 **`安裝.command`**(會自動清除 Gatekeeper quarantine 並複製到 `~/Library/Input Methods/`)。
-2. 到「系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯」加入「老王注音」。
-3. **首次**按 `⌘ + Return` 使用本機 AI 時,會自動下載模型(~2.9GB,需連網,一次性,會跳進度通知);
-   下載完成後即可使用並永久離線。不想等可先在選單切到 Claude 雲端後端(需自備 API key)。
-   模型存於 `~/Library/Application Support/McBopomofo/AIModel/`。
+首次使用本機 AI 時會下載模型，約 2.9GB。模型下載完成後會存放在：
 
-> ⚠️ 本 app **未經 Apple 公證(notarize)**。下載來的 app 會被 macOS 標記 quarantine,
-> **若不清除,內嵌的 `llama-server` 一啟動就會被 Gatekeeper 直接 SIGKILL**(本機 AI 後端會無聲失效)。
-> `安裝.command` 已代為處理;若想手動,見 dmg 內的「安裝說明.txt」(`xattr -dr com.apple.quarantine`)。
+```text
+~/Library/Application Support/McBopomofo/AIModel/
+```
 
-## 設定(所有金鑰與端點都從 UI 填,不必改原始碼)
+這個路徑暫時保留 `McBopomofo` 名稱，避免破壞既有輸入法資料與 macOS IMK 註冊行為。
 
-本機 AI 後端**不需要任何設定**。只有用 Claude / Codex 後端時才需要下列項目。
+## AI 後端
 
-輸入法選單 →「**AI 修正設定…**」開啟設定視窗,可填:
+| 後端 | 預設 | 說明 |
+|---|---:|---|
+| 本機 AI(內建・離線) | 是 | 使用內嵌 `llama-server` 與 Qwen3-4B-Instruct-2507 Q5_K_M。免 API key，首次下載模型後可離線。 |
+| Claude Haiku | 否 | 需要 Anthropic API key。速度快，語意判斷通常比本機小模型穩。 |
+| Claude Opus | 否 | 需要 Anthropic API key。準確度優先。 |
+| Codex CLI | 否 | 透過本機 `codex` 執行檔呼叫，延遲較高，主要保留作為備援與實驗路徑。 |
+
+從輸入法選單的「AI 修正模型」可以切換後端。
+
+## 設定
+
+本機 AI 不需要設定。Claude 與 Codex 相關設定在輸入法選單的「AI 修正設定...」中調整。
 
 | 項目 | 預設值 | 說明 |
 |---|---|---|
-| Claude API key | (無) | **加密存進 macOS Keychain**,不會寫進設定檔、不會進 git |
-| Claude 端點 | `https://api.anthropic.com/v1/messages` | 可改走代理 / 相容端點 |
-| Claude Haiku 模型 | `claude-haiku-4-5` | |
-| Claude Opus 模型 | `claude-opus-4-8` | |
-| Codex 執行檔路徑 | `/opt/homebrew/bin/codex` | Intel Mac 或自訂安裝請改這裡 |
+| Claude API key | 無 | 存入 macOS Keychain，不寫入 repo 或設定檔明文 |
+| Claude 端點 | `https://api.anthropic.com/v1/messages` | 可改成代理或相容端點 |
+| Claude Haiku 模型 | `claude-haiku-4-5` | 速度優先 |
+| Claude Opus 模型 | `claude-opus-4-8` | 準確度優先 |
+| Codex 執行檔路徑 | `/opt/homebrew/bin/codex` | Homebrew Apple Silicon 預設路徑 |
 
-留空的欄位會自動使用預設值。要用 Claude 後端,**只需填 API key**,其餘留空即可。
+## 目前限制
+
+- 本機小模型對純語意同音字仍有限制，例如「在 / 再」這類情境不一定能穩定判對。
+- 首次本機 AI 需下載 2.9GB 模型，下載失敗時需要連網重試。
+- 目前未 notarize，因此發佈包仍需要清除 quarantine。
+- 內部 target、bundle id、module、部分資料路徑仍保留 McBopomofo 命名；完整更名需要規劃使用者資料遷移。
+
+## 版本更新歷程
+
+### v1.1 - 本機 AI 發佈流程穩定版
+
+- 本機 AI server 加入就緒狀態與暖機提示，避免模型載入中時靜默失敗。
+- AI 修正加入逾時保護，避免 Claude、本機 server 或 Codex 卡住輸入流程。
+- AI 修正結果回來時會檢查目前組字內容，避免過期結果覆蓋使用者新的輸入。
+- 首次下載模型後加入 SHA256 完整性驗證。
+- DMG 打包腳本可直接執行，會先 Release build 再產出 `dist/LaoWangBopomofo.dmg`。
+- 修正命令列 build 的 SwiftPM package 依賴解析。
+
+### v1.0 - 注音 + 離線 AI 整句修正
+
+- 首次正式 GitHub Release。
+- 發佈包改為不內含模型，DMG 從約 2.9GB 降到約 18-19MB。
+- 本機 AI 模型改為首次使用時下載，下載後可離線使用。
+- 內嵌 `llama-server` runtime，使用者不需要自行安裝 Ollama。
+- DMG 內附 `安裝.command` 與安裝說明，處理未 notarize app 的 quarantine 問題。
+
+### 早期開發里程碑
+
+- 接入 AI 整句修正熱鍵。
+- 加入 Claude、Codex、本機推理後端。
+- 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
+- 建立自架 DMG 打包流程。
 
 ## 從原始碼建置
+
+### 開發需求
+
+- macOS 14.7 或以上
+- Xcode 15.3 或以上
+- Python 3.9
+- `llama-runtime/bin/` 內需有 `llama-server` 與相關 dylib
+
+### 取得本機推理 runtime
+
+```bash
+cd llama-runtime
+./fetch-runtime.sh
+```
+
+這個腳本會取得 `llama-server`、必要 dylib 與本機開發測試用模型。正式 app build 只需要 `llama-runtime/bin/`，模型會由 app 首次使用時下載。
+
+### Build app
 
 ```bash
 xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
 ```
 
-推理 runtime(`llama-server` + dylib)不入 git;clone 後先補齊(**建置只需 `bin/`**,模型由 app 執行時自行下載):
+Release build:
 
 ```bash
-cd llama-runtime && ./fetch-runtime.sh   # 取得 llama-server 與 dylib(也會下載模型供本機開發測試,建置非必需)
+xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Release -derivedDataPath build/dd-rel build
 ```
 
-打包可發佈的 dmg:`./package-dmg.sh`(模型不打包,dmg 僅約 18MB)。完整建置 / 安裝步驟同上游,見 [`README.markdown`](README.markdown) 與 `AGENTS.md`。
+### 打包 DMG
 
-## 現況
+```bash
+./package-dmg.sh
+```
 
-可日常使用。本機 AI 後端離線即時(校正約 0.3 秒);首次使用一次性下載模型(~2.9GB)後永久離線。
+輸出位置：
 
-已知限制:**「在/再」這類純語意同音字**,所有本地小模型(含 7B)都不易判對——這是本地模型對雲端的先天差距。
-追求極準時可在選單切到 Claude 後端(需填 API key)。
+```text
+dist/LaoWangBopomofo.dmg
+```
 
-## 致謝
+## 專案結構
 
-- 注音引擎與整套輸入法框架:[openvanilla/McBopomofo](https://github.com/openvanilla/McBopomofo)(MIT)
-- 前文擷取做法參考:[azooKey-Desktop](https://github.com/ensan-hcl/azooKey-Desktop)
-- 內嵌推理:[llama.cpp](https://github.com/ggml-org/llama.cpp)(MIT)、模型 [Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507)(Apache-2.0)
+| 路徑 | 說明 |
+|---|---|
+| `Source/` | macOS 輸入法 app、IMK controller、偏好設定、AI 整合 |
+| `Source/Engine/` | C++ 注音引擎與語言模型 |
+| `Source/Data/` | 詞庫與資料生成工具 |
+| `Packages/` | 本地 Swift Package 依賴 |
+| `llama-runtime/` | 內嵌本機推理 runtime 與重建腳本 |
+| `McBopomofoTests/` | Swift 測試 |
+| `package-dmg.sh` | Release build 與 DMG 打包腳本 |
+
+## 重構路線
+
+目前的重構策略是先產品化，再做內部更名。
+
+已完成或正在進行：
+
+- 使用者可見文字改為老王注音。
+- README、issue template、安裝器文字產品化。
+- GitHub Release + DMG 作為正式發佈入口。
+- 停止讓更新檢查導向 OpenVanilla 發佈通道。
+- 拆分 AI 校正程式碼:prompt、Claude、Codex、本機 server 與 controller 流程已分檔。
+
+下一步：
+
+- 整理 Claude、Codex、本機 server 的錯誤處理與通知文字。
+- 檢查 installer target 是否仍有必要保留，或是否完全由 DMG 的 `安裝.command` 取代。
+- 評估 bundle id、input source id、資料路徑與 app name 的完整更名方案。
+
+## 問題回報
+
+請使用 GitHub Issues：
+
+- 功能異常、無法輸入、安裝失敗：使用 bug report template。
+- AI 修正不準、想增加後端、想調整使用流程：使用 feature request template。
+
+回報 AI 修正問題時，請盡量附上：
+
+- 原本輸出的句子
+- 你期待的正確句子
+- 當時使用的 AI 後端
+- macOS 版本與老王注音版本
+
+## 授權與致謝
+
+老王注音基於 [openvanilla/McBopomofo](https://github.com/openvanilla/McBopomofo)。原始注音引擎與輸入法框架依 MIT License 釋出，本 repo 保留原始授權與版權聲明，詳見 [LICENSE.txt](LICENSE.txt)。
+
+主要依賴與參考：
+
+- McBopomofo：注音引擎、輸入法框架、詞庫流程
+- azooKey-Desktop：前文擷取做法參考
+- llama.cpp：內嵌本機推理 runtime
+- Qwen3-4B-Instruct-2507：本機 AI 校正模型

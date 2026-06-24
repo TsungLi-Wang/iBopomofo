@@ -29,6 +29,7 @@ private let kCheckUpdateAutomatically = "CheckUpdateAutomatically"
 private let kNextUpdateCheckDateKey = "NextUpdateCheckDate"
 private let kUpdateInfoEndpointKey = "UpdateInfoEndpoint"
 private let kUpdateInfoSiteKey = "UpdateInfoSite"
+private let kLaoWangReleaseURLString = "https://github.com/TsungLi-Wang/laowang-bopomofo/releases"
 private let kNextCheckInterval: TimeInterval = 86400.0
 private let kTimeoutInterval: TimeInterval = 60.0
 
@@ -234,7 +235,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
         let nextUpdateDate = Date(timeInterval: kNextCheckInterval, since: Date())
         UserDefaults.standard.set(nextUpdateDate, forKey: kNextUpdateCheckDateKey)
 
-        checkTask = VersionUpdateApi.check(forced: forced) { result in
+        guard let task = VersionUpdateApi.check(forced: forced, callback: { result in
             defer {
                 self.checkTask = nil
             }
@@ -266,7 +267,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
                     break
                 }
             }
+        }) else {
+            if forced, let releaseURL = URL(string: kLaoWangReleaseURLString) {
+                updateNextStepURL = releaseURL
+                NonModalAlertWindowController.shared.show(
+                    title: NSLocalizedString("Check for Update Completed", comment: ""),
+                    content: NSLocalizedString("Visit LaoWang Bopomofo releases to download the latest version.", comment: ""),
+                    confirmButtonTitle: NSLocalizedString("Visit Website", comment: ""),
+                    cancelButtonTitle: NSLocalizedString("Not Now", comment: ""),
+                    cancelAsDefault: false,
+                    delegate: self)
+            }
+            return
         }
+        checkTask = task
     }
 
     func nonModalAlertWindowControllerDidConfirm(_ controller: NonModalAlertWindowController) {
