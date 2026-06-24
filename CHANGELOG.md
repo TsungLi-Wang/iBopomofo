@@ -4,6 +4,21 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-bopomofo/releases)。
 
+## [v1.3] - 2026-06-24
+
+AI 後端錯誤回饋、單元測試與文案清理。
+
+### 新增
+
+- AI 後端改用結構化錯誤(`AICorrectionError`):修正失敗時顯示具體原因與處置建議,取代過去單一的「AI 修正失敗」。可分辨缺 API key、端點無效、逾時、連線失敗、401、429、其他 HTTP 錯誤、回應無法解析、本機 server 未就緒、codex 未登入/起不來等。
+- 修正結果與原句相同時顯示「AI 未更動:整句看起來已正確」,避免按 ⌘Enter 像沒反應。
+- `AICorrectionPrompt` 的 prompt 組裝、標記解析與輸出清理新增單元測試。
+
+### 變更
+
+- 版本紀錄從 README 拆出為獨立的 `CHANGELOG.md`。
+- 使用者可見的英文文案統一為 LaoWang Bopomofo(僅顯示值,保留內部識別)。
+
 ## [v1.2] - 2026-06-24
 
 AI 架構重構與 README 產品化。
@@ -58,6 +73,7 @@ AI 架構重構與 README 產品化。
 - 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
 - 建立自架 DMG 打包流程。
 
+[v1.3]: https://github.com/TsungLi-Wang/laowang-bopomofo/releases/tag/v1.3
 [v1.2]: https://github.com/TsungLi-Wang/laowang-bopomofo/releases/tag/v1.2
 [v1.1]: https://github.com/TsungLi-Wang/laowang-bopomofo/releases/tag/v1.1
 [v1.0]: https://github.com/TsungLi-Wang/laowang-bopomofo/releases/tag/v1.0
