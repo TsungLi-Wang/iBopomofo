@@ -6,12 +6,16 @@
 
 ## [Unreleased]
 
+## [v1.5] - 2026-06-24
+
+L1 候選語意重排（Phase 1）首次發佈。
+
 ### 新增
 
-- L1 候選語意重排：150ms debounce、本機 server 暖機後自動重試（最多 6 次）。
-- 觸發條件改為候選同音（相同注音、不同字）+ 歧義字 + 多候選差異判斷。
-- 輸入法選單新增「AI 候選建議」開關。
-- 偏好設定「進階」分頁新增「AI 候選建議」checkbox（與選單開關同步）。
+- **L1 AI 候選建議**：候選字容易混淆時，依前後文重排候選順序；可按 Tab 採用建議。
+- 150ms debounce、本機 server 暖機後自動重試（最多 6 次）。
+- 觸發條件：候選同音（相同注音、不同字）+ 歧義字 + 多候選差異判斷。
+- 輸入法選單與偏好設定「進階」分頁可切換「AI 候選建議」。
 
 ### 變更
 
@@ -99,6 +103,7 @@ AI 架構重構與 README 產品化。
 - 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
 - 建立自架 DMG 打包流程。
 
+[v1.5]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5
 [v1.4]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.4
 [v1.3]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.3
 [v1.2]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.2
