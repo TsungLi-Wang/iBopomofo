@@ -76,6 +76,8 @@
 		FACE0021FACE0021FACE0021 /* AICorrectionError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0020FACE0020FACE0020 /* AICorrectionError.swift */; };
 		FACE0031FACE0031FACE0031 /* AICandidateReranker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0030FACE0030FACE0030 /* AICandidateReranker.swift */; };
 		FACE0033FACE0033FACE0033 /* InputMethodController+AIRerank.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0032FACE0032FACE0032 /* InputMethodController+AIRerank.swift */; };
+		FACE0041FACE0041FACE0041 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
+		FACE0042FACE0042FACE0042 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
 		FACE0015FACE0015FACE0015 /* CodexAICorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */; };
 		FACE0017FACE0017FACE0017 /* ClaudeAICorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */; };
 		FACE0019FACE0019FACE0019 /* LocalServerAICorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */; };
@@ -237,6 +239,7 @@
 		FACE0020FACE0020FACE0020 /* AICorrectionError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrectionError.swift; sourceTree = "<group>"; };
 		FACE0030FACE0030FACE0030 /* AICandidateReranker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICandidateReranker.swift; sourceTree = "<group>"; };
 		FACE0032FACE0032FACE0032 /* InputMethodController+AIRerank.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+AIRerank.swift"; sourceTree = "<group>"; };
+		FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuarantineHelper.swift; sourceTree = "<group>"; };
 		FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAICorrector.swift; sourceTree = "<group>"; };
 		FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAICorrector.swift; sourceTree = "<group>"; };
 		FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServerAICorrector.swift; sourceTree = "<group>"; };
@@ -379,6 +382,7 @@
 				FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */,
 				FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */,
 				FACE0003FACE0003FACE0003 /* LlamaServerManager.swift */,
+				FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */,
 				D44FB74427915555003C80A6 /* Preferences.swift */,
 				D47F7DCF278C0897002F9DD7 /* NonModalAlertWindowController.swift */,
 				D47F7DCD278BFB57002F9DD7 /* PreferencesWindowController.swift */,
@@ -843,6 +847,7 @@
 				FACE0017FACE0017FACE0017 /* ClaudeAICorrector.swift in Sources */,
 				FACE0019FACE0019FACE0019 /* LocalServerAICorrector.swift in Sources */,
 				FACE0004FACE0004FACE0004 /* LlamaServerManager.swift in Sources */,
+				FACE0041FACE0041FACE0041 /* QuarantineHelper.swift in Sources */,
 				D44FB74527915565003C80A6 /* Preferences.swift in Sources */,
 				6A660A702EAF371000D53D7B /* ByteBlockBackedDictionary.cpp in Sources */,
 				6A833E522F0A0FB30086AD0C /* VariantAnnotator.cpp in Sources */,
@@ -875,6 +880,7 @@
 				D4F0BBE1279AF8B30071253C /* AppDelegate.swift in Sources */,
 				D4F0BBE4279B08900071253C /* BundleTranslocate.m in Sources */,
 				D4F0BBDF279AF1AF0071253C /* ArchiveUtil.swift in Sources */,
+				FACE0042FACE0042FACE0042 /* QuarantineHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

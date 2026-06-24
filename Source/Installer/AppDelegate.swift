@@ -201,7 +201,10 @@ class AppDelegate: NSWindowController, NSApplicationDelegate {
             return
         }
 
-        guard let imeBundle = Bundle(path: (kTargetPartialPath as NSString).expandingTildeInPath),
+        let installedPath = (kTargetPartialPath as NSString).expandingTildeInPath
+        _ = QuarantineHelper.stripQuarantine(at: installedPath)
+
+        guard let imeBundle = Bundle(path: installedPath),
               let imeIdentifier = imeBundle.bundleIdentifier
                 else {
             endAppWithDelay()

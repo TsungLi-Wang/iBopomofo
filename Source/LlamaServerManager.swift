@@ -137,6 +137,9 @@ final class LlamaServerManager: NSObject {
             NSLog("LlamaServer: 找不到 bundle 內的 llama-server,本機後端不可用")
             return
         }
+        if QuarantineHelper.hasQuarantineAttribute(at: Bundle.main.bundlePath) {
+            _ = QuarantineHelper.stripQuarantineOnMainBundleIfNeeded()
+        }
         guard isModelInstalled else {
             NSLog("LlamaServer: 模型尚未下載,先不啟動 server(請呼叫 ensureModelDownloaded)")
             return

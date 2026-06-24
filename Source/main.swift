@@ -96,4 +96,5 @@ guard let bundleID = Bundle.main.bundleIdentifier, let server = IMKServer(name: 
 }
 
 Preferences.populateDefaults()
+_ = QuarantineHelper.stripQuarantineOnMainBundleIfNeeded()
 NSApp.run()

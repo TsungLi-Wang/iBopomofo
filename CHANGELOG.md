@@ -6,6 +6,25 @@
 
 ## [Unreleased]
 
+## [v1.5.1] - 2026-06-24
+
+安裝體驗大幅簡化。
+
+### 新增
+
+- DMG 改為圖形化 **「安裝老王注音」** 安裝精靈（取代 `安裝.command`）。
+- **「拖曳到這個資料夾」** 捷徑：一鍵開啟輸入法安裝位置，支援拖曳安裝。
+- 輸入法啟動時自動清除 macOS quarantine（拖曳安裝後本機 AI 可自動就緒）。
+
+### 變更
+
+- 安裝精靈安裝完成後自動清除 quarantine。
+- README 與 DMG 內說明改寫為標準 Mac 安裝流程。
+
+### 移除
+
+- DMG 內的 `安裝.command`（易遭 Gatekeeper 阻擋且不像一般軟體）。
+
 ## [v1.5] - 2026-06-24
 
 L1 候選語意重排（Phase 1）首次發佈。
@@ -103,6 +122,7 @@ AI 架構重構與 README 產品化。
 - 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
 - 建立自架 DMG 打包流程。
 
+[v1.5.1]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.1
 [v1.5]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5
 [v1.4]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.4
 [v1.3]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.3
