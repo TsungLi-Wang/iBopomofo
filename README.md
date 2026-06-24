@@ -142,11 +142,12 @@ dist/LaoWangBopomofo.dmg
 - GitHub Release + DMG 作為正式發佈入口。
 - 停止讓更新檢查導向 OpenVanilla 發佈通道。
 - 拆分 AI 校正程式碼:prompt、Claude、Codex、本機 server 與 controller 流程已分檔。
+- AI 後端改用結構化錯誤（`AICorrectionError`），失敗時顯示具體原因與處置建議。
+- `McBopomofoInstaller` target 確認保留作為開發安裝流程（自動 kill/restart 輸入法）；正式發佈走 `package-dmg.sh` + `安裝.command`，不經過 installer。
+- app 顯示版本由上游遺留的 3.0 對齊為 1.x 產品版本。
 
 下一步：
 
-- 整理 Claude、Codex、本機 server 的錯誤處理與通知文字。
-- 檢查 installer target 是否仍有必要保留，或是否完全由 DMG 的 `安裝.command` 取代。
 - 評估 bundle id、input source id、資料路徑與 app name 的完整更名方案。
 
 ## 問題回報
