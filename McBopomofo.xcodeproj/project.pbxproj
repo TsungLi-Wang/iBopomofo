@@ -58,6 +58,8 @@
 		D427F7B4279086DC004A2160 /* InputSourceHelper in Frameworks */ = {isa = PBXBuildFile; productRef = D427F7B3279086DC004A2160 /* InputSourceHelper */; };
 		D427F7B6279086F6004A2160 /* InputSourceHelper in Frameworks */ = {isa = PBXBuildFile; productRef = D427F7B5279086F6004A2160 /* InputSourceHelper */; };
 		D427F7C127908EFC004A2160 /* OpenCCBridge in Frameworks */ = {isa = PBXBuildFile; productRef = D427F7C027908EFC004A2160 /* OpenCCBridge */; };
+		FACE2003FACE2003FACE2003 /* OpenCC in Frameworks */ = {isa = PBXBuildFile; productRef = FACE2005FACE2005FACE2005 /* OpenCC */; };
+		FACE2004FACE2004FACE2004 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = FACE2006FACE2006FACE2006 /* SQLite */; };
 		D4314F0D2ED3690F0071DD71 /* NumberInputHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4314F0C2ED369090071DD71 /* NumberInputHelper.swift */; };
 		D436E23F2CD20BA700C6155D /* AssociatedPhrasesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D436E23E2CD20B9E00C6155D /* AssociatedPhrasesTests.swift */; };
 		D43737C92DF9C35800D9707C /* InputMethodController+KeyHandlerDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43737C82DF9C35100D9707C /* InputMethodController+KeyHandlerDelegate.swift */; };
@@ -282,6 +284,8 @@
 				D4C9CAB127AAC9690058DFEA /* NSStringUtils in Frameworks */,
 				D427F7AE27907B8A004A2160 /* NotifierUI in Frameworks */,
 				D41B626C2B86EAE900583148 /* BopomofoBraille in Frameworks */,
+				FACE2003FACE2003FACE2003 /* OpenCC in Frameworks */,
+				FACE2004FACE2004FACE2004 /* SQLite in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -576,6 +580,8 @@
 				D4451AC82E688C6B00E8F5AB /* SystemCharacterInfo */,
 				D48F853D2EACDB6C00C2FDAB /* RomanNumbers */,
 				D40EFFA12EB669F900C1728A /* InfoCollector */,
+				FACE2005FACE2005FACE2005 /* OpenCC */,
+				FACE2006FACE2006FACE2006 /* SQLite */,
 			);
 			productName = McBopomofo;
 			productReference = 6A0D4EA215FC0D2D00ABF4B3 /* McBopomofo.app */;
@@ -655,6 +661,20 @@
 			);
 			mainGroup = 6A0D4E9215FC0CFA00ABF4B3;
 			packageReferences = (
+				FACE1001FACE1001FACE1001 /* XCLocalSwiftPackageReference "Packages/InfoCollector" */,
+				FACE1002FACE1002FACE1002 /* XCLocalSwiftPackageReference "Packages/BopomofoBraille" */,
+				FACE1003FACE1003FACE1003 /* XCLocalSwiftPackageReference "Packages/CandidateUI" */,
+				FACE1004FACE1004FACE1004 /* XCLocalSwiftPackageReference "Packages/TooltipUI" */,
+				FACE1005FACE1005FACE1005 /* XCLocalSwiftPackageReference "Packages/NotifierUI" */,
+				FACE1006FACE1006FACE1006 /* XCLocalSwiftPackageReference "Packages/InputSourceHelper" */,
+				FACE1007FACE1007FACE1007 /* XCLocalSwiftPackageReference "Packages/OpenCCBridge" */,
+				FACE1008FACE1008FACE1008 /* XCLocalSwiftPackageReference "Packages/SystemCharacterInfo" */,
+				FACE1009FACE1009FACE1009 /* XCLocalSwiftPackageReference "Packages/FSEventStreamHelper" */,
+				FACE1010FACE1010FACE1010 /* XCLocalSwiftPackageReference "Packages/RomanNumbers" */,
+				FACE1011FACE1011FACE1011 /* XCLocalSwiftPackageReference "Packages/NSStringUtils" */,
+				FACE1012FACE1012FACE1012 /* XCLocalSwiftPackageReference "Packages/ChineseNumbers" */,
+				FACE2001FACE2001FACE2001 /* XCRemoteSwiftPackageReference "SwiftyOpenCC" */,
+				FACE2002FACE2002FACE2002 /* XCRemoteSwiftPackageReference "SQLite.swift" */,
 			);
 			productRefGroup = 6A0D4EA315FC0D2D00ABF4B3 /* Products */;
 			projectDirPath = "";
@@ -1504,57 +1524,150 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		FACE1001FACE1001FACE1001 /* XCLocalSwiftPackageReference "Packages/InfoCollector" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/InfoCollector;
+		};
+		FACE1002FACE1002FACE1002 /* XCLocalSwiftPackageReference "Packages/BopomofoBraille" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/BopomofoBraille;
+		};
+		FACE1003FACE1003FACE1003 /* XCLocalSwiftPackageReference "Packages/CandidateUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/CandidateUI;
+		};
+		FACE1004FACE1004FACE1004 /* XCLocalSwiftPackageReference "Packages/TooltipUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TooltipUI;
+		};
+		FACE1005FACE1005FACE1005 /* XCLocalSwiftPackageReference "Packages/NotifierUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/NotifierUI;
+		};
+		FACE1006FACE1006FACE1006 /* XCLocalSwiftPackageReference "Packages/InputSourceHelper" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/InputSourceHelper;
+		};
+		FACE1007FACE1007FACE1007 /* XCLocalSwiftPackageReference "Packages/OpenCCBridge" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/OpenCCBridge;
+		};
+		FACE1008FACE1008FACE1008 /* XCLocalSwiftPackageReference "Packages/SystemCharacterInfo" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SystemCharacterInfo;
+		};
+		FACE1009FACE1009FACE1009 /* XCLocalSwiftPackageReference "Packages/FSEventStreamHelper" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FSEventStreamHelper;
+		};
+		FACE1010FACE1010FACE1010 /* XCLocalSwiftPackageReference "Packages/RomanNumbers" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/RomanNumbers;
+		};
+		FACE1011FACE1011FACE1011 /* XCLocalSwiftPackageReference "Packages/NSStringUtils" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/NSStringUtils;
+		};
+		FACE1012FACE1012FACE1012 /* XCLocalSwiftPackageReference "Packages/ChineseNumbers" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ChineseNumbers;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		FACE2001FACE2001FACE2001 /* XCRemoteSwiftPackageReference "SwiftyOpenCC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ddddxxx/SwiftyOpenCC.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = "2.0.0-beta";
+			};
+		};
+		FACE2002FACE2002FACE2002 /* XCRemoteSwiftPackageReference "SQLite.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stephencelis/SQLite.swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.15.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		D40EFFA12EB669F900C1728A /* InfoCollector */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1001FACE1001FACE1001 /* XCLocalSwiftPackageReference "Packages/InfoCollector" */;
 			productName = InfoCollector;
 		};
 		D41B626B2B86EAE900583148 /* BopomofoBraille */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1002FACE1002FACE1002 /* XCLocalSwiftPackageReference "Packages/BopomofoBraille" */;
 			productName = BopomofoBraille;
 		};
 		D427F769278C9E29004A2160 /* CandidateUI */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1003FACE1003FACE1003 /* XCLocalSwiftPackageReference "Packages/CandidateUI" */;
 			productName = CandidateUI;
 		};
 		D427F7A827905E90004A2160 /* TooltipUI */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1004FACE1004FACE1004 /* XCLocalSwiftPackageReference "Packages/TooltipUI" */;
 			productName = TooltipUI;
 		};
 		D427F7AD27907B8A004A2160 /* NotifierUI */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1005FACE1005FACE1005 /* XCLocalSwiftPackageReference "Packages/NotifierUI" */;
 			productName = NotifierUI;
 		};
 		D427F7B3279086DC004A2160 /* InputSourceHelper */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1006FACE1006FACE1006 /* XCLocalSwiftPackageReference "Packages/InputSourceHelper" */;
 			productName = InputSourceHelper;
 		};
 		D427F7B5279086F6004A2160 /* InputSourceHelper */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1006FACE1006FACE1006 /* XCLocalSwiftPackageReference "Packages/InputSourceHelper" */;
 			productName = InputSourceHelper;
 		};
 		D427F7C027908EFC004A2160 /* OpenCCBridge */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1007FACE1007FACE1007 /* XCLocalSwiftPackageReference "Packages/OpenCCBridge" */;
 			productName = OpenCCBridge;
 		};
 		D4451AC82E688C6B00E8F5AB /* SystemCharacterInfo */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1008FACE1008FACE1008 /* XCLocalSwiftPackageReference "Packages/SystemCharacterInfo" */;
 			productName = SystemCharacterInfo;
+		};
+		FACE2005FACE2005FACE2005 /* OpenCC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FACE2001FACE2001FACE2001 /* XCRemoteSwiftPackageReference "SwiftyOpenCC" */;
+			productName = OpenCC;
+		};
+		FACE2006FACE2006FACE2006 /* SQLite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FACE2002FACE2002FACE2002 /* XCRemoteSwiftPackageReference "SQLite.swift" */;
+			productName = SQLite;
 		};
 		D47D73C227A7200500255A50 /* FSEventStreamHelper */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1009FACE1009FACE1009 /* XCLocalSwiftPackageReference "Packages/FSEventStreamHelper" */;
 			productName = FSEventStreamHelper;
 		};
 		D48F853D2EACDB6C00C2FDAB /* RomanNumbers */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1010FACE1010FACE1010 /* XCLocalSwiftPackageReference "Packages/RomanNumbers" */;
 			productName = RomanNumbers;
 		};
 		D4C9CAB027AAC9690058DFEA /* NSStringUtils */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1011FACE1011FACE1011 /* XCLocalSwiftPackageReference "Packages/NSStringUtils" */;
 			productName = NSStringUtils;
 		};
 		D4E791792B52CDE500676A68 /* ChineseNumbers */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = FACE1012FACE1012FACE1012 /* XCLocalSwiftPackageReference "Packages/ChineseNumbers" */;
 			productName = ChineseNumbers;
 		};
 /* End XCSwiftPackageProductDependency section */

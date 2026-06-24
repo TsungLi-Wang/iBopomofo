@@ -44,8 +44,10 @@ The project contains these main **targets**:
 # Build the installer
 xcodebuild -project McBopomofo.xcodeproj -target McBopomofoInstaller -configuration Debug build
 
-# Build the main input method
-xcodebuild -project McBopomofo.xcodeproj -target McBopomofo -configuration Debug build
+# Build the main input method. Prefer the shared scheme so SwiftPM nested
+# dependencies from local packages (OpenCCBridge/SystemCharacterInfo) resolve
+# correctly in command-line builds.
+xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
 
 # Build dictionary data only
 xcodebuild -project McBopomofo.xcodeproj -target Data -configuration Debug build

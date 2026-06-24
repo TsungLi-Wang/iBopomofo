@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 import Cocoa
+import CryptoKit
 import Darwin
 import NotifierUI
 
@@ -45,6 +46,9 @@ final class LlamaServerManager: NSObject {
     private let lock = NSLock()
     private var process: Process?
     private var serverPort: Int = 0
+    // server 是否已就緒(spawn 後背景輪詢 /health,模型載入完成才翻 true)。
+    // 開機暖機期間先為 false,讓使用者太早按 ⌘Enter 時能得到「載入中」提示而非靜默失敗。
+    private var serverReady = false
 
     // 模型下載狀態(由 ensureModelDownloaded 管理)。
     private var downloadSession: URLSession?
@@ -73,6 +77,9 @@ final class LlamaServerManager: NSObject {
         "https://huggingface.co/bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen_Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
     /// 完整檔大小(bytes)。下載後核對,半途中斷的殘檔不會被當成已安裝。
     static let modelExpectedSize: Int64 = 2_889_513_696
+    /// 完整檔 SHA256。大小只能抓截斷檔,hash 才能抓錯檔/損毀檔。
+    static let modelExpectedSHA256 =
+        "66713ce35a58a82fe87642d4ec13425bf9b9a46800fff5c49a665ef5701439dc"
 
     /// ~/Library/Application Support/McBopomofo/AIModel/
     private var modelDirectoryURL: URL {
@@ -102,13 +109,30 @@ final class LlamaServerManager: NSObject {
         return "http://127.0.0.1:\(serverPort)"
     }
 
+    /// server 已啟動且模型載入完成、可立即接受校正請求嗎?
+    /// 開機暖機期間(模型還在載入)回 false;子程序若已死也回 false。
+    /// triggerAICorrection 用它決定「直接送請求」還是「提示載入中,請稍候」。
+    @objc var isReady: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return serverReady && (process?.isRunning ?? false)
+    }
+
     // MARK: 生命週期
 
     /// app 啟動(或使用者切到本機後端)時呼叫:挑空閒 port、spawn server。已在跑就跳過。
     @objc func startIfNeeded() {
         lock.lock()
         defer { lock.unlock() }
-        guard process == nil else { return }
+        // 已在跑就跳過;但若子程序已死(被系統因記憶體壓力/睡眠回收等),
+        // 舊的 process 參照還在會讓 `guard process == nil` 永遠擋住重啟、校字一路失敗到 app 重開。
+        // 所以這裡偵測到已死就清掉參照、往下重新 spawn。
+        if let p = process {
+            if p.isRunning { return }
+            process = nil
+            serverPort = 0
+            serverReady = false
+        }
         guard let bin = serverBinaryURL else {
             NSLog("LlamaServer: 找不到 bundle 內的 llama-server,本機後端不可用")
             return
@@ -142,12 +166,57 @@ final class LlamaServerManager: NSObject {
             try proc.run()
             process = proc
             serverPort = port
-            NSLog("LlamaServer: 已啟動於 127.0.0.1:\(port)")
+            serverReady = false
+            NSLog("LlamaServer: 已啟動於 127.0.0.1:\(port),背景暖機中…")
+            // 開機暖機:spawn 後在背景輪詢 /health 直到模型載入完成,主動把 isReady 翻 true。
+            // 這樣使用者開機後十幾秒按第一次 ⌘Enter 就能用,不必先按一次踩到「載入中」才觸發載入。
+            startWarmupPoll(port: port)
         } catch {
             NSLog("LlamaServer: 啟動失敗 — \(error.localizedDescription)")
             process = nil
             serverPort = 0
+            serverReady = false
         }
+    }
+
+    /// 背景輪詢 /health,直到 200(模型載入完成)就把 serverReady 翻 true。
+    /// 只在 spawn 後呼叫一次;最多輪詢 ~90s(涵蓋冷碟首次把 2.9GB 載進 GPU 的最壞情況)。
+    private func startWarmupPoll(port: Int) {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let healthURL = URL(string: "http://127.0.0.1:\(port)/health") else { return }
+            let deadline = Date().addingTimeInterval(90)
+            while Date() < deadline {
+                // 這個 port 的 server 若已被換掉(重新 spawn 拿到新 port)就停止這條舊輪詢。
+                guard let self = self else { return }
+                self.lock.lock()
+                let stillMine = self.serverPort == port && (self.process?.isRunning ?? false)
+                self.lock.unlock()
+                guard stillMine else { return }
+
+                if Self.probeHealthOnce(healthURL) {
+                    self.lock.lock()
+                    if self.serverPort == port { self.serverReady = true }
+                    self.lock.unlock()
+                    NSLog("LlamaServer: 模型已載入完成,本機 AI 校字就緒")
+                    return
+                }
+                Thread.sleep(forTimeInterval: 0.5)
+            }
+        }
+    }
+
+    /// 對 /health 發一次同步探測,200 回 true。供暖機輪詢與 ensureReady 共用。
+    private static func probeHealthOnce(_ healthURL: URL) -> Bool {
+        var req = URLRequest(url: healthURL)
+        req.timeoutInterval = 2
+        let sem = DispatchSemaphore(value: 0)
+        var ok = false
+        URLSession.shared.dataTask(with: req) { _, response, _ in
+            ok = (response as? HTTPURLResponse)?.statusCode == 200
+            sem.signal()
+        }.resume()
+        _ = sem.wait(timeout: .now() + 3)
+        return ok
     }
 
     /// app 結束時呼叫:kill 子程序,別留孤兒佔記憶體。
@@ -159,6 +228,7 @@ final class LlamaServerManager: NSObject {
         }
         process = nil
         serverPort = 0
+        serverReady = false
     }
 
     /// 首次使用本機 AI 時呼叫:若模型尚未安裝,從 HuggingFace 背景下載到 Application Support。
@@ -198,23 +268,19 @@ final class LlamaServerManager: NSObject {
 
     /// 確保 server 已啟動且模型載入完成(/health=200)。回傳就緒的 base URL,逾時回 nil。
     /// 校正前呼叫:涵蓋「開機後模型還在載入(3B 約 2–3s)時使用者就按了熱鍵」的情況。
-    func ensureReady(timeout: TimeInterval = 15) -> String? {
+    func ensureReady(timeout: TimeInterval = 25) -> String? {
         startIfNeeded()
         guard let base = baseURL else { return nil }
         guard let healthURL = URL(string: base + "/health") else { return nil }
 
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            var req = URLRequest(url: healthURL)
-            req.timeoutInterval = 2
-            let sem = DispatchSemaphore(value: 0)
-            var ok = false
-            URLSession.shared.dataTask(with: req) { _, response, _ in
-                ok = (response as? HTTPURLResponse)?.statusCode == 200
-                sem.signal()
-            }.resume()
-            _ = sem.wait(timeout: .now() + 3)
-            if ok { return baseURL }
+            if Self.probeHealthOnce(healthURL) {
+                lock.lock()
+                serverReady = true
+                lock.unlock()
+                return baseURL
+            }
             Thread.sleep(forTimeInterval: 0.3)
         }
         return nil
@@ -258,6 +324,23 @@ final class LlamaServerManager: NSObject {
         pkill.standardError = FileHandle.nullDevice
         try? pkill.run()
         pkill.waitUntilExit()
+    }
+
+    /// 串流計算 SHA256,避免一次把 2.9GB 模型載進記憶體。
+    private static func sha256Hex(of fileURL: URL) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: fileURL) else { return nil }
+        defer { try? handle.close() }
+
+        var hasher = SHA256()
+        while true {
+            let data = autoreleasepool {
+                let data = handle.readData(ofLength: 8 * 1024 * 1024)
+                return data
+            }
+            if data.isEmpty { break }
+            hasher.update(data: data)
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 }
 
@@ -305,6 +388,14 @@ extension LlamaServerManager: URLSessionDownloadDelegate {
             NSLog("LlamaServer: 模型大小不符(得 \(got),期望 \(Self.modelExpectedSize)),刪除殘檔")
             try? fm.removeItem(at: dest)
             notify("本機 AI 模型下載不完整,請重試(再按一次 ⌘Enter)。")
+            finishDownload()
+            return
+        }
+        notify("本機 AI 模型下載完成,正在驗證完整性…")
+        guard Self.sha256Hex(of: dest) == Self.modelExpectedSHA256 else {
+            NSLog("LlamaServer: 模型 SHA256 不符,刪除檔案")
+            try? fm.removeItem(at: dest)
+            notify("本機 AI 模型驗證失敗,請重試或改用雲端後端。")
             finishDownload()
             return
         }

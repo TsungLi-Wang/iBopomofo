@@ -1052,6 +1052,13 @@ extension McBopomofoInputMethodController {
             LlamaServerManager.shared.ensureModelDownloaded()
             return
         }
+        // 本機 AI 已裝模型、但 server 還在開機暖機(模型載入中)時就按了 ⌘Enter:
+        // 別靜默卡住——確保暖機已啟動,並明確提示「載入中,請稍候」,讓使用者知道再等幾秒就行。
+        if backend == 3, !LlamaServerManager.shared.isReady {
+            LlamaServerManager.shared.startIfNeeded()
+            NotifierController.notify(message: "本機 AI 模型載入中,請稍候幾秒再按一次 ⌘Enter")
+            return
+        }
         DispatchQueue.global(qos: .userInitiated).async {
             let corrected: String?
             switch backend {
@@ -1067,6 +1074,12 @@ extension McBopomofoInputMethodController {
                 corrected = Self.runCodexCorrection(guess: guess, preceding: preceding)
             }
             DispatchQueue.main.async {
+                guard let currentInputting = self.state as? InputState.Inputting,
+                    currentInputting.composingBuffer == guess
+                else {
+                    NSLog("AI校正: composing 狀態已變更,丟棄過期結果")
+                    return
+                }
                 // 修正失敗(API 額度不足、網路逾時、key 失效等)時別靜默放棄,跳通知讓使用者知道。
                 guard let corrected, !corrected.isEmpty else {
                     NotifierController.notify(message: "AI 修正失敗(可能 API 額度不足或逾時)")
@@ -1113,7 +1126,16 @@ extension McBopomofoInputMethodController {
             NSLog("AI校正: 無法啟動 codex: \(error.localizedDescription)")
             return nil
         }
-        process.waitUntilExit()
+        let deadline = Date().addingTimeInterval(15)
+        while process.isRunning && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        if process.isRunning {
+            process.terminate()
+            process.waitUntilExit()
+            NSLog("AI校正: codex 執行逾時")
+            return nil
+        }
 
         let data = outPipe.fileHandleForReading.readDataToEndOfFile()
         let raw = String(data: data, encoding: .utf8) ?? ""
@@ -1218,7 +1240,10 @@ extension McBopomofoInputMethodController {
             }
             result = Self.extractResult(from: text)
         }.resume()
-        sem.wait()
+        guard sem.wait(timeout: .now() + 35) == .success else {
+            NSLog("AI校正: Claude 請求逾時")
+            return nil
+        }
         return result
     }
 
@@ -1293,7 +1318,10 @@ extension McBopomofoInputMethodController {
             guard !cleaned.isEmpty else { return }
             result = OpenCCBridge.shared.convertToTraditional(cleaned) ?? cleaned
         }.resume()
-        sem.wait()
+        guard sem.wait(timeout: .now() + 35) == .success else {
+            NSLog("AI校正: 本機 server 請求逾時")
+            return nil
+        }
         return result
     }
 

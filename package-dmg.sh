@@ -7,10 +7,22 @@
 #   - 安裝說明.txt:手動 Terminal 指令(最可靠的退路)
 #
 # 用法:  ./package-dmg.sh [path/to/McBopomofo.app]
+# 未指定 app 時,會先用 shared scheme 做 Release build,再打包。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-APP="${1:-$ROOT/build/dd-rel/Build/Products/Release/McBopomofo.app}"
+if [ $# -gt 0 ]; then
+  APP="$1"
+else
+  echo "[0/4] Release 編譯 …"
+  xcodebuild -quiet \
+    -project "$ROOT/McBopomofo.xcodeproj" \
+    -scheme McBopomofo \
+    -configuration Release \
+    -derivedDataPath "$ROOT/build/dd-rel" \
+    build
+  APP="$ROOT/build/dd-rel/Build/Products/Release/McBopomofo.app"
+fi
 VOL="老王注音"
 OUT="$ROOT/dist"
 DMG="$OUT/LaoWangBopomofo.dmg"
