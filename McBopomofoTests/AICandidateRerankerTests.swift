@@ -102,6 +102,36 @@ struct AICandidateRerankerTests {
         #expect(!AICandidateReranker.needsSemanticRerank(for: context))
     }
 
+    @Test("hasPhraseAlternativeCollision 觸發近似同音多字詞(資道/知道)")
+    func phraseAlternativeCollisionTriggersForNearHomophones() {
+        let entries = [
+            AICandidateRerankEntry(value: "資道", reading: "ㄗ ㄉㄠˋ"),
+            AICandidateRerankEntry(value: "知道", reading: "ㄓ ㄉㄠˋ"),
+        ]
+        #expect(AICandidateReranker.hasPhraseAlternativeCollision(in: entries))
+    }
+
+    @Test("hasPhraseAlternativeCollision 不觸發無關多字詞")
+    func phraseAlternativeCollisionSkipsUnrelatedPhrases() {
+        let entries = [
+            AICandidateRerankEntry(value: "你好", reading: "ㄋㄧˇ ㄏㄠˇ"),
+            AICandidateRerankEntry(value: "天氣", reading: "ㄊㄧㄢ ㄑㄧˋ"),
+        ]
+        #expect(!AICandidateReranker.hasPhraseAlternativeCollision(in: entries))
+    }
+
+    @Test("needsSemanticRerank 不對無關多字候選過度觸發")
+    func needsSemanticRerankSkipsUnrelatedMultiCharCandidates() {
+        let context = AICandidateRerankContext(
+            preceding: "",
+            composingBuffer: "今天",
+            candidates: [
+                .init(value: "今天", reading: "ㄐㄧㄣ ㄊㄧㄢ"),
+                .init(value: "明年", reading: "ㄇㄧㄥˊ ㄋㄧㄢˊ"),
+            ])
+        #expect(!AICandidateReranker.needsSemanticRerank(for: context))
+    }
+
     @Test("shouldSchedule 會尊重新偏好設定")
     func shouldScheduleRespectsPreference() {
         let original = Preferences.enableAICandidateRerank

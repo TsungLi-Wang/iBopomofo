@@ -188,11 +188,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
 
         enableBopomofoFontAnnotationSupportMenuItemIfRelevantFontsInstalled()
 
+        // 單元測試以本 app 當 test host 啟動。此時不要 spawn 內嵌 llama-server、
+        // 也不要連網檢查更新——否則模型載入與背景子程序會讓 `xcodebuild test`
+        // 無法乾淨結束,造成整包測試卡在收尾階段。
+        if AppDelegate.isRunningUnitTests {
+            return
+        }
+
         // 若 AI 修正後端是本機 AI(內建),啟動時就 spawn 內嵌 llama-server 開始載入模型,
         // 消掉首次使用的冷啟動。
         McBopomofoInputMethodController.startLocalServerIfNeeded()
 
         checkForUpdate()
+    }
+
+    /// 在 XCTest 測試宿主環境執行時為真(xcodebuild 會設此環境變數)。
+    private static var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     func applicationWillTerminate(_ notification: Notification) {

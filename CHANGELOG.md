@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+### 修正
+
+- **完整 `xcodebuild test` 不再卡死**：以往整包測試會永久停住,根因有二且皆已修正。
+  - 測試以 app 當 test host 啟動時不再 spawn 內嵌 llama-server、不再連網檢查更新(以 `XCTestConfigurationFilePath` 偵測測試環境)。
+  - `VersionUpdateApiTests` 在未設定更新端點時不再因 continuation 永不 resume 而卡死。
+  - 現況:110 個測試 / 9 個 suite 約 4 秒全綠並乾淨結束。
+
+### 變更
+
+- **L1 AI 候選建議觸發條件收緊**:`hasPhraseAlternativeCollision` 由「候選裡有任兩個不同的多字詞就觸發」改為「多字候選彼此近似同音(音節數相同、僅差一個音節)才觸發」,降低過度觸發、減少不必要的本機推理。
+
 ## [v1.5.3] - 2026-06-24
 
 ### 新增

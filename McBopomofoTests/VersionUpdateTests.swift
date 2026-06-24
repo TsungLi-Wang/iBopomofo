@@ -29,13 +29,23 @@ import Testing
 final class VersionUpdateApiTests {
     @Test("Version Update API Test")
     func testFetchVersionUpdateInfo() async  {
-        let result = await withCheckedContinuation { continuation in
-            _ = VersionUpdateApi.check(forced: true) { result in
+        // 本 fork 自動更新停用,Info.plist 未設定 UpdateInfoEndpoint。此時
+        // `VersionUpdateApi.check` 會直接回傳 nil 而「不呼叫 callback」——若仍
+        // 無條件 await callback,continuation 永不 resume,整包 `xcodebuild test`
+        // 會卡死在這個測試。因此先判斷有沒有發出請求,沒有就視為通過。
+        let result: Result<VersionUpdateApiResult, Error>? = await withCheckedContinuation { continuation in
+            let task = VersionUpdateApi.check(forced: true) { result in
                 continuation.resume(returning: result)
+            }
+            if task == nil {
+                continuation.resume(returning: nil)
             }
         }
 
         switch result {
+        case .none:
+            // 未設定更新端點,沒有可檢查的版本資訊,屬預期狀況。
+            break
         case let .failure(error):
             Issue.record(error)
         case .success:

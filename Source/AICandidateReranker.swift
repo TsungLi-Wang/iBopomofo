@@ -82,27 +82,54 @@ enum AICandidateReranker {
     static func hasReadingCollision(in entries: [AICandidateRerankEntry]) -> Bool {
         var readingToValues: [String: Set<String>] = [:]
         for entry in entries {
-            let reading = entry.reading.trimmingCharacters(in: .whitespacesAndNewlines)
+            let reading = normalizedReading(entry.reading)
             guard !reading.isEmpty else { continue }
             readingToValues[reading, default: []].insert(entry.value)
         }
         return readingToValues.values.contains { $0.count >= 2 }
     }
 
+    /// 多字候選彼此「近似同音」時才觸發:音節數相同、且僅差一個音節(其餘相同)。
+    /// 例:資道(ㄗ/ㄉㄠˋ) vs 知道(ㄓ/ㄉㄠˋ) 只差首音節 → 觸發。
+    ///
+    /// 舊版只要候選裡有任兩個不同的多字詞就觸發,等同每次多字選字都打 server,
+    /// 過度觸發、浪費本機推理。改為要求結構上接近的同音詞才送 server 判斷;
+    /// 讀音完全相同的同音詞已由 `hasReadingCollision` 覆蓋,這裡專收「平翹舌/
+    /// 捲舌不分」這類差一個音節的近似音詞。
     static func hasPhraseAlternativeCollision(in entries: [AICandidateRerankEntry]) -> Bool {
-        guard entries.count >= 2 else { return false }
-        let values = entries.map(\.value)
-        guard Set(values).count >= 2 else { return false }
+        let phrases = entries.filter { $0.value.count >= 2 }
+        guard phrases.count >= 2 else { return false }
 
-        for index in 0..<(values.count - 1) {
-            for next in (index + 1)..<values.count {
-                if values[index] == values[next] { continue }
-                if values[index].count >= 2, values[next].count >= 2 {
+        for index in 0..<(phrases.count - 1) {
+            for next in (index + 1)..<phrases.count {
+                if phrases[index].value == phrases[next].value { continue }
+                if areNearHomophonePhrases(phrases[index].reading, phrases[next].reading) {
                     return true
                 }
             }
         }
         return false
+    }
+
+    /// 兩個讀音是否「只差一個音節」(音節數相同、其餘音節一致)。
+    static func areNearHomophonePhrases(_ lhs: String, _ rhs: String) -> Bool {
+        let lhsSyllables = readingSyllables(lhs)
+        let rhsSyllables = readingSyllables(rhs)
+        guard lhsSyllables.count >= 2, lhsSyllables.count == rhsSyllables.count else {
+            return false
+        }
+        let differing = zip(lhsSyllables, rhsSyllables).reduce(0) { $0 + ($1.0 == $1.1 ? 0 : 1) }
+        return differing == 1
+    }
+
+    /// 把讀音字串切成音節(以空白分隔),例:"ㄗ ㄉㄠˋ" → ["ㄗ", "ㄉㄠˋ"]。
+    static func readingSyllables(_ reading: String) -> [String] {
+        reading.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+    }
+
+    /// 去除讀音內所有空白,讓「格式化差異」不會掩蓋同音(例:"ㄗㄞ ˋ" 與 "ㄗㄞˋ")。
+    static func normalizedReading(_ reading: String) -> String {
+        reading.components(separatedBy: .whitespacesAndNewlines).joined()
     }
 
     static func containsAmbiguity(in text: String) -> Bool {
