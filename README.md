@@ -28,7 +28,7 @@
 
 ## 下載與安裝
 
-1. 到 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-bopomofo/releases) 下載最新版 `LaoWangBopomofo.dmg`。
+1. 到 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases) 下載最新版 `LaoWangZhuyin.dmg`。
 2. 掛載 DMG。
 3. 對 `安裝.command` 按右鍵，選「打開」。
 4. 依提示完成安裝。
@@ -75,7 +75,7 @@
 
 ## 版本更新歷程
 
-完整版本變更請見 [CHANGELOG.md](CHANGELOG.md)。正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-bopomofo/releases)。
+完整版本變更請見 [CHANGELOG.md](CHANGELOG.md)。正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
 ## 從原始碼建置
 
@@ -116,7 +116,7 @@ xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Relea
 輸出位置：
 
 ```text
-dist/LaoWangBopomofo.dmg
+dist/LaoWangZhuyin.dmg
 ```
 
 ## 專案結構

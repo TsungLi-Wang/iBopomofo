@@ -4,7 +4,7 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## Project Overview
 
-LaoWang Bopomofo (老王注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds a productized AI sentence-correction path: users compose a sentence, press ⌘Return, and the app corrects homophones, retroflex/alveolar confusion, and adjacent-key mistakes. The project is built with Swift (UI/state management and AI integration), Objective-C++ (bridge layer), and C++ (core engine), using macOS Input Method Kit (IMK).
+LaoWang Zhuyin (老王注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds a productized AI sentence-correction path: users compose a sentence, press ⌘Return, and the app corrects homophones, retroflex/alveolar confusion, and adjacent-key mistakes. The project is built with Swift (UI/state management and AI integration), Objective-C++ (bridge layer), and C++ (core engine), using macOS Input Method Kit (IMK).
 
 The repository still intentionally keeps many upstream identifiers (`McBopomofo` target/module names, bundle id, input source ids, C++ namespaces) because they are tied to IMK registration, user data paths, and upstream merge cost. Prefer product-facing cleanup first; do not rename these internal identifiers without a migration plan.
 

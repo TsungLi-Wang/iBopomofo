@@ -2,7 +2,17 @@
 
 本檔記錄老王注音的版本變更。格式參考 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本號遵循 [語意化版本](https://semver.org/lang/zh-TW/)。
 
-正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-bopomofo/releases)。
+正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
+
+## [Unreleased]
+
+### 變更
+
+- 品牌名由 bopomofo 改為 zhuyin,與中文「老王注音」對齊:
+  - GitHub repo 由 `laowang-bopomofo` 更名為 `laowang-zhuyin`(舊網址自動轉址)。
+  - 英文產品名 `LaoWang Bopomofo` 改為 `LaoWang Zhuyin`(About、偏好設定、選單、安裝器等顯示文字)。
+  - 發佈 DMG 檔名由 `LaoWangBopomofo.dmg` 改為 `LaoWangZhuyin.dmg`。
+- 不更動:功能字「Bopomofo / 注音」、上游 `McBopomofo` 內部識別(target/bundle id/input source id/module/namespace/資料路徑)。
 
 ## [v1.3] - 2026-06-24
 
@@ -75,7 +85,7 @@ AI 架構重構與 README 產品化。
 - 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
 - 建立自架 DMG 打包流程。
 
-[v1.3]: https://github.com/TsungLi-Wang/laowang-bopomofo/releases/tag/v1.3
-[v1.2]: https://github.com/TsungLi-Wang/laowang-bopomofo/releases/tag/v1.2
-[v1.1]: https://github.com/TsungLi-Wang/laowang-bopomofo/releases/tag/v1.1
-[v1.0]: https://github.com/TsungLi-Wang/laowang-bopomofo/releases/tag/v1.0
+[v1.3]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.3
+[v1.2]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.2
+[v1.1]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.1
+[v1.0]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.0

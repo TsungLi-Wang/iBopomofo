@@ -25,7 +25,7 @@ else
 fi
 VOL="老王注音"
 OUT="$ROOT/dist"
-DMG="$OUT/LaoWangBopomofo.dmg"
+DMG="$OUT/LaoWangZhuyin.dmg"
 
 [ -d "$APP" ] || { echo "找不到 app:$APP(先用 Release 編譯)"; exit 1; }
 

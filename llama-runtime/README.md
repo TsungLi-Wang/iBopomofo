@@ -44,7 +44,7 @@ Phase 0 用 9 句注音校正測試集（同音字／平翹舌／鄰鍵手誤 + 
 **決定**：不申請 Apple Developer 帳號（$99/年），所以不做 Developer ID 簽章 / notarize。
 改成讓人下載 `.dmg`，安裝時用一行指令解除 macOS 隔離。
 
-用 `../package-dmg.sh`（repo 根）產出 `dist/LaoWangBopomofo.dmg`（**~18MB**，因模型不打包），內含：
+用 `../package-dmg.sh`（repo 根）產出 `dist/LaoWangZhuyin.dmg`（**~18MB**，因模型不打包），內含：
 - `McBopomofo.app`（含 llama-server runtime，但不含模型）
 - `安裝.command`（右鍵→打開即可一鍵安裝）
 - `安裝說明.txt`（手動 Terminal 指令，最可靠）
