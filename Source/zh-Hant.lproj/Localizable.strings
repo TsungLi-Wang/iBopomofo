@@ -189,3 +189,13 @@
 "Local AI candidate suggestions are loading" = "本機 AI 候選建議載入中";
 /* Used in the notification when L2 auto-correction needs the local server to finish starting. */
 "Local AI auto-correction is loading" = "本機 AI 自動校正載入中";
+
+/* Phase 3 voice input (experimental). */
+"Voice Input (Experimental)" = "語音輸入（實驗）";
+"Stop Voice Input" = "停止語音輸入";
+"Voice recognition is unavailable" = "語音辨識目前無法使用";
+"Cannot start microphone: %@" = "無法啟動麥克風：%@";
+"Voice recognition failed" = "語音辨識失敗";
+"Voice input needs Dictation: turn it on in System Settings ▸ Keyboard ▸ Dictation" = "語音輸入需要「聽寫」：請到系統設定 ▸ 鍵盤 ▸ 聽寫 開啟";
+"Microphone or speech recognition permission denied" = "麥克風或語音辨識權限被拒絕";
+"Listening… double-tap Control to stop" = "聆聽中…再連按兩下 Control 結束";

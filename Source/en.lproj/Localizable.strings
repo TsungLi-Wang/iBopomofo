@@ -191,3 +191,13 @@
 "Local AI candidate suggestions are loading" = "Local AI candidate suggestions are loading";
 /* Used in the notification when L2 auto-correction needs the local server to finish starting. */
 "Local AI auto-correction is loading" = "Local AI auto-correction is loading";
+
+/* Phase 3 voice input (experimental). */
+"Voice Input (Experimental)" = "Voice Input (Experimental)";
+"Stop Voice Input" = "Stop Voice Input";
+"Voice recognition is unavailable" = "Voice recognition is unavailable";
+"Cannot start microphone: %@" = "Cannot start microphone: %@";
+"Voice recognition failed" = "Voice recognition failed";
+"Voice input needs Dictation: turn it on in System Settings ▸ Keyboard ▸ Dictation" = "Voice input needs Dictation: turn it on in System Settings ▸ Keyboard ▸ Dictation";
+"Microphone or speech recognition permission denied" = "Microphone or speech recognition permission denied";
+"Listening… double-tap Control to stop" = "Listening… double-tap Control to stop";

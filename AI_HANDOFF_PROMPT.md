@@ -18,13 +18,15 @@
 - L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。
 - L1 快速語義：Phase 1 MVP 已加強（debounce、暖機重試、候選同音觸發、選單與偏好設定開關）。
 - L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
-- L3 語音輸入：未實作。
+- L3 語音輸入：**已實機驗證可用並隨 v1.7 發佈**(Apple Speech,zh-TW on-device;連按兩下 Control push-to-talk)。IME 程序取麥克風的頭號風險已排除。
+
+**目前發佈狀態:已發到 v1.7**(GitHub Release,Latest)。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 125 tests 全綠。
 
 Phase 狀態：
 
 - Phase 1：約 95% 完成。L1 候選重排 + debounce + server 重試 + 選單/偏好設定開關已完成；完整 `xcodebuild test` 已可穩定全綠並乾淨結束(見「測試狀態」),L1 觸發條件已收緊以降低過度觸發。
-- Phase 2：MVP 已落地(實驗功能,預設關閉)。句末標點自動觸發 L2,第一版只提示不 commit,Tab 採用;手動 `⌘Return` 行為不變。純邏輯測試已補。尚待真機端到端驗證(打字→句末標點→跳建議→Tab 採用)。
-- Phase 3：未做。語音輸入尚未實作。
+- Phase 2：MVP 已落地並隨 v1.6 發佈(實驗功能,預設關閉)。句末標點自動觸發 L2,第一版只提示不 commit,Tab 採用;手動 `⌘Return` 行為不變。純邏輯測試已補。真機已由 Johnny 確認可動。
+- Phase 3：**完成並已隨 v1.7 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(連按兩下 Control 開始/結束)已實作並通過五項實測(啟動、出字、停止、Ctrl+C/V 不誤觸)。下一步可做:辨識準度/標點、語音轉出後可選再過一次 L2、常駐聆聽模式。詳見下方交班日誌。
 - Phase 4：未做。注音領域微調尚未實作。
 
 ## 已完成的 Phase 1 工作
@@ -161,3 +163,60 @@ Phase 2 建議先做保守 MVP:
 未完成:**真機端到端驗證尚未做**。單元測試只覆蓋純觸發邏輯;tooltip 顯示 + Tab 採用 + 句末標點是否確實進組字區,需實機開實驗開關打字驗證。下一棒接手請先做這個再考慮發版。
 
 注意:pbxproj 既有的 `FACE0040/0041/0042` 已被 `QuarantineHelper.swift` 佔用;本次新檔改用 `FACE0050~0053`,登記新 Swift 檔時別再撞這段。
+
+### 2026-06-25T11:30:00+08:00 Phase 3 設計草案(語音輸入,尚未實作,刻意先不寫程式)
+
+Phase 3 與 L1/L2 本質不同:L1/L2 是「文字進 → 文字校正」,Phase 3 是「**語音進 → 文字出**」,不經注音鍵盤。需要麥克風擷取 + 語音轉文字(STT)。目前無既定設計。**刻意先不寫 Swift**:STT 引擎選擇會決定整個結構,先寫程式等於賭錯重寫。先把框架與決策點定清楚。
+
+**最大技術風險(務必先驗)**:macOS 的「輸入法(input method)程序」能否取得並穩定使用麥克風授權。IME 是被系統載入的特殊程序,取麥克風的行為與一般 app 不同,有平台限制。**Phase 3 第一步應該是一個最小 spike**:在 IME 程序內試 `AVAudioEngine` 錄音 + 請求麥克風授權,確認能跑。這關不過,後面全白做。
+
+**整合原則(沿用既有約束)**:
+- 轉出的文字走現有 commit 路徑 `handle(state: InputState.Committing(poppedText:))`,不繞 `KeyHandler` / `InputState`,不直接 `insertText`。
+- 不破壞 L0;語音是「另一條輸入來源」,最後匯流回同一個 commit 出口。
+- 偏好 `enableVoiceInput`(預設 false,實驗);選單項;權限字串走 NSLocalizedString 三語同步。
+- Info.plist 需 `NSMicrophoneUsageDescription`;若走 Apple Speech 另需 `NSSpeechRecognitionUsageDescription`。
+
+**觸發方式建議**:push-to-talk 熱鍵(按住說話、放開轉文字)。比常駐聆聽省電、隱私好、誤觸少。常駐聆聽留待之後。
+
+**保守 MVP(待 STT 拍板後)**:push-to-talk → on-device STT → 顯示「辨識中」狀態 → 轉出文字 commit。第一版不自動接 L2(避免雙重延遲與誤改);之後可選「語音轉出後再過一次 L2 校正」。
+
+**地基決策(要先拍板才動程式)**:
+1. **STT 引擎**(最關鍵):
+   - A. **Apple Speech 框架**(`SFSpeechRecognizer`,on-device,zh-TW):系統內建、**體積零增加**、與「離線」哲學相容。風險=IME 程序能否使用、on-device 模式對 zh-TW 的支援與準度需實測。
+   - B. **whisper.cpp 內嵌**(對齊現有 llama.cpp 模式):完全離線可控、架構一致(可仿 `LlamaServerManager` 做生命週期管理)。代價=再背一個 STT 模型(體積,可能又要走「首次下載」那套)、自己管程序。
+   - C. **雲端 STT**:準度高、體積零;但違背「離線」哲學、要 API key/網路、有隱私考量。與本專案定位最不合。
+2. **觸發**:push-to-talk 熱鍵 vs 開關常駐聆聽。
+3. **麥克風授權 spike** 先做(見上「最大技術風險」)。
+
+**建議路線**:先做 spike 驗證 IME 取麥克風可行,**同時試 A(Apple Speech)**——零體積、零下載,若 on-device zh-TW 準度堪用就定 A;不堪用再退 B(whisper.cpp 內嵌,代價是體積與下載流程,但與現有 llama 架構一致)。C 僅在前兩者都不行時考慮。
+
+**spike 已實作(2026-06-25,Johnny 選定 A=Apple Speech)**:
+- 新檔 `Source/VoiceInputManager.swift`:`@objc` 單例,`SFSpeechRecognizer(zh-TW)` + `AVAudioEngine` inputNode tap;`requestAuthorization`(Speech + `AVCaptureDevice .audio` 雙授權)、`start`/`stop`;優先 `requiresOnDeviceRecognition`;`onFinalText`/`onError` 回呼。
+- `InputMethodController.swift`:選單加「語音輸入(實驗)/停止語音輸入」(標題依 `isRecording`),`toggleVoiceInput` 動作:請求授權→`start`;最終文字走 `handle(state: InputState.Committing(poppedText:))` 落地,**不繞 KeyHandler/InputState、不碰打字流程**。
+- `Source/McBopomofo-Info.plist`:加 `NSMicrophoneUsageDescription` + `NSSpeechRecognitionUsageDescription`。
+- 三語 strings 同步。pbxproj 用 `FACE0060/0061`。clean build 通過、119/10 測試全綠。
+- **狀態:純 spike,執行期未驗證。** 編譯過 ≠ 會動。**頭號未解問題仍是「IME 程序能否取得麥克風」**,需 Johnny 實機點選單測。若 IME 拿不到麥克風,A/B/C 任何 STT 都救不了(問題在錄音不在辨識),屆時要改架構(例如獨立 helper app 錄音)。**尚未 commit / push**,等 spike 結果再決定去留。
+
+### 2026-06-25T14:40:00+08:00 Phase 3 實機驗證通過 + push-to-talk 完成,發佈 v1.7
+
+頭號風險「IME 程序能否取得麥克風」**已實機證實:能**。Phase 3 從 spike 升級為正式(實驗)功能並隨 v1.7 發佈。
+
+**怎麼驗出來的(留給後人少走冤枉路)**:
+- 第一次實測:點選單「語音輸入(實驗)」→ 授權通過 → 跳「聆聽中」→ 但立刻「語音辨識失敗」、字出不來。畫面通知一閃即逝,看不到真因。
+- 因為錯誤被通用字串吞掉,且 IME 自身 log 在 `log stream` 裡噪音爆量(McBopomofo 程序光 idle 就數十萬行,`--level info` 更慘),**靠系統 log 撈不到**。改為在 `VoiceInputManager` 內把診斷寫進固定檔 `~/Library/Logs/laowang-voice-spike.log`(現已移除),一次定位。
+- 診斷結論:`audioEngine.start()` 沒 throw、`sr=48000 ch=1` 格式合法 → **麥克風錄得到**;真正死因是 `recognitionTask` 立刻回 `kLSRErrorDomain 201: Siri and Dictation are disabled`。即 `requiresOnDeviceRecognition=true` 的離線辨識**需要系統「聽寫」開啟**(使用者開的是「語音控制 Voice Control」,那是另一套,不算)。
+- 解法:Johnny 到「系統設定 ▸ 鍵盤 ▸ 聽寫」開啟聽寫(關掉 Voice Control)→ 再測 → **字正常出來,全線打通**。
+
+**push-to-talk(連按兩下 Control)**:
+- UX:原本要去選單點兩趟太蠢。改為連按兩下 Control 開始、再連按兩下 Control 結束出字。
+- 為何不用 ⌘+鍵 做「按住/放開」:**macOS 在 Command 按住時會吞掉其他鍵的 keyUp**,hold-to-talk 會「按下開始、放開收不到」而停不下來。故用純修飾鍵的「連按」手勢(與系統聽寫的雙擊 Control 同理)。
+- 實作在 `InputMethodController.swift`:`recognizedEvents` 本來就含 `.keyUp`/`.flagsChanged`。新增 `detectVoicePushToTalkControlDoubleTap(_:client:)` 用 flagsChanged 偵測 Control 的 rising/falling edge;只認「乾淨單擊」(兩擊間不夾其他 keyDown、不同時按其他修飾鍵),0.5s 內兩次乾淨單擊 → `toggleVoiceInput(nil)`。狀態變數 `voicePTTControlWasDown` / `voicePTTTapContaminated` / `voicePTTLastCleanTapTime`。
+- 五項實測全過:啟動、出字、停止、Ctrl+C / Ctrl+V 不誤觸、正常打字不誤觸。
+
+**收尾**:移除 spike 診斷碼(寫檔 log、buffer 計數);保留把 `kLSRErrorDomain 201` 轉成友善引導訊息「請到系統設定 ▸ 鍵盤 ▸ 聽寫 開啟」(三語 strings 已加)。版本 1.6→1.7、build 2270→2271。完整 `xcodebuild test` 125 tests 全綠。
+
+**已知限制 / 下一棒可做**:
+- 觸發偵測沒有獨立單元測試(邏輯與 `NSEvent` 綁太緊);目前靠實機五項驗證。若要補,先把連按計時邏輯抽成純函式再測。
+- on-device zh-TW 準度、標點、口語斷句尚未調校;`shouldReportPartialResults=false`,不顯示即時逐字。
+- 正式產品化:可考慮偵測聽寫未開時主動引導、或離線不可用時退回線上辨識(需網路,與離線哲學取捨)。
+- 進階:語音轉出後可選再過一次 L2 校正;常駐聆聽模式(目前只做 push-to-talk,較省電/隱私好)。

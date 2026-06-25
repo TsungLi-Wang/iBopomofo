@@ -68,6 +68,13 @@ class McBopomofoInputMethodController: IMKInputController {
     var aiAutoCorrectionWorkItem: DispatchWorkItem?
     var aiAutoCorrectionServerRetryWorkItem: DispatchWorkItem?
 
+    // Phase 3:語音輸入 push-to-talk。連按兩下 Control 開始/結束。為避免與 Ctrl 系
+    // 快捷鍵(Ctrl+C 等)混淆,只認「兩次乾淨的 Control 單擊」——兩擊之間不可夾雜
+    // 其他按鍵,也不可同時按其他修飾鍵。
+    var voicePTTControlWasDown = false
+    var voicePTTTapContaminated = false
+    var voicePTTLastCleanTapTime: TimeInterval = 0
+
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
 
@@ -106,6 +113,14 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: NSLocalizedString("AI Auto-Correction (Experimental)", comment: ""),
             action: #selector(toggleAIAutoCorrectionEnabled(_:)), keyEquivalent: "")
         aiAutoCorrectionItem.state = Preferences.enableAIAutoCorrection.state
+
+        let voiceInputTitle =
+            VoiceInputManager.shared.isRecording
+            ? NSLocalizedString("Stop Voice Input", comment: "")
+            : NSLocalizedString("Voice Input (Experimental)", comment: "")
+        menu.addItem(
+            withTitle: voiceInputTitle,
+            action: #selector(toggleVoiceInput(_:)), keyEquivalent: "")
 
         // AI 整句修正模型切換器(⌘↵ 觸發時使用;可隨時切換)
         menu.addItem(NSMenuItem.separator())
@@ -281,6 +296,21 @@ class McBopomofoInputMethodController: IMKInputController {
             return false
         }
 
+        // Phase 3 push-to-talk:任何實體按鍵都中斷「連按兩下 Control」的判定:
+        // 在 Control 按住期間打字讓本次點擊不乾淨(排除 Ctrl+C 等快捷鍵),
+        // 兩次 Control 點擊之間打字則清掉前一擊(必須是連續兩下純 Control)。
+        if event.type == .keyDown {
+            if voicePTTControlWasDown {
+                voicePTTTapContaminated = true
+            }
+            voicePTTLastCleanTapTime = 0
+        }
+
+        // Phase 3 push-to-talk:偵測「連按兩下乾淨的 Control」以開始/結束語音輸入。
+        if event.type == .flagsChanged {
+            detectVoicePushToTalkControlDoubleTap(event, client: client)
+        }
+
         // AI 整句修正熱鍵:⌘ + Return(keyCode 36)。只在有 composing 內容時觸發。
         if event.modifierFlags.contains(.command), event.keyCode == 36,
             let inputting = state as? InputState.Inputting,
@@ -391,6 +421,69 @@ class McBopomofoInputMethodController: IMKInputController {
         let enabled = Preferences.toggleAIAutoCorrectionEnabled()
         if !enabled {
             resetAIAutoCorrectionState()
+        }
+    }
+
+    /// Phase 3 push-to-talk:偵測「連按兩下乾淨的 Control」。乾淨 = 兩次單擊之間不夾
+    /// 其他按鍵、也不同時按其他修飾鍵,以免與 Ctrl+C 等快捷鍵混淆。偵測到就切換語音輸入。
+    private func detectVoicePushToTalkControlDoubleTap(_ event: NSEvent, client: Any!) {
+        let controlDown = event.modifierFlags.contains(.control)
+        let otherModifiers: NSEvent.ModifierFlags = [.command, .option, .shift, .function, .capsLock]
+        let hasOther = !event.modifierFlags.isDisjoint(with: otherModifiers)
+
+        // 持有 Control 期間若再按下其他修飾鍵,本次點擊視為不乾淨。
+        if controlDown && hasOther {
+            voicePTTTapContaminated = true
+        }
+
+        if controlDown && !voicePTTControlWasDown {
+            // Rising edge:Control 按下,開始一次點擊判定。
+            voicePTTTapContaminated = hasOther
+        } else if !controlDown && voicePTTControlWasDown {
+            // Falling edge:Control 放開,完成一次點擊。
+            if voicePTTTapContaminated {
+                voicePTTLastCleanTapTime = 0
+            } else {
+                let now = event.timestamp
+                if voicePTTLastCleanTapTime > 0, now - voicePTTLastCleanTapTime <= 0.5 {
+                    voicePTTLastCleanTapTime = 0
+                    toggleVoiceInput(nil)
+                } else {
+                    voicePTTLastCleanTapTime = now
+                }
+            }
+        }
+        voicePTTControlWasDown = controlDown
+    }
+
+    // Phase 3:語音輸入。選單或「連按兩下 Control」push-to-talk 觸發,獨立於打字流程。
+    // 辨識出的最終文字走既有 commit 出口落地,不繞 KeyHandler / InputState。
+    @objc func toggleVoiceInput(_ sender: Any?) {
+        let manager = VoiceInputManager.shared
+        if manager.isRecording {
+            manager.stop()
+            return
+        }
+        manager.onError = { message in
+            NotifierController.notify(message: message)
+        }
+        manager.onFinalText = { [weak self] text in
+            guard let self, !text.isEmpty else { return }
+            let client = self.currentClient
+            self.keyHandler.clear()
+            self.handle(state: InputState.Committing(poppedText: text), client: client)
+            self.handle(state: InputState.Empty(), client: client)
+        }
+        manager.requestAuthorization { granted in
+            guard granted else {
+                NotifierController.notify(
+                    message: NSLocalizedString(
+                        "Microphone or speech recognition permission denied", comment: ""))
+                return
+            }
+            NotifierController.notify(
+                message: NSLocalizedString("Listening… double-tap Control to stop", comment: ""))
+            manager.start()
         }
     }
 
