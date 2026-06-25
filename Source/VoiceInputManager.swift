@@ -42,8 +42,15 @@ import Speech
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "zh-TW"))
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
+    private var latestRecognizedText = ""
+    private var isStopping = false
 
     private(set) var isRecording = false
+
+    var hasRequiredAuthorization: Bool {
+        SFSpeechRecognizer.authorizationStatus() == .authorized
+            && AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+    }
 
     /// 拿到最終辨識文字時回呼(主執行緒)。
     var onFinalText: ((String) -> Void)?
@@ -58,18 +65,26 @@ import Speech
     func requestAuthorization(completion: @escaping (Bool) -> Void) {
         SFSpeechRecognizer.requestAuthorization { speechStatus in
             guard speechStatus == .authorized else {
-                DispatchQueue.main.async { completion(false) }
+                DispatchQueue.main.async {
+                    completion(false)
+                }
                 return
             }
             switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized:
-                DispatchQueue.main.async { completion(true) }
+                DispatchQueue.main.async {
+                    completion(true)
+                }
             case .notDetermined:
                 AVCaptureDevice.requestAccess(for: .audio) { granted in
-                    DispatchQueue.main.async { completion(granted) }
+                    DispatchQueue.main.async {
+                        completion(granted)
+                    }
                 }
             default:
-                DispatchQueue.main.async { completion(false) }
+                DispatchQueue.main.async {
+                    completion(false)
+                }
             }
         }
     }
@@ -83,26 +98,69 @@ import Speech
         }
 
         let request = SFSpeechAudioBufferRecognitionRequest()
-        request.shouldReportPartialResults = false
+        request.shouldReportPartialResults = true
         if recognizer.supportsOnDeviceRecognition {
             request.requiresOnDeviceRecognition = true
         }
         self.request = request
+        latestRecognizedText = ""
+        isStopping = false
 
         let inputNode = audioEngine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            self?.request?.append(buffer)
+        let inputFormat = inputNode.inputFormat(forBus: 0)
+        let outputFormat = inputNode.outputFormat(forBus: 0)
+        guard outputFormat.sampleRate > 0, outputFormat.channelCount > 0 else {
+            onError?(NSLocalizedString("Voice recognition is unavailable", comment: ""))
+            teardown()
+            return
         }
 
-        audioEngine.prepare()
-        do {
-            try audioEngine.start()
-        } catch {
+        var formatCandidates: [(label: String, format: AVAudioFormat?)] = [
+            ("input", inputFormat),
+            ("output", outputFormat),
+        ]
+        let channelCount = outputFormat.channelCount
+        if let standardFormat = AVAudioFormat(
+            standardFormatWithSampleRate: outputFormat.sampleRate,
+            channels: channelCount) {
+            formatCandidates.append(("standard", standardFormat))
+        }
+        formatCandidates.append(("nil", nil))
+
+        var didStartAudioEngine = false
+        var lastStartError: String?
+        for candidate in formatCandidates {
+            inputNode.removeTap(onBus: 0)
+            audioEngine.stop()
+            audioEngine.reset()
+
+            if let tapError = AudioTapInstaller.installTap(
+                on: inputNode,
+                bus: 0,
+                bufferSize: 1024,
+                format: candidate.format,
+                block: { [weak self] buffer, _ in
+                    self?.request?.append(buffer)
+                }) {
+                lastStartError = tapError
+                continue
+            }
+
+            audioEngine.prepare()
+            do {
+                try audioEngine.start()
+                didStartAudioEngine = true
+                break
+            } catch {
+                lastStartError = error.localizedDescription
+            }
+        }
+
+        guard didStartAudioEngine else {
             onError?(
                 String(
                     format: NSLocalizedString("Cannot start microphone: %@", comment: ""),
-                    error.localizedDescription))
+                    lastStartError ?? NSLocalizedString("Voice recognition is unavailable", comment: "")))
             teardown()
             return
         }
@@ -110,13 +168,24 @@ import Speech
         isRecording = true
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self else { return }
-            if let result, result.isFinal {
+            if let result {
                 let text = result.bestTranscription.formattedString
+                if !text.isEmpty {
+                    self.latestRecognizedText = text
+                }
+                guard result.isFinal else { return }
                 DispatchQueue.main.async { self.onFinalText?(text) }
-                self.stop()
+                self.teardown()
             } else if let error {
-                DispatchQueue.main.async { self.onError?(Self.message(for: error)) }
-                self.stop()
+                if self.isStopping, !self.latestRecognizedText.isEmpty {
+                    let text = self.latestRecognizedText
+                    DispatchQueue.main.async { self.onFinalText?(text) }
+                } else if self.isStopping, Self.isNoSpeechError(error) {
+                    DispatchQueue.main.async { self.onFinalText?("") }
+                } else {
+                    DispatchQueue.main.async { self.onError?(Self.message(for: error)) }
+                }
+                self.teardown()
             }
         }
     }
@@ -133,14 +202,19 @@ import Speech
         return NSLocalizedString("Voice recognition failed", comment: "")
     }
 
+    private static func isNoSpeechError(_ error: Error) -> Bool {
+        let ns = error as NSError
+        return ns.domain == "kAFAssistantErrorDomain" && ns.code == 1110
+    }
+
     /// 停止錄音。停止後辨識器會把累積音訊收尾,最終文字仍由 `onFinalText` 送出。
     func stop() {
         guard isRecording else { return }
+        isStopping = true
         isRecording = false
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         request?.endAudio()
-        request = nil
     }
 
     private func teardown() {
@@ -149,6 +223,8 @@ import Speech
             audioEngine.stop()
             audioEngine.inputNode.removeTap(onBus: 0)
         }
+        isStopping = false
+        latestRecognizedText = ""
         request = nil
         task = nil
     }

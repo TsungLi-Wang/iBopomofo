@@ -198,6 +198,8 @@
 "Voice recognition failed" = "語音辨識失敗";
 "Voice input needs Dictation: turn it on in System Settings ▸ Keyboard ▸ Dictation" = "語音輸入需要「聽寫」：請到系統設定 ▸ 鍵盤 ▸ 聽寫 開啟";
 "Microphone or speech recognition permission denied" = "麥克風或語音辨識權限被拒絕";
+"Voice input is ready. Double-tap right Shift again to start speaking" = "語音輸入授權完成，請再連按兩下右 Shift 開始說話";
 "Listening… double-tap right Shift to stop" = "聆聽中…再連按兩下右 Shift 結束";
+"Voice input stopped" = "語音輸入已結束";
 "Recognizing…" = "辨識中…";
 "No speech detected" = "沒聽到內容";

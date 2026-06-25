@@ -24,6 +24,7 @@
 import CandidateUI
 import Cocoa
 import InputMethodKit
+import InputSourceHelper
 import NotifierUI
 import OpenCCBridge
 import SystemCharacterInfo
@@ -75,6 +76,8 @@ class McBopomofoInputMethodController: IMKInputController {
     var voicePTTRightShiftWasDown = false
     var voicePTTTapContaminated = false
     var voicePTTLastCleanTapTime: TimeInterval = 0
+    var voiceInputStopNotificationPending = false
+    static var voiceInputSourceIDPendingAuthorization: String?
 
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
@@ -467,18 +470,18 @@ class McBopomofoInputMethodController: IMKInputController {
     @objc func toggleVoiceInput(_ sender: Any?) {
         let manager = VoiceInputManager.shared
         if manager.isRecording {
+            voiceInputStopNotificationPending = true
             manager.stop()
-            // on-device 收尾辨識會有零點幾到數秒空窗,先給「辨識中」回饋避免像沒反應。
-            NotifierController.notify(
-                message: NSLocalizedString("Recognizing…", comment: ""))
             return
         }
-        manager.onError = { message in
+        manager.onError = { [weak self] message in
+            self?.voiceInputStopNotificationPending = false
             NotifierController.notify(message: message)
         }
         manager.onFinalText = { [weak self] text in
             guard let self else { return }
             guard !text.isEmpty else {
+                self.voiceInputStopNotificationPending = false
                 NotifierController.notify(
                     message: NSLocalizedString("No speech detected", comment: ""))
                 return
@@ -487,18 +490,83 @@ class McBopomofoInputMethodController: IMKInputController {
             self.keyHandler.clear()
             self.handle(state: InputState.Committing(poppedText: text), client: client)
             self.handle(state: InputState.Empty(), client: client)
+            if self.voiceInputStopNotificationPending {
+                self.voiceInputStopNotificationPending = false
+                NotifierController.notify(
+                    message: NSLocalizedString("Voice input stopped", comment: ""))
+            }
         }
+        let wasAuthorizedBeforeRequest = manager.hasRequiredAuthorization
+        rememberCurrentInputSourceForVoiceAuthorization()
         manager.requestAuthorization { granted in
+            Self.restoreInputSourceAfterVoiceAuthorizationIfNeeded()
             guard granted else {
+                self.voiceInputStopNotificationPending = false
                 NotifierController.notify(
                     message: NSLocalizedString(
                         "Microphone or speech recognition permission denied", comment: ""))
                 return
             }
+            guard wasAuthorizedBeforeRequest else {
+                NotifierController.notify(
+                    message: NSLocalizedString(
+                        "Voice input is ready. Double-tap right Shift again to start speaking", comment: ""))
+                return
+            }
             NotifierController.notify(
                 message: NSLocalizedString("Listening… double-tap right Shift to stop", comment: ""))
-            manager.start()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                manager.start()
+            }
         }
+    }
+
+    private func rememberCurrentInputSourceForVoiceAuthorization() {
+        guard let bundleID = Bundle.main.bundleIdentifier,
+            let source = InputSourceHelper.currentKeyboardInputSource(),
+            let sourceID = InputSourceHelper.inputSourceID(for: source),
+            sourceID == bundleID || sourceID.hasPrefix("\(bundleID).")
+        else {
+            Self.voiceInputSourceIDPendingAuthorization = nil
+            return
+        }
+        Self.voiceInputSourceIDPendingAuthorization = sourceID
+    }
+
+    private static func restoreInputSourceAfterVoiceAuthorizationIfNeeded() {
+        guard let sourceID = voiceInputSourceIDPendingAuthorization else {
+            return
+        }
+        voiceInputSourceIDPendingAuthorization = nil
+
+        // macOS permission panels can temporarily activate UserNotificationCenter
+        // and move the active input source to ABC. Restore only when the current
+        // source is still an Apple keyboard layout, and only for the source that
+        // was active immediately before the authorization flow.
+        restoreInputSourceAfterVoiceAuthorization(sourceID: sourceID)
+        for delay in [0.0, 0.2, 0.6, 1.0, 1.6] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                restoreInputSourceAfterVoiceAuthorization(sourceID: sourceID)
+            }
+        }
+    }
+
+    private static func restoreInputSourceAfterVoiceAuthorization(sourceID: String) {
+        guard let current = InputSourceHelper.currentKeyboardInputSource() else {
+            _ = InputSourceHelper.select(inputSourceID: sourceID)
+            return
+        }
+        let currentID = InputSourceHelper.inputSourceID(for: current) ?? ""
+        if currentID == sourceID {
+            return
+        }
+        let currentBundle = InputSourceHelper.bundleID(for: current) ?? ""
+        guard currentID.hasPrefix("com.apple.keylayout.")
+            || currentBundle == "com.apple.keyboardlayout.all"
+        else {
+            return
+        }
+        _ = InputSourceHelper.select(inputSourceID: sourceID)
     }
 
     @objc func toggleBopomofoFontAnnotationSupport(_ sender: Any?) {

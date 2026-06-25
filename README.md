@@ -10,7 +10,7 @@
 
 - 注音輸入：沿用 McBopomofo 的注音引擎、詞庫、候選字與使用者詞彙機制。
 - AI 整句修正：組字中按 **Command + Return** 觸發。
-- 語音輸入（實驗）：**連按兩下右 Shift** 開始聆聽、再連按兩下結束出字;用 Apple 內建語音辨識（繁中、優先離線),需先於系統設定開啟「聽寫」。
+- 語音輸入（實驗）：**連按兩下右 Shift** 開始聆聽、再連按兩下結束出字;用 Apple 內建語音辨識（繁中、優先離線),需先於系統設定開啟「聽寫」。首次授權只處理權限,授權完成後再連按兩下右 Shift 才開始錄音。
 - 本機 AI 預設開啟：內建 `llama-server`，模型首次使用自動下載到使用者資料夾。
 - 雲端後端可切換：支援 Claude Haiku、Claude Opus 與 Codex CLI。
 - 前文輔助判斷：修正時會讀取游標前方文字作為語意參考。
@@ -157,7 +157,7 @@ dist/LaoWangZhuyin.dmg
 - 停止讓更新檢查導向 OpenVanilla 發佈通道。
 - 拆分 AI 校正程式碼:prompt、Claude、Codex、本機 server 與 controller 流程已分檔。
 - AI 後端改用結構化錯誤（`AICorrectionError`），失敗時顯示具體原因與處置建議。
-- `McBopomofoInstaller` target 確認保留作為開發安裝流程（自動 kill/restart 輸入法）；正式發佈走 `package-dmg.sh` + `安裝.command`，不經過 installer。
+- `McBopomofoInstaller` target 確認保留作為開發與正式 DMG 安裝流程（自動 kill/restart 輸入法）；正式發佈走 `package-dmg.sh` 打包「安裝老王注音.app」。
 - app 顯示版本由上游遺留的 3.0 對齊為 1.x 產品版本。
 
 下一步：

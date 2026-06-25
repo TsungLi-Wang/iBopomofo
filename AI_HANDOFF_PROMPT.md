@@ -18,15 +18,15 @@
 - L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。
 - L1 快速語義：Phase 1 MVP 已加強（debounce、暖機重試、候選同音觸發、選單與偏好設定開關）。
 - L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
-- L3 語音輸入：**已實機驗證可用並隨 v1.7 / v1.7.1 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。
+- L3 語音輸入：**已實機驗證可用並隨 v1.7 / v1.7.1 / v1.7.2 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。
 
-**目前發佈狀態:已發到 v1.7.1**(GitHub Release,Latest)。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識中/空結果回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 125 tests 全綠。
+**目前發佈狀態:已發到 v1.7.2**(GitHub Release,Latest)。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 119 tests / 10 suites 全綠。
 
 Phase 狀態：
 
 - Phase 1：約 95% 完成。L1 候選重排 + debounce + server 重試 + 選單/偏好設定開關已完成；完整 `xcodebuild test` 已可穩定全綠並乾淨結束(見「測試狀態」),L1 觸發條件已收緊以降低過度觸發。
 - Phase 2：MVP 已落地並隨 v1.6 發佈(實驗功能,預設關閉)。句末標點自動觸發 L2,第一版只提示不 commit,Tab 採用;手動 `⌘Return` 行為不變。純邏輯測試已補。真機已由 Johnny 確認可動。
-- Phase 3：**完成並已隨 v1.7 / v1.7.1 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(**連按兩下右 Shift** 開始/結束;v1.7 原為 Control,v1.7.1 改右 Shift 避開系統聽寫衝突)已實作並通過五項實測。下一步可做:辨識準度/標點、語音轉出後可選再過一次 L2、常駐聆聽模式。詳見下方交班日誌。
+- Phase 3：**完成並已隨 v1.7 / v1.7.1 / v1.7.2 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(**連按兩下右 Shift** 開始/結束;v1.7 原為 Control,v1.7.1 改右 Shift 避開系統聽寫衝突)已實作。v1.7.2 補上首次授權兩段式流程、授權後輸入源恢復、CoreAudio tap 防 crash 與通知去重。下一步可做:辨識準度/標點、語音轉出後可選再過一次 L2、常駐聆聽模式。詳見下方交班日誌。
 - Phase 4：未做。注音領域微調尚未實作。
 
 ## 已完成的 Phase 1 工作
@@ -76,7 +76,7 @@ Phase 狀態：
 xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
 ```
 
-完整測試（110 tests / 9 suites,約 4 秒,全綠並乾淨結束）：
+完整測試（119 tests / 10 suites,約 4 到 6 秒,全綠並乾淨結束）：
 
 ```bash
 xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug CODE_SIGNING_ALLOWED=NO
@@ -95,8 +95,8 @@ xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo -configuration 
 
 1. 觀察 L1 在真實輸入下的命中率;若仍過度觸發,進一步調整 `hasPhraseAlternativeCollision` 的「差一個音節」門檻或 `ambiguousCharacters` 範圍(`Source/AICandidateReranker.swift`)。
 2. （可選）把純邏輯測試抽成不依賴 host app 的 logic test target,讓單元測試完全脫離 IMK host;目前完整 `xcodebuild test` 已可穩定執行,此項非必要。
-3. Phase 2：句末自動 L2（獨立 PR）。
-4. Phase 3：語音輸入（獨立 PR）。
+3. Phase 3 收尾:辨識準度/標點/口語斷句調校;語音轉出後可選再過一次 L2;或常駐聆聽模式(目前只做 push-to-talk)。
+4. Phase 4:注音領域微調,突破本機 4B 模型在「在/再、的/得/地」的上限。
 
 ## 後續 AI 回覆使用者時
 
@@ -107,7 +107,7 @@ xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo -configuration 
 - L2 是按快捷鍵後整句修正。
 - L3 是語音輸入。
 
-不要只說「已完成 Phase 1-4」。目前 Phase 1 約 95%（L1 已可用、完整測試已穩定），Phase 2-4 未開始。
+不要只說「已完成 Phase 1-4」。目前 Phase 1/L1 已可用,Phase 2/L2 句末自動校正 MVP 已發佈但仍是實驗預設關,Phase 3/L3 語音輸入已可用且仍可調校準度/標點,Phase 4 尚未開始。
 
 ## 交班日誌
 
@@ -213,7 +213,7 @@ Phase 3 與 L1/L2 本質不同:L1/L2 是「文字進 → 文字校正」,Phase 3
 - 實作在 `InputMethodController.swift`:`recognizedEvents` 本來就含 `.keyUp`/`.flagsChanged`。新增 `detectVoicePushToTalkControlDoubleTap(_:client:)` 用 flagsChanged 偵測 Control 的 rising/falling edge;只認「乾淨單擊」(兩擊間不夾其他 keyDown、不同時按其他修飾鍵),0.5s 內兩次乾淨單擊 → `toggleVoiceInput(nil)`。狀態變數 `voicePTTControlWasDown` / `voicePTTTapContaminated` / `voicePTTLastCleanTapTime`。
 - 五項實測全過:啟動、出字、停止、Ctrl+C / Ctrl+V 不誤觸、正常打字不誤觸。
 
-**收尾**:移除 spike 診斷碼(寫檔 log、buffer 計數);保留把 `kLSRErrorDomain 201` 轉成友善引導訊息「請到系統設定 ▸ 鍵盤 ▸ 聽寫 開啟」(三語 strings 已加)。版本 1.6→1.7、build 2270→2271。完整 `xcodebuild test` 125 tests 全綠。
+**收尾**:移除 spike 診斷碼(寫檔 log、buffer 計數);保留把 `kLSRErrorDomain 201` 轉成友善引導訊息「請到系統設定 ▸ 鍵盤 ▸ 聽寫 開啟」(三語 strings 已加)。版本 1.6→1.7、build 2270→2271。完整 `xcodebuild test` 全綠。
 
 **已知限制 / 下一棒可做**:
 - 觸發偵測沒有獨立單元測試(邏輯與 `NSEvent` 綁太緊);目前靠實機五項驗證。若要補,先把連按計時邏輯抽成純函式再測。
@@ -233,4 +233,30 @@ Phase 3 與 L1/L2 本質不同:L1/L2 是「文字進 → 文字校正」,Phase 3
 
 **B 辨識回饋**:雙擊停止後 `manager.stop()` 之後到 `onFinalText` 出字之間有空窗(on-device 收尾),補「辨識中…」通知;`onFinalText` 收到空字串改提示「沒聽到內容」而非靜默。
 
-版本 1.7→1.7.1、build 2271→2272。完整 test 仍 125 全綠。發版照舊 package-dmg → push → tag v1.7.1 → gh release。pbxproj 無新檔(沿用 FACE0060/0061)。
+版本 1.7→1.7.1、build 2271→2272。完整 test 全綠。發版照舊 package-dmg → push → tag v1.7.1 → gh release。pbxproj 無新檔(沿用 FACE0060/0061)。
+
+### 2026-06-25T18:10:00+08:00 v1.7.2:語音首次授權/ABC fallback/CoreAudio crash/通知流程修正
+
+這版是 v1.7.1 後的語音輸入穩定性與 UX patch。
+
+**根因診斷結論**:
+- 首次語音使用會出現兩個 macOS TCC 權限流程:Speech Recognition 與 Microphone。這兩個系統授權不能合併成一個 app 內彈窗;授權成功後會跨重開機保留,正常不會每次重開再問。
+- 授權面板會讓 `UserNotificationCenter` 暫時成為前景,IMK 會 activate/deactivate,macOS 可能把目前輸入源暫時切到 `com.apple.keylayout.ABC`。
+- 使用者最初看到「最後停在 ABC」不只是輸入源切換,真正讓它留在 ABC 的主因是 `AVAudioNode.installTap` 在某些音訊格式下丟 Objective-C exception,McBopomofo crash 後 macOS fallback 到 ABC。crash report backtrace 指向 `AVAudioEngineImpl::InstallTapOnNode`。
+
+**本次修正**:
+- 新增 `InputSourceHelper` 對 TIS current/select 的包裝,授權前只在目前輸入源確實是本 app bundle/input mode 時記住 source ID。授權完成後只在目前仍是 Apple keyboard layout 時嘗試恢復;如果使用者已切到其他第三方輸入法,不強拉回來。
+- 新增 `Source/AudioTapInstaller.h/.m`,用 Objective-C `@try/@catch` 包住 `installTap`,避免 Swift 無法捕捉的 exception 直接殺掉 IME。pbxproj 新檔 ID 使用 `FACE0062~0064`。
+- `VoiceInputManager.start()` 改成依序嘗試 input/output/standard/nil audio format,任何 tap 或 engine start 失敗就換下一個,最後才顯示「無法啟動麥克風」。
+- 首次授權流程改成兩段式:第一次雙擊右 Shift 只要求權限;授權完成後提示「語音輸入授權完成，請再連按兩下右 Shift 開始說話」,不直接錄音。已授權後再雙擊才開始錄音。
+- 停止錄音通知去重:停止時先不顯示「語音輸入已結束」;若最後沒聽到內容或錯誤,只顯示該提示;只有成功辨識並 commit 文字後才顯示「語音輸入已結束」。
+- 清掉本次診斷用固定檔 log (`~/Library/Logs/laowang-voice-auth-diagnosis.log`) 與 `VoiceInputDiagnostics`,正式版不留下臨時寫檔。
+
+**驗證**:
+- Johnny 實機確認 ABC fallback 已解、語音可正常辨識。
+- 完整 `xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug CODE_SIGNING_ALLOWED=NO` 通過:119 tests / 10 suites。
+- 發版前另跑 Release 打包 `./package-dmg.sh`。
+
+**後續可做**:
+- 這版保留短延遲 `0.05s` 後才 `manager.start()`,只是避開同一個 key event 剛結束的邊界,不是授權延遲。若未來要再優化啟動手感,可以實測降到 0 或把啟動完成通知改成等 `audioEngine.start()` 成功後再顯示。
+- 若要再診斷 IME 執行期問題,仍建議短期加固定檔 log 定位,查完務必移除;不要靠 `log stream` 撈 McBopomofo,噪音太大。

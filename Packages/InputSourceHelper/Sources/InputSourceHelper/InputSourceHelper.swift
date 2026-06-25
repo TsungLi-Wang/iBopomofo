@@ -58,6 +58,30 @@ public class InputSourceHelper: NSObject {
         inputSource(for: kTISPropertyInputSourceID, stringValue: sourceID)
     }
 
+    @objc(currentKeyboardInputSource)
+    public static func currentKeyboardInputSource() -> TISInputSource? {
+        TISCopyCurrentKeyboardInputSource()?.takeRetainedValue()
+    }
+
+    public static func inputSourceID(for source: TISInputSource) -> String? {
+        stringProperty(source, kTISPropertyInputSourceID)
+    }
+
+    public static func bundleID(for source: TISInputSource) -> String? {
+        stringProperty(source, kTISPropertyBundleID)
+    }
+
+    private static func stringProperty(_ source: TISInputSource, _ key: CFString) -> String? {
+        guard let pointer = TISGetInputSourceProperty(source, key) else {
+            return nil
+        }
+        let value = Unmanaged<CFTypeRef>.fromOpaque(pointer).takeUnretainedValue()
+        if CFGetTypeID(value) == CFStringGetTypeID() {
+            return value as? String
+        }
+        return "\(value)"
+    }
+
     @objc(inputSourceEnabled:)
     public static func inputSourceEnabled(for source: TISInputSource) -> Bool {
         if let valuePts = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsEnabled) {
@@ -71,6 +95,20 @@ public class InputSourceHelper: NSObject {
     public static func enable(inputSource: TISInputSource) -> Bool {
         let status = TISEnableInputSource(inputSource)
         return status == noErr
+    }
+
+    @objc(selectInputSource:)
+    public static func select(inputSource: TISInputSource) -> Bool {
+        let status = TISSelectInputSource(inputSource)
+        return status == noErr
+    }
+
+    @objc(selectInputSourceID:)
+    public static func select(inputSourceID: String) -> Bool {
+        guard let source = inputSource(for: inputSourceID) else {
+            return false
+        }
+        return select(inputSource: source)
     }
 
     @objc(enableAllInputModesForInputSourceBundleID:)
@@ -128,4 +166,3 @@ public class InputSourceHelper: NSObject {
     }
 
 }
-

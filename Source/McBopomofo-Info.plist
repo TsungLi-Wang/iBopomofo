@@ -4,10 +4,6 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>老王注音的語音輸入(實驗功能)需要使用麥克風,把你說的話轉成文字。</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>老王注音的語音輸入(實驗功能)使用語音辨識,把你說的話轉成文字。</string>
 	<key>CFBundleExecutable</key>
 	<string>${EXECUTABLE_NAME}</string>
 	<key>CFBundleIdentifier</key>
@@ -19,11 +15,11 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.7.1</string>
+	<string>1.7.2</string>
 	<key>CFBundleSignature</key>
 	<string>BPMF</string>
 	<key>CFBundleVersion</key>
-	<string>2272</string>
+	<string>2273</string>
 	<key>ComponentInputModeDict</key>
 	<dict>
 		<key>tsInputModeListKey</key>
@@ -111,6 +107,8 @@
 	<string>Copyright © 2011-2026 Mengjuei Hsieh et al.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>老王注音的語音輸入(實驗功能)需要使用麥克風,把你說的話轉成文字。</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSServices</key>
@@ -321,6 +319,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>老王注音的語音輸入(實驗功能)使用語音辨識,把你說的話轉成文字。</string>
 	<key>TICapsLockLanguageSwitchCapable</key>
 	<true/>
 	<key>TISInputSourceID</key>

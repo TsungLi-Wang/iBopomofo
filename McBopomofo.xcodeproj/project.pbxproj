@@ -78,6 +78,7 @@
 		FACE0033FACE0033FACE0033 /* InputMethodController+AIRerank.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0032FACE0032FACE0032 /* InputMethodController+AIRerank.swift */; };
 		FACE0051FACE0051FACE0051 /* AIAutoCorrector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0050FACE0050FACE0050 /* AIAutoCorrector.swift */; };
 		FACE0061FACE0061FACE0061 /* VoiceInputManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0060FACE0060FACE0060 /* VoiceInputManager.swift */; };
+		FACE0064FACE0064FACE0064 /* AudioTapInstaller.m in Sources */ = {isa = PBXBuildFile; fileRef = FACE0063FACE0063FACE0063 /* AudioTapInstaller.m */; };
 		FACE0053FACE0053FACE0053 /* InputMethodController+AIAutoCorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0052FACE0052FACE0052 /* InputMethodController+AIAutoCorrection.swift */; };
 		FACE0041FACE0041FACE0041 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
 		FACE0042FACE0042FACE0042 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
@@ -245,6 +246,8 @@
 		FACE0032FACE0032FACE0032 /* InputMethodController+AIRerank.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+AIRerank.swift"; sourceTree = "<group>"; };
 		FACE0050FACE0050FACE0050 /* AIAutoCorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAutoCorrector.swift; sourceTree = "<group>"; };
 		FACE0060FACE0060FACE0060 /* VoiceInputManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputManager.swift; sourceTree = "<group>"; };
+		FACE0062FACE0062FACE0062 /* AudioTapInstaller.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioTapInstaller.h; sourceTree = "<group>"; };
+		FACE0063FACE0063FACE0063 /* AudioTapInstaller.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AudioTapInstaller.m; sourceTree = "<group>"; };
 		FACE0052FACE0052FACE0052 /* InputMethodController+AIAutoCorrection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+AIAutoCorrection.swift"; sourceTree = "<group>"; };
 		FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuarantineHelper.swift; sourceTree = "<group>"; };
 		FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAICorrector.swift; sourceTree = "<group>"; };
@@ -389,6 +392,8 @@
 				FACE0030FACE0030FACE0030 /* AICandidateReranker.swift */,
 				FACE0050FACE0050FACE0050 /* AIAutoCorrector.swift */,
 				FACE0060FACE0060FACE0060 /* VoiceInputManager.swift */,
+				FACE0062FACE0062FACE0062 /* AudioTapInstaller.h */,
+				FACE0063FACE0063FACE0063 /* AudioTapInstaller.m */,
 				FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */,
 				FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */,
 				FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */,
@@ -858,6 +863,7 @@
 				FACE0031FACE0031FACE0031 /* AICandidateReranker.swift in Sources */,
 				FACE0051FACE0051FACE0051 /* AIAutoCorrector.swift in Sources */,
 				FACE0061FACE0061FACE0061 /* VoiceInputManager.swift in Sources */,
+				FACE0064FACE0064FACE0064 /* AudioTapInstaller.m in Sources */,
 				FACE0015FACE0015FACE0015 /* CodexAICorrector.swift in Sources */,
 				FACE0017FACE0017FACE0017 /* ClaudeAICorrector.swift in Sources */,
 				FACE0019FACE0019FACE0019 /* LocalServerAICorrector.swift in Sources */,
