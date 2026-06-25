@@ -61,6 +61,12 @@ class McBopomofoInputMethodController: IMKInputController {
     var aiCandidateRerankedValue: String?
     var aiCandidateRerankWorkItem: DispatchWorkItem?
     var aiCandidateServerRetryWorkItem: DispatchWorkItem?
+    // Phase 2:句末自動 L2 整句校正(只提示、不直接 commit)的狀態。
+    var aiAutoCorrectionSuggestion: AICandidateSuggestion?
+    var aiAutoCorrectionRequestSerial: UInt = 0
+    var aiAutoCorrectionDidNotifyLocalServerLoading = false
+    var aiAutoCorrectionWorkItem: DispatchWorkItem?
+    var aiAutoCorrectionServerRetryWorkItem: DispatchWorkItem?
 
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
@@ -95,6 +101,11 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: NSLocalizedString("AI Candidate Suggestions", comment: ""),
             action: #selector(toggleAICandidateRerankEnabled(_:)), keyEquivalent: "")
         aiCandidateRerankItem.state = Preferences.enableAICandidateRerank.state
+
+        let aiAutoCorrectionItem = menu.addItem(
+            withTitle: NSLocalizedString("AI Auto-Correction (Experimental)", comment: ""),
+            action: #selector(toggleAIAutoCorrectionEnabled(_:)), keyEquivalent: "")
+        aiAutoCorrectionItem.state = Preferences.enableAIAutoCorrection.state
 
         // AI 整句修正模型切換器(⌘↵ 觸發時使用;可隨時切換)
         menu.addItem(NSMenuItem.separator())
@@ -282,6 +293,7 @@ class McBopomofoInputMethodController: IMKInputController {
         if event.keyCode == 48,
             acceptAICandidateSuggestionFromCandidateWindowIfAvailable(client: client)
                 || acceptAICandidateSuggestionIfAvailable(client: client)
+                || acceptAIAutoCorrectionSuggestionIfAvailable(client: client)
         {
             return true
         }
@@ -373,6 +385,13 @@ class McBopomofoInputMethodController: IMKInputController {
 
     @objc func toggleAICandidateRerankEnabled(_ sender: Any?) {
         _ = Preferences.toggleAICandidateRerankEnabled()
+    }
+
+    @objc func toggleAIAutoCorrectionEnabled(_ sender: Any?) {
+        let enabled = Preferences.toggleAIAutoCorrectionEnabled()
+        if !enabled {
+            resetAIAutoCorrectionState()
+        }
     }
 
     @objc func toggleBopomofoFontAnnotationSupport(_ sender: Any?) {
@@ -497,12 +516,15 @@ extension McBopomofoInputMethodController {
             state = .Empty()
         case let newState as InputState.Empty:
             resetAICandidateAssistState()
+            resetAIAutoCorrectionState()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.EmptyIgnoringPreviousState:
             resetAICandidateAssistState()
+            resetAIAutoCorrectionState()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Committing:
             resetAICandidateAssistState()
+            resetAIAutoCorrectionState()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Inputting:
             handle(state: newState, previous: previous, client: client)
@@ -653,6 +675,7 @@ extension McBopomofoInputMethodController {
                 tooltip: state.tooltip, composingBuffer: state.composingBuffer,
                 cursorIndex: state.cursorIndex, client: client)
         }
+        scheduleAIAutoCorrectionIfNeeded(for: state, client: client)
     }
 
     private func handle(state: InputState.Marking, previous: InputState, client: Any?) {
@@ -1020,7 +1043,7 @@ extension McBopomofoInputMethodController {
         gCurrentCandidateController?.visible = true
     }
 
-    private func show(tooltip: String, composingBuffer: String, cursorIndex: UInt, client: Any!) {
+    func show(tooltip: String, composingBuffer: String, cursorIndex: UInt, client: Any!) {
         var lineHeightRect = NSMakeRect(0.0, 0.0, 16.0, 16.0)
         var cursor: Int = Int(cursorIndex)
         if cursor == composingBuffer.count && cursor != 0 {

@@ -182,6 +182,9 @@
 /* Used in the candidate window tooltip when L1 AI suggests a better composing buffer. */
 "AI Suggestion: %@ (Tab)" = "AI Suggestion: %@ (Tab)";
 "AI Candidate Suggestions" = "AI Candidate Suggestions";
+"AI Auto-Correction (Experimental)" = "AI Auto-Correction (Experimental)";
 
 /* Used in the notification when L1 AI needs the local server to finish starting. */
 "Local AI candidate suggestions are loading" = "Local AI candidate suggestions are loading";
+/* Used in the notification when L2 auto-correction needs the local server to finish starting. */
+"Local AI auto-correction is loading" = "Local AI auto-correction is loading";

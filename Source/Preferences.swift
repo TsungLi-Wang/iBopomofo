@@ -57,6 +57,7 @@ private let kRepeatedPunctuationToSelectCandidateEnabledKey =
 private let kUseCustomUserPhraseLocation = "UseCustomUserPhraseLocation"
 private let kCustomUserPhraseLocation = "CustomUserPhraseLocation"
 private let kEnableAICandidateRerankKey = "EnableAICandidateRerank"
+private let kEnableAIAutoCorrectionKey = "EnableAIAutoCorrection"
 
 private let kDefaultCandidateListTextSize: CGFloat = 16
 private let kMinCandidateListTextSize: CGFloat = 12
@@ -237,6 +238,7 @@ class Preferences: NSObject {
             kUseCustomUserPhraseLocation,
             kCustomUserPhraseLocation,
             kEnableAICandidateRerankKey,
+            kEnableAIAutoCorrectionKey,
         ]
     }
 
@@ -269,6 +271,7 @@ class Preferences: NSObject {
         Preferences.allowMovingCursorWhenChoosingCandidates =
             Preferences.allowMovingCursorWhenChoosingCandidates
         Preferences.enableAICandidateRerank = Preferences.enableAICandidateRerank
+        Preferences.enableAIAutoCorrection = Preferences.enableAIAutoCorrection
     }
 
     @EnumUserDefault(key: kKeyboardLayoutPreferenceKey, defaultValue: KeyboardLayout.standard)
@@ -464,6 +467,15 @@ extension Preferences {
     @objc static func toggleAICandidateRerankEnabled() -> Bool {
         enableAICandidateRerank = !enableAICandidateRerank
         return enableAICandidateRerank
+    }
+
+    // Phase 2:句末自動 L2 整句校正。實驗功能,預設關閉。
+    @UserDefault(key: kEnableAIAutoCorrectionKey, defaultValue: false)
+    @objc static var enableAIAutoCorrection: Bool
+
+    @objc static func toggleAIAutoCorrectionEnabled() -> Bool {
+        enableAIAutoCorrection = !enableAIAutoCorrection
+        return enableAIAutoCorrection
     }
 }
 
@@ -679,6 +691,9 @@ extension Preferences {
         )
         lines.append(
             "  - AI Candidate Suggestions: \(Preferences.enableAICandidateRerank ? "Enabled" : "Disabled")"
+        )
+        lines.append(
+            "  - AI Auto-Correction: \(Preferences.enableAIAutoCorrection ? "Enabled" : "Disabled")"
         )
         return lines.joined(separator: "\n")
     }

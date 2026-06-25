@@ -23,7 +23,7 @@
 Phase 狀態：
 
 - Phase 1：約 95% 完成。L1 候選重排 + debounce + server 重試 + 選單/偏好設定開關已完成；完整 `xcodebuild test` 已可穩定全綠並乾淨結束(見「測試狀態」),L1 觸發條件已收緊以降低過度觸發。
-- Phase 2：未做。自動 L2 尚未實作。
+- Phase 2：MVP 已落地(實驗功能,預設關閉)。句末標點自動觸發 L2,第一版只提示不 commit,Tab 採用;手動 `⌘Return` 行為不變。純邏輯測試已補。尚待真機端到端驗證(打字→句末標點→跳建議→Tab 採用)。
 - Phase 3：未做。語音輸入尚未實作。
 - Phase 4：未做。注音領域微調尚未實作。
 
@@ -106,3 +106,58 @@ xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo -configuration 
 - L3 是語音輸入。
 
 不要只說「已完成 Phase 1-4」。目前 Phase 1 約 95%（L1 已可用、完整測試已穩定），Phase 2-4 未開始。
+
+## 交班日誌
+
+### 2026-06-24T18:13:36+08:00 Phase 2 開工前判讀
+
+使用者表示想了解 Phase 2,但暫不開工。已確認目前規劃中的 Phase 2 指「句末自動 L2」,不是重寫現有 `⌘Return` 整句修正。
+
+目前最佳接點:
+
+- 現有 L2 入口在 `Source/InputMethodController+AICorrection.swift` 的 `triggerAICorrection(guess:client:)`。
+- 手動觸發點在 `Source/InputMethodController.swift` 的 `⌘Return` 判斷。
+- AI 後端 dispatch 已集中在 `correctAIGuess(guess:preceding:backend:)`。
+- 結果套用在 `applyAICorrectionResult(...)`;目前會直接清掉 `keyHandler` 並 commit 修正結果,適合手動 `⌘Return`,但不適合直接拿來做自動 L2。
+- 前文擷取可繼續使用 `precedingTextForAI(from:maxChars:)`。
+
+Phase 2 建議先做保守 MVP:
+
+1. 新增一個自動 L2 排程層,例如 `InputMethodController+AIAutoCorrection.swift`,不要改 C++ engine,不要繞過 `KeyHandler` / `InputState`。
+2. 在 `InputState.Inputting` 更新後,遇到句末標點或停頓時排程,使用 debounce,建議 800ms 到 1200ms。
+3. 只在 composing buffer 長度達門檻、游標位於句尾、目前仍是 `InputState.Inputting` 時觸發。
+4. AI 呼叫繼續非阻塞,並沿用 serial + composing buffer 檢查,丟棄過期結果。
+5. 自動 L2 第一版不要直接 commit 修正結果;若 AI 結果不同,先顯示 tooltip 或通知,讓使用者按 Tab 或明確確認鍵採用。
+6. 手動 `⌘Return` 維持現有直接套用行為;自動 L2 應拆成「取得建議」與「採用建議」兩步。
+7. 新增偏好設定開關,建議命名 `enableAIAutoCorrection`,第一版可預設關閉或標為實驗功能。
+8. 測試先補純邏輯:句末觸發條件、debounce/serial 過期丟棄、相同結果不提示、不同結果只建立 pending suggestion 不 commit。
+
+主要風險:
+
+- 若復用 `applyAICorrectionResult(...)` 直接 commit,自動 L2 可能在使用者繼續打字時誤改或搶輸入。
+- 本機模型載入中時不應頻繁通知;可參考 L1 的暖機重試與只通知一次策略。
+- 自動 L2 的觸發條件要比 L1 更保守,避免每個短句或半句都打本機 server。
+
+### 2026-06-25T11:05:00+08:00 Phase 2 MVP 實作完成 + prompt 強化
+
+兩件事在這次 session 完成:
+
+1. **本機模型 prompt 強化(在/再、的/得/地)**:`Source/AICorrectionPrompt.swift` 的 `localSystemPrompt`(L2)與 `rerankSystemPrompt`(L1)補上同音虛字判別規則與對比例句。下手前先用同一本機 server 做 A/B 實測:新版修對「再/在」與「資道→知道」等案例、對 8 句正確句零誤改、零退步;「得/地」這類本機 4B 小模型加規則仍常漏,屬模型能力上限,留待 Phase 4 微調。
+
+2. **Phase 2 句末自動 L2(保守 MVP)**:照本日誌前一條的設計實作,採「句末標點觸發 + 只提示不 commit + 預設關閉實驗功能」。
+
+新增檔:
+- `Source/AIAutoCorrector.swift`:純邏輯觸發層(`endsWithSentencePunctuation`、`isCorrectableSentence`、`shouldSchedule`、常數 debounce 0.8s / minComposingLength 4 / 句末標點集合 `。！？!?…`)。
+- `Source/InputMethodController+AIAutoCorrection.swift`:controller 接入。debounce → 背景 `LocalServerAICorrector.correct` → 主執行緒檢查 serial 與 composingBuffer → 結果不同只 `show(tooltip:)` 並存 `aiAutoCorrectionSuggestion`,**不 commit**;`acceptAIAutoCorrectionSuggestionIfAvailable` 由 Tab 觸發才 commit。暖機重試與「只通知一次」沿用 L1 策略。
+- `McBopomofoTests/AIAutoCorrectorTests.swift`:9 個純邏輯測試(句末標點偵測、長度/游標門檻、句中標點不觸發)。
+
+改動既有檔:
+- `Source/InputMethodController.swift`:新增 5 個 `aiAutoCorrection*` 狀態屬性;在 `handle(state: InputState.Inputting...)` 末尾呼叫 `scheduleAIAutoCorrectionIfNeeded`;Tab(keyCode 48)多接一條 `acceptAIAutoCorrectionSuggestionIfAvailable`;Empty / EmptyIgnoringPreviousState / Committing 三處加 `resetAIAutoCorrectionState()`;選單加「AI 句末自動校正(實驗)」;`show(tooltip:)` 由 `private` 改 internal 供擴充檔呼叫。
+- `Source/Preferences.swift`:`enableAIAutoCorrection`(預設 false)+ toggle + observe/狀態列印。
+- 三個 `Localizable.strings`:新增 `AI Auto-Correction (Experimental)` 與 `Local AI auto-correction is loading`。
+
+測試:完整 `xcodebuild test` 通過,119 tests / 10 suites(原 110/9,新增 AIAutoCorrector suite)。
+
+未完成:**真機端到端驗證尚未做**。單元測試只覆蓋純觸發邏輯;tooltip 顯示 + Tab 採用 + 句末標點是否確實進組字區,需實機開實驗開關打字驗證。下一棒接手請先做這個再考慮發版。
+
+注意:pbxproj 既有的 `FACE0040/0041/0042` 已被 `QuarantineHelper.swift` 佔用;本次新檔改用 `FACE0050~0053`,登記新 Swift 檔時別再撞這段。
