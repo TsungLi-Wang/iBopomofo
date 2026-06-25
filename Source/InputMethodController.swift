@@ -68,10 +68,11 @@ class McBopomofoInputMethodController: IMKInputController {
     var aiAutoCorrectionWorkItem: DispatchWorkItem?
     var aiAutoCorrectionServerRetryWorkItem: DispatchWorkItem?
 
-    // Phase 3:語音輸入 push-to-talk。連按兩下 Control 開始/結束。為避免與 Ctrl 系
-    // 快捷鍵(Ctrl+C 等)混淆,只認「兩次乾淨的 Control 單擊」——兩擊之間不可夾雜
+    // Phase 3:語音輸入 push-to-talk。連按兩下「右 Shift」開始/結束。改用右 Shift
+    // 是因為 macOS 內建聽寫常綁「連按兩下 Control」,改一顆系統沒綁的鍵可永久零衝突、
+    // 不必使用者改任何系統設定。只認「兩次乾淨的右 Shift 單擊」——兩擊之間不可夾雜
     // 其他按鍵,也不可同時按其他修飾鍵。
-    var voicePTTControlWasDown = false
+    var voicePTTRightShiftWasDown = false
     var voicePTTTapContaminated = false
     var voicePTTLastCleanTapTime: TimeInterval = 0
 
@@ -296,19 +297,19 @@ class McBopomofoInputMethodController: IMKInputController {
             return false
         }
 
-        // Phase 3 push-to-talk:任何實體按鍵都中斷「連按兩下 Control」的判定:
-        // 在 Control 按住期間打字讓本次點擊不乾淨(排除 Ctrl+C 等快捷鍵),
-        // 兩次 Control 點擊之間打字則清掉前一擊(必須是連續兩下純 Control)。
+        // Phase 3 push-to-talk:任何實體按鍵都中斷「連按兩下右 Shift」的判定:
+        // 在右 Shift 按住期間打字讓本次點擊不乾淨(排除 ⇧+字母打大寫等),
+        // 兩次右 Shift 點擊之間打字則清掉前一擊(必須是連續兩下純右 Shift)。
         if event.type == .keyDown {
-            if voicePTTControlWasDown {
+            if voicePTTRightShiftWasDown {
                 voicePTTTapContaminated = true
             }
             voicePTTLastCleanTapTime = 0
         }
 
-        // Phase 3 push-to-talk:偵測「連按兩下乾淨的 Control」以開始/結束語音輸入。
+        // Phase 3 push-to-talk:偵測「連按兩下乾淨的右 Shift」以開始/結束語音輸入。
         if event.type == .flagsChanged {
-            detectVoicePushToTalkControlDoubleTap(event, client: client)
+            detectVoicePushToTalkRightShiftDoubleTap(event, client: client)
         }
 
         // AI 整句修正熱鍵:⌘ + Return(keyCode 36)。只在有 composing 內容時觸發。
@@ -424,23 +425,28 @@ class McBopomofoInputMethodController: IMKInputController {
         }
     }
 
-    /// Phase 3 push-to-talk:偵測「連按兩下乾淨的 Control」。乾淨 = 兩次單擊之間不夾
-    /// 其他按鍵、也不同時按其他修飾鍵,以免與 Ctrl+C 等快捷鍵混淆。偵測到就切換語音輸入。
-    private func detectVoicePushToTalkControlDoubleTap(_ event: NSEvent, client: Any!) {
-        let controlDown = event.modifierFlags.contains(.control)
-        let otherModifiers: NSEvent.ModifierFlags = [.command, .option, .shift, .function, .capsLock]
+    /// Phase 3 push-to-talk:偵測「連按兩下乾淨的右 Shift」(keyCode 60)。乾淨 = 兩次
+    /// 單擊之間不夾其他按鍵、也不同時按其他修飾鍵。改用右 Shift 而非 Control,是為了
+    /// 永久避開 macOS 內建聽寫常綁的「連按兩下 Control」,使用者不必改任何系統設定。
+    private func detectVoicePushToTalkRightShiftDoubleTap(_ event: NSEvent, client: Any!) {
+        let rightShiftKeyCode: UInt16 = 60
+        let otherModifiers: NSEvent.ModifierFlags = [.command, .option, .control, .function, .capsLock]
         let hasOther = !event.modifierFlags.isDisjoint(with: otherModifiers)
 
-        // 持有 Control 期間若再按下其他修飾鍵,本次點擊視為不乾淨。
-        if controlDown && hasOther {
+        // 等待第二擊期間若再按下其他修飾鍵,本次點擊視為不乾淨。
+        if voicePTTRightShiftWasDown && hasOther {
             voicePTTTapContaminated = true
         }
 
-        if controlDown && !voicePTTControlWasDown {
-            // Rising edge:Control 按下,開始一次點擊判定。
+        // 只處理「右 Shift」這顆鍵的 flagsChanged;其他修飾鍵不改變 wasDown 狀態。
+        guard event.keyCode == rightShiftKeyCode else { return }
+
+        let shiftDown = event.modifierFlags.contains(.shift)
+        if shiftDown && !voicePTTRightShiftWasDown {
+            // Rising edge:右 Shift 按下,開始一次點擊判定。
             voicePTTTapContaminated = hasOther
-        } else if !controlDown && voicePTTControlWasDown {
-            // Falling edge:Control 放開,完成一次點擊。
+        } else if !shiftDown && voicePTTRightShiftWasDown {
+            // Falling edge:右 Shift 放開,完成一次點擊。
             if voicePTTTapContaminated {
                 voicePTTLastCleanTapTime = 0
             } else {
@@ -453,22 +459,30 @@ class McBopomofoInputMethodController: IMKInputController {
                 }
             }
         }
-        voicePTTControlWasDown = controlDown
+        voicePTTRightShiftWasDown = shiftDown
     }
 
-    // Phase 3:語音輸入。選單或「連按兩下 Control」push-to-talk 觸發,獨立於打字流程。
+    // Phase 3:語音輸入。選單或「連按兩下右 Shift」push-to-talk 觸發,獨立於打字流程。
     // 辨識出的最終文字走既有 commit 出口落地,不繞 KeyHandler / InputState。
     @objc func toggleVoiceInput(_ sender: Any?) {
         let manager = VoiceInputManager.shared
         if manager.isRecording {
             manager.stop()
+            // on-device 收尾辨識會有零點幾到數秒空窗,先給「辨識中」回饋避免像沒反應。
+            NotifierController.notify(
+                message: NSLocalizedString("Recognizing…", comment: ""))
             return
         }
         manager.onError = { message in
             NotifierController.notify(message: message)
         }
         manager.onFinalText = { [weak self] text in
-            guard let self, !text.isEmpty else { return }
+            guard let self else { return }
+            guard !text.isEmpty else {
+                NotifierController.notify(
+                    message: NSLocalizedString("No speech detected", comment: ""))
+                return
+            }
             let client = self.currentClient
             self.keyHandler.clear()
             self.handle(state: InputState.Committing(poppedText: text), client: client)
@@ -482,7 +496,7 @@ class McBopomofoInputMethodController: IMKInputController {
                 return
             }
             NotifierController.notify(
-                message: NSLocalizedString("Listening… double-tap Control to stop", comment: ""))
+                message: NSLocalizedString("Listening… double-tap right Shift to stop", comment: ""))
             manager.start()
         }
     }

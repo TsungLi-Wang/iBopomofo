@@ -18,15 +18,15 @@
 - L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。
 - L1 快速語義：Phase 1 MVP 已加強（debounce、暖機重試、候選同音觸發、選單與偏好設定開關）。
 - L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
-- L3 語音輸入：**已實機驗證可用並隨 v1.7 發佈**(Apple Speech,zh-TW on-device;連按兩下 Control push-to-talk)。IME 程序取麥克風的頭號風險已排除。
+- L3 語音輸入：**已實機驗證可用並隨 v1.7 / v1.7.1 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。
 
-**目前發佈狀態:已發到 v1.7**(GitHub Release,Latest)。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 125 tests 全綠。
+**目前發佈狀態:已發到 v1.7.1**(GitHub Release,Latest)。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識中/空結果回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 125 tests 全綠。
 
 Phase 狀態：
 
 - Phase 1：約 95% 完成。L1 候選重排 + debounce + server 重試 + 選單/偏好設定開關已完成；完整 `xcodebuild test` 已可穩定全綠並乾淨結束(見「測試狀態」),L1 觸發條件已收緊以降低過度觸發。
 - Phase 2：MVP 已落地並隨 v1.6 發佈(實驗功能,預設關閉)。句末標點自動觸發 L2,第一版只提示不 commit,Tab 採用;手動 `⌘Return` 行為不變。純邏輯測試已補。真機已由 Johnny 確認可動。
-- Phase 3：**完成並已隨 v1.7 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(連按兩下 Control 開始/結束)已實作並通過五項實測(啟動、出字、停止、Ctrl+C/V 不誤觸)。下一步可做:辨識準度/標點、語音轉出後可選再過一次 L2、常駐聆聽模式。詳見下方交班日誌。
+- Phase 3：**完成並已隨 v1.7 / v1.7.1 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(**連按兩下右 Shift** 開始/結束;v1.7 原為 Control,v1.7.1 改右 Shift 避開系統聽寫衝突)已實作並通過五項實測。下一步可做:辨識準度/標點、語音轉出後可選再過一次 L2、常駐聆聽模式。詳見下方交班日誌。
 - Phase 4：未做。注音領域微調尚未實作。
 
 ## 已完成的 Phase 1 工作
@@ -220,3 +220,17 @@ Phase 3 與 L1/L2 本質不同:L1/L2 是「文字進 → 文字校正」,Phase 3
 - on-device zh-TW 準度、標點、口語斷句尚未調校;`shouldReportPartialResults=false`,不顯示即時逐字。
 - 正式產品化:可考慮偵測聽寫未開時主動引導、或離線不可用時退回線上辨識(需網路,與離線哲學取捨)。
 - 進階:語音轉出後可選再過一次 L2 校正;常駐聆聽模式(目前只做 push-to-talk,較省電/隱私好)。
+
+### 2026-06-25T15:30:00+08:00 v1.7.1:語音熱鍵改右 Shift + 辨識回饋
+
+發 v1.7 後當天的體驗修正,起因是發現熱鍵衝突。
+
+**熱鍵 Control → 右 Shift(重點)**:讀 Johnny 機器的 `defaults read com.apple.symbolichotkeys` 發現 id 164(聽寫)`enabled=1`、修飾參數 `262144`=Control、雙擊模式 → **macOS 內建聽寫的快捷鍵正是「連按兩下 Control」**,與我們的 push-to-talk 撞,兩套搶麥克風。
+- 為何不改「連按三下 Control」:系統聽寫在**第 2 下就觸發**,等不到第 3 下;三下反而可能讓系統先搶走麥克風,更糟。
+- 為何不靠關掉系統快捷鍵:那是使用者要記得改的系統設定,Johnny 明確不要「以後會忘記的設定」。
+- 解法:改用 macOS 預設**沒有任何綁定**的「**連按兩下右 Shift**」(keyCode 60)→ 永久零衝突、零系統設定。偵測改 `detectVoicePushToTalkRightShiftDoubleTap`:用 `event.keyCode == 60` 鎖定右 Shift,沿用「乾淨單擊」判定。左 Shift(56)不觸發。
+- ⚠️ 經驗:用 `event.keyCode` 區分左右修飾鍵(L/R Shift=56/60、L/R Control=59/62、L/R Option=58/61);`NSEvent.ModifierFlags` 公開列舉分不出左右。
+
+**B 辨識回饋**:雙擊停止後 `manager.stop()` 之後到 `onFinalText` 出字之間有空窗(on-device 收尾),補「辨識中…」通知;`onFinalText` 收到空字串改提示「沒聽到內容」而非靜默。
+
+版本 1.7→1.7.1、build 2271→2272。完整 test 仍 125 全綠。發版照舊 package-dmg → push → tag v1.7.1 → gh release。pbxproj 無新檔(沿用 FACE0060/0061)。

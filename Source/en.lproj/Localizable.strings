@@ -200,4 +200,6 @@
 "Voice recognition failed" = "Voice recognition failed";
 "Voice input needs Dictation: turn it on in System Settings ▸ Keyboard ▸ Dictation" = "Voice input needs Dictation: turn it on in System Settings ▸ Keyboard ▸ Dictation";
 "Microphone or speech recognition permission denied" = "Microphone or speech recognition permission denied";
-"Listening… double-tap Control to stop" = "Listening… double-tap Control to stop";
+"Listening… double-tap right Shift to stop" = "Listening… double-tap right Shift to stop";
+"Recognizing…" = "Recognizing…";
+"No speech detected" = "No speech detected";
