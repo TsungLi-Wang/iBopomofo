@@ -349,3 +349,31 @@ Johnny 決定今天先不再卡在會考/題庫語料清理,把已完成的階�
 3. 只有當外部模型在真實 cases 有明確 before/after 提升,才把 `rescorer-char-ngrams.tsv` 納入 bundle / pbxproj。
 
 **驗證**:`xcodebuild test` 122/10 全綠;eval harness 可跑預設 cases 與外部 TSV model。版本 1.7.4→1.7.5、build 2275→2276。
+
+### 2026-06-26T16:00:00+08:00 在/再 synthetic corpus 實驗 + 交接收斂
+
+Johnny 提出改用外部 AI 產生「在/再」合成語料,先跑小型實驗,不要繼續卡在會考/題庫 PDF 清理。語料目前放在使用者 Documents,**不在 repo**:
+- `~/Documents/zaizai/zaizai_train.txt`:200 行訓練句,`在` / `再` 各 100。
+- `~/Documents/zaizai/zaizai_eval.tsv`:100 行 eval,`在` / `再` 各 50,格式 `expected_text<TAB>target_char<TAB>note`。
+- `~/Documents/zaizai/zaizai_prompt.txt`:當初給外部 AI 的提示詞。
+
+本次新增 `Source/Engine/eval/convert_eval_tsv_to_cases.py`,把 `expected_text<TAB>target_char<TAB>note` 轉成 `rerank_eval` 可跑的 `readings<TAB>expected_text`。它用 `Source/Data/BPMFBase.txt` + `Source/Data/BPMFMappings.txt` 做最長詞匹配;含 ASCII 的行會跳過,因為 C++ harness 只餵 BPMF syllables。
+
+**已跑實驗**:
+- `zaizai_eval.tsv`:100 筆中 99 筆可跑,1 筆 `資料在 Excel` 因含英文略過。
+- fallback 詞庫 n-gram on zaizai eval:baseline 40/99,rescored 36/99。
+- synthetic model (`zaizai-synthetic.tsv`) on zaizai eval:baseline 40/99,rescored 84/99。
+- synthetic model on seed `Source/Engine/eval/cases.tsv`:baseline 7/8,rescored 8/8。
+
+**重要解讀**:
+- 這證明 synthetic corpus 方向有明顯訊號,但這還不是可直接發佈的正式模型,因為 train/eval 都由外部 AI 生成,有同源偏差。
+- 目前 generated artifacts 只在 ignored 目錄 `Source/Engine/eval/generated/`;不要 commit `zaizai-synthetic.tsv`、不要 commit `~/Documents/zaizai/`,也不要把 model 包進 app bundle。
+- 這不是微調 Qwen/千問 4B。Qwen/Claude/Codex 仍屬 L2/語音後修路徑;本實驗產物是小型 character n-gram TSV,只供 L1 即時候選重排使用。
+
+**下一棒優先順序**:
+1. 先做總體 audit,不要急著包 synthetic model。檢查版本/CHANGELOG/plist/tag/release、ignored corpus/generated 是否未進 git/DMG、三語字串、Xcode project resources、L1/L2/L3 路徑是否互相污染。
+2. 給 rescorer 加安全閘門:今天 eval 看到 engine legal candidates 可能有 `📁` / `📱` / `📪` 等符號候選;L1 雖然不生成,但也不應主動把 emoji/符號從低順位推到第一候選。建議先加「除非原本 top-1 就是符號,否則 reranker 不選符號/emoji」之類防護,並補測試。
+3. 跟 Johnny 收 20~50 筆真實錯選句,轉成 cases;用三組固定 A/B:seed cases、zaizai synthetic eval、Johnny real eval。
+4. 只有當 real eval 有明確提升、seed cases 無退步、符號防護通過後,才考慮把整理後的 `rescorer-char-ngrams.tsv` 納入 bundle / pbxproj。
+
+**重跑指令**詳見 `Source/Engine/eval/README.md` 的 `Synthetic 在 / 再 Experiment`。

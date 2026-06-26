@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### 新增
+
+- `Source/Engine/eval/convert_eval_tsv_to_cases.py`:把 `expected_text<TAB>target_char<TAB>note` 測資轉成 rescorer harness 可跑的注音 cases,並記錄在/再合成語料實驗流程與初步結果。
+
 ## [v1.7.5] - 2026-06-26
 
 即時候選重排改為本機 n-gram scorer,並補齊 rescorer eval / training 工具。
