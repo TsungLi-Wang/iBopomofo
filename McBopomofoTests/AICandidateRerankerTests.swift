@@ -268,3 +268,82 @@ struct AICandidateRerankerTests {
         }
     }
 }
+
+/// Coordinator 階段二：把 accept 配對與善後（serial bump、清狀態）這些純決策搬進
+/// AIAssistCoordinator 後可單獨測試，不需要 IMK / controller。
+@Suite("AIAssistCoordinator Decisions")
+struct AIAssistCoordinatorTests {
+
+    private func makeCoordinator() -> AIAssistCoordinator {
+        AIAssistCoordinator(controller: nil)
+    }
+
+    @Test("L1：buffer 相符回傳建議文字，不符或無建議回 nil")
+    func candidateSuggestionMatching() {
+        let coordinator = makeCoordinator()
+        #expect(coordinator.candidateSuggestion(matching: "你好嗎") == nil)
+
+        coordinator.aiCandidateSuggestion = AICandidateSuggestion(
+            originalComposingBuffer: "你好嗎", suggestion: "你好嘛")
+        #expect(coordinator.candidateSuggestion(matching: "你好嗎") == "你好嘛")
+        #expect(coordinator.candidateSuggestion(matching: "別的句子") == nil)
+    }
+
+    @Test("L2：buffer 相符回傳建議文字，不符或無建議回 nil")
+    func autoCorrectionSuggestionMatching() {
+        let coordinator = makeCoordinator()
+        #expect(coordinator.autoCorrectionSuggestion(matching: "我吃完飯在去買") == nil)
+
+        coordinator.aiAutoCorrectionSuggestion = AICandidateSuggestion(
+            originalComposingBuffer: "我吃完飯在去買", suggestion: "我吃完飯再去買")
+        #expect(coordinator.autoCorrectionSuggestion(matching: "我吃完飯在去買") == "我吃完飯再去買")
+        #expect(coordinator.autoCorrectionSuggestion(matching: "其他") == nil)
+    }
+
+    @Test("L1：consume 清掉建議與重排值並 bump serial（讓 in-flight 結果作廢）")
+    func consumeCandidateSuggestion() {
+        let coordinator = makeCoordinator()
+        coordinator.aiCandidateSuggestion = AICandidateSuggestion(
+            originalComposingBuffer: "你好嗎", suggestion: "你好嘛")
+        coordinator.aiCandidateRerankedValue = "你好嘛"
+        let before = coordinator.aiCandidateRequestSerial
+
+        coordinator.consumeCandidateSuggestion()
+
+        #expect(coordinator.aiCandidateSuggestion == nil)
+        #expect(coordinator.aiCandidateRerankedValue == nil)
+        #expect(coordinator.aiCandidateRequestSerial == before + 1)
+        // 善後後再配對應失敗
+        #expect(coordinator.candidateSuggestion(matching: "你好嗎") == nil)
+    }
+
+    @Test("L2：consume 清掉建議並 bump serial")
+    func consumeAutoCorrectionSuggestion() {
+        let coordinator = makeCoordinator()
+        coordinator.aiAutoCorrectionSuggestion = AICandidateSuggestion(
+            originalComposingBuffer: "我吃完飯在去買", suggestion: "我吃完飯再去買")
+        let before = coordinator.aiAutoCorrectionRequestSerial
+
+        coordinator.consumeAutoCorrectionSuggestion()
+
+        #expect(coordinator.aiAutoCorrectionSuggestion == nil)
+        #expect(coordinator.aiAutoCorrectionRequestSerial == before + 1)
+        #expect(coordinator.autoCorrectionSuggestion(matching: "我吃完飯在去買") == nil)
+    }
+
+    @Test("reset 清空 L1/L2 建議狀態")
+    func resetClearsState() {
+        let coordinator = makeCoordinator()
+        coordinator.aiCandidateSuggestion = AICandidateSuggestion(
+            originalComposingBuffer: "a", suggestion: "b")
+        coordinator.aiAutoCorrectionSuggestion = AICandidateSuggestion(
+            originalComposingBuffer: "c", suggestion: "d")
+        coordinator.aiCandidateRerankedValue = "b"
+
+        coordinator.reset()
+
+        #expect(coordinator.aiCandidateSuggestion == nil)
+        #expect(coordinator.aiAutoCorrectionSuggestion == nil)
+        #expect(coordinator.aiCandidateRerankedValue == nil)
+    }
+}

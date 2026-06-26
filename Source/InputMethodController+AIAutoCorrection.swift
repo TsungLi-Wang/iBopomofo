@@ -45,13 +45,10 @@ extension McBopomofoInputMethodController {
 
     func applyAIAutoCorrectionResult(
         _ outcome: Result<String, AICorrectionError>, composingBuffer: String,
-        serial: UInt, client: Any?
+        client: Any?
     ) {
+        // serial 過期判斷已由 Coordinator 完成；這裡只需確認 composing 狀態仍相同。
         let coordinator = aiAssistCoordinator
-        guard serial == coordinator.aiAutoCorrectionRequestSerial else {
-            NSLog("AI自動校正: 丟棄過期結果")
-            return
-        }
         guard let inputting = state as? InputState.Inputting,
             inputting.composingBuffer == composingBuffer
         else {
@@ -93,22 +90,18 @@ extension McBopomofoInputMethodController {
 
     /// Tab 採用句末自動校正建議。僅當目前仍在同一句 Inputting 狀態時生效。
     func acceptAIAutoCorrectionSuggestionIfAvailable(client: Any!) -> Bool {
-        let coordinator = aiAssistCoordinator
-        guard let suggestion = coordinator.aiAutoCorrectionSuggestion,
-            let inputting = state as? InputState.Inputting,
-            inputting.composingBuffer == suggestion.originalComposingBuffer
+        guard let inputting = state as? InputState.Inputting,
+            let text = aiAssistCoordinator.autoCorrectionSuggestion(
+                matching: inputting.composingBuffer)
         else {
             return false
         }
-        commitAIAutoCorrection(suggestion.suggestion, client: client)
+        commitAIAutoCorrection(text, client: client)
         return true
     }
 
     private func commitAIAutoCorrection(_ suggestion: String, client: Any!) {
-        let coordinator = aiAssistCoordinator
-        coordinator.cancelPendingAutoCorrection()
-        coordinator.aiAutoCorrectionSuggestion = nil
-        coordinator.aiAutoCorrectionRequestSerial += 1
+        aiAssistCoordinator.consumeAutoCorrectionSuggestion()
         keyHandler.clear()
         handle(state: InputState.Committing(poppedText: suggestion), client: client)
         handle(state: InputState.Empty(), client: client)
@@ -117,10 +110,4 @@ extension McBopomofoInputMethodController {
     func resetAIAutoCorrectionState() {
         aiAssistCoordinator.reset()
     }
-
-    private func cancelPendingAIAutoCorrection() {
-        aiAssistCoordinator.cancelPendingAutoCorrection()
-    }
-
-    // 舊的個別 reset 已委派給 Coordinator，保留相容介面。
 }

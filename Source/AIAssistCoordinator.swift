@@ -31,8 +31,10 @@ import InputMethodKit
 /// 預期效益：重複代碼消除、單元測試變容易、Controller 瘦身。
 
 protocol AIAssistControllerDelegate: AnyObject {
-    func applyRerankResult(_ outcome: Result<String, AICorrectionError>, context: AICandidateRerankContext, serial: UInt, client: Any?)
-    func applyAutoCorrectionResult(_ outcome: Result<String, AICorrectionError>, composingBuffer: String, serial: UInt, client: Any?)
+    // serial 過期判斷已由 Coordinator 在呼叫前完成，delegate 收到的必為最新請求結果，
+    // 只需再比對目前 composing 狀態是否仍相同即可（那需要 controller 端的當前 state）。
+    func applyRerankResult(_ outcome: Result<String, AICorrectionError>, context: AICandidateRerankContext, client: Any?)
+    func applyAutoCorrectionResult(_ outcome: Result<String, AICorrectionError>, composingBuffer: String, client: Any?)
     // Add more actions as needed for invisibility (commit, show tooltip, etc.)
 }
 
@@ -105,7 +107,12 @@ final class AIAssistCoordinator {
             Task {
                 let outcome = await self.rescorer.rescore(context: context)
                 await MainActor.run {
-                    self.delegate?.applyRerankResult(outcome, context: context, serial: serial, client: client)
+                    // Coordinator 擁有 serial：在這裡擋掉過期結果，delegate 只會收到最新請求。
+                    guard serial == self.aiCandidateRequestSerial else {
+                        NSLog("AI候選建議: 丟棄過期結果")
+                        return
+                    }
+                    self.delegate?.applyRerankResult(outcome, context: context, client: client)
                 }
             }
         }
@@ -143,7 +150,12 @@ final class AIAssistCoordinator {
             Task {
                 let outcome = await self.sentenceCorrector.correct(guess: composingBuffer, preceding: preceding)
                 await MainActor.run {
-                    self.delegate?.applyAutoCorrectionResult(outcome, composingBuffer: composingBuffer, serial: serial, client: client)
+                    // Coordinator 擁有 serial：在這裡擋掉過期結果，delegate 只會收到最新請求。
+                    guard serial == self.aiAutoCorrectionRequestSerial else {
+                        NSLog("AI自動校正: 丟棄過期結果")
+                        return
+                    }
+                    self.delegate?.applyAutoCorrectionResult(outcome, composingBuffer: composingBuffer, client: client)
                 }
             }
         }
@@ -152,14 +164,44 @@ final class AIAssistCoordinator {
             deadline: .now() + AIAutoCorrector.debounceInterval, execute: workItem)
     }
 
-    func acceptRerankIfMatches(client: Any!) -> Bool {
-        // 階段一骨架
-        return false
+    // MARK: - Accept 決策（純函式，可單元測試）
+    //
+    // 「目前 buffer 是否仍與建議的原始 buffer 相同 → 該採用哪段文字」這個判斷不需要碰
+    // IMK / state，搬進 Coordinator 後可直接測。實際的 commit（碰 client）仍由 controller 做。
+
+    /// L1：若目前 composing buffer 仍與候選建議的原始 buffer 相同，回傳該採用的文字，否則 nil。
+    func candidateSuggestion(matching buffer: String) -> String? {
+        guard let suggestion = aiCandidateSuggestion,
+            suggestion.originalComposingBuffer == buffer
+        else {
+            return nil
+        }
+        return suggestion.suggestion
     }
 
-    func acceptAutoIfMatches(client: Any!) -> Bool {
-        // 階段一骨架
-        return false
+    /// L2：若目前 composing buffer 仍與自動校正建議的原始 buffer 相同，回傳該採用的文字，否則 nil。
+    func autoCorrectionSuggestion(matching buffer: String) -> String? {
+        guard let suggestion = aiAutoCorrectionSuggestion,
+            suggestion.originalComposingBuffer == buffer
+        else {
+            return nil
+        }
+        return suggestion.suggestion
+    }
+
+    /// 採用 L1 候選建議後的善後：取消 pending、清狀態、bump serial（讓任何 in-flight 結果作廢）。
+    func consumeCandidateSuggestion() {
+        cancelPendingRerank()
+        aiCandidateSuggestion = nil
+        aiCandidateRerankedValue = nil
+        aiCandidateRequestSerial += 1
+    }
+
+    /// 採用 L2 自動校正建議後的善後。
+    func consumeAutoCorrectionSuggestion() {
+        cancelPendingAutoCorrection()
+        aiAutoCorrectionSuggestion = nil
+        aiAutoCorrectionRequestSerial += 1
     }
 
     func reset() {

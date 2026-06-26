@@ -59,45 +59,33 @@ extension McBopomofoInputMethodController {
         aiAssistCoordinator.reset()
     }
 
-    private func cancelPendingAICandidateRerank() {
-        aiAssistCoordinator.cancelPendingRerank()
-    }
-
-    // 舊的個別 reset 已委派給 Coordinator，保留相容介面。
-
     func acceptAICandidateSuggestionIfAvailable(client: Any!) -> Bool {
-        let coordinator = aiAssistCoordinator
-        guard let suggestion = coordinator.aiCandidateSuggestion,
-            let currentInputting = state as? InputState.Inputting,
-            currentInputting.composingBuffer == suggestion.originalComposingBuffer
+        guard let currentInputting = state as? InputState.Inputting,
+            let text = aiAssistCoordinator.candidateSuggestion(
+                matching: currentInputting.composingBuffer)
         else {
             return false
         }
-        commitAISuggestion(suggestion.suggestion, client: client)
+        commitAISuggestion(text, client: client)
         return true
     }
 
     func acceptAICandidateSuggestionFromCandidateWindowIfAvailable(client: Any!) -> Bool {
-        let coordinator = aiAssistCoordinator
-        guard let suggestion = coordinator.aiCandidateSuggestion,
-            let choosing = state as? InputState.ChoosingCandidate,
-            choosing.composingBuffer == suggestion.originalComposingBuffer
+        guard let choosing = state as? InputState.ChoosingCandidate,
+            let text = aiAssistCoordinator.candidateSuggestion(matching: choosing.composingBuffer)
         else {
             return false
         }
-        commitAISuggestion(suggestion.suggestion, client: client)
+        commitAISuggestion(text, client: client)
         return true
     }
 
     func applyAICandidateRerankResult(
         _ outcome: Result<String, AICorrectionError>, context: AICandidateRerankContext,
-        serial: UInt, client: Any?
+        client: Any?
     ) {
+        // serial 過期判斷已由 Coordinator 完成；這裡只需確認 composing 狀態仍相同。
         let coordinator = aiAssistCoordinator
-        guard serial == coordinator.aiCandidateRequestSerial else {
-            NSLog("AI候選建議: 丟棄過期結果")
-            return
-        }
         guard let choosing = state as? InputState.ChoosingCandidate,
             choosing.composingBuffer == context.composingBuffer
         else {
@@ -150,11 +138,7 @@ extension McBopomofoInputMethodController {
     }
 
     private func commitAISuggestion(_ suggestion: String, client: Any!) {
-        let coordinator = aiAssistCoordinator
-        coordinator.cancelPendingRerank()
-        coordinator.aiCandidateSuggestion = nil
-        coordinator.aiCandidateRerankedValue = nil
-        coordinator.aiCandidateRequestSerial += 1
+        aiAssistCoordinator.consumeCandidateSuggestion()
         gCurrentCandidateController?.visible = false
         keyHandler.clear()
         handle(state: InputState.Committing(poppedText: suggestion), client: client)

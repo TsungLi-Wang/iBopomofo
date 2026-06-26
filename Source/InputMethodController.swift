@@ -1399,11 +1399,11 @@ extension McBopomofoInputMethodController {
 
 // Conform to delegate so Coordinator can drive apply results (design report centralization).
 extension McBopomofoInputMethodController: AIAssistControllerDelegate {
-    func applyRerankResult(_ outcome: Result<String, AICorrectionError>, context: AICandidateRerankContext, serial: UInt, client: Any?) {
-        applyAICandidateRerankResult(outcome, context: context, serial: serial, client: client)
+    func applyRerankResult(_ outcome: Result<String, AICorrectionError>, context: AICandidateRerankContext, client: Any?) {
+        applyAICandidateRerankResult(outcome, context: context, client: client)
     }
 
-    func applyAutoCorrectionResult(_ outcome: Result<String, AICorrectionError>, composingBuffer: String, serial: UInt, client: Any?) {
-        applyAIAutoCorrectionResult(outcome, composingBuffer: composingBuffer, serial: serial, client: client)
+    func applyAutoCorrectionResult(_ outcome: Result<String, AICorrectionError>, composingBuffer: String, client: Any?) {
+        applyAIAutoCorrectionResult(outcome, composingBuffer: composingBuffer, client: client)
     }
 }
