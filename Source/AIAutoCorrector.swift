@@ -36,12 +36,14 @@ enum AIAutoCorrector {
     static let serverRetryInterval: TimeInterval = 2.0
     static let maxServerRetryAttempts = 6
 
-    /// 組字區最短長度(含句末標點)。低於此長度的句子不值得送 server。
+    /// 組字區最短長度。為支援邊打長句時即時檢查，適度放寬。
     static let minComposingLength = 4
 
     /// 句末標點集合。刻意只收「整句結束」的標點,不含逗號、頓號等句中標點,
     /// 以免在使用者還在寫同一句時就觸發。
     static let sentenceEndingPunctuation = Set("。！？!?…")
+
+    static let ambiguousCharacters = Set("在再的得地做作知資麼摸裡裏裡哪那裡这這")
 
     /// 組字區最後一個字元是否為句末標點。
     static func endsWithSentencePunctuation(_ buffer: String) -> Bool {
@@ -49,12 +51,26 @@ enum AIAutoCorrector {
         return sentenceEndingPunctuation.contains(last)
     }
 
+    static func containsAmbiguity(in text: String) -> Bool {
+        text.contains { ambiguousCharacters.contains($0) }
+    }
+
     /// 純邏輯觸發判斷:不檢查偏好設定與 server 是否就緒(那些由 controller 處理)。
-    /// 條件:長度達門檻、游標在句尾、且以句末標點結束。
+    /// 為支援「邊打長句時隨時檢查現階段句子/字詞」願景，改為：
+    /// - 游標在句尾
+    /// - 長度達門檻
+    /// - 且 (有句末標點 或 長句且含潛在歧義字)
     static func isCorrectableSentence(composingBuffer: String, cursorIndex: Int) -> Bool {
-        guard composingBuffer.count >= minComposingLength else { return false }
         guard cursorIndex == composingBuffer.count else { return false }
-        return endsWithSentencePunctuation(composingBuffer)
+        guard composingBuffer.count >= minComposingLength else { return false }
+        if endsWithSentencePunctuation(composingBuffer) {
+            return true
+        }
+        // 支援長句中上下文修正 (e.g. 在/再 類錯誤在打長句時)
+        if composingBuffer.count >= 8 && containsAmbiguity(in: composingBuffer) {
+            return true
+        }
+        return false
     }
 
     /// controller 用的完整判斷:在純邏輯之上再加偏好設定與模型安裝狀態。

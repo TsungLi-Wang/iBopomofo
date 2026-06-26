@@ -236,4 +236,35 @@ struct AICandidateRerankerTests {
 
         #expect(scorer.bestCandidateValue(for: context) == "再")
     }
+
+    @Test("isSymbolOrEmoji 偵測 emoji 與符號，但不誤殺 CJK 文字")
+    func isSymbolOrEmojiDetection() {
+        #expect(AICandidateReranker.isSymbolOrEmoji("📱"))
+        #expect(AICandidateReranker.isSymbolOrEmoji("📁"))
+        #expect(AICandidateReranker.isSymbolOrEmoji("📪"))
+        #expect(AICandidateReranker.isSymbolOrEmoji("！"))
+        #expect(AICandidateReranker.isSymbolOrEmoji("🔥"))
+        #expect(!AICandidateReranker.isSymbolOrEmoji("在"))
+        #expect(!AICandidateReranker.isSymbolOrEmoji("再去買"))
+        #expect(!AICandidateReranker.isSymbolOrEmoji("研究生命"))
+        #expect(!AICandidateReranker.isSymbolOrEmoji("今天天氣很好"))
+    }
+
+    @Test("bestCandidateValue 安全閘門：原 top 非符號時不推 emoji/符號")
+    func ngramScorerSafetyGatePreventsSymbolPromotion() {
+        // 構造 context：原 top 是文字，候選含符號。即使 ngram 可能給符號高分，也應被閘門擋住。
+        let context = AICandidateRerankContext(
+            preceding: "打電話",
+            composingBuffer: "我的手機",
+            candidates: [
+                .init(value: "我的手機", reading: "ㄨㄛˇ ㄉㄜ˙ ㄕㄡˇ ㄐㄧ"),
+                .init(value: "📱", reading: "ㄕㄡˇ ㄐㄧ"),
+            ]
+        )
+        let suggestion = AICandidateNGramScorer.shared.bestCandidateValue(for: context)
+        #expect(suggestion == "我的手機" || suggestion == nil)
+        if let s = suggestion {
+            #expect(!AICandidateReranker.isSymbolOrEmoji(s))
+        }
+    }
 }

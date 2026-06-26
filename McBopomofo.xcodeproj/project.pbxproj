@@ -81,6 +81,7 @@
 		FACE0064FACE0064FACE0064 /* AudioTapInstaller.m in Sources */ = {isa = PBXBuildFile; fileRef = FACE0063FACE0063FACE0063 /* AudioTapInstaller.m */; };
 		FACE0071FACE0071FACE0071 /* WhisperVoiceTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0070FACE0070FACE0070 /* WhisperVoiceTranscriber.swift */; };
 		FACE0073FACE0073FACE0073 /* WhisperVoiceInputManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0072FACE0072FACE0072 /* WhisperVoiceInputManager.swift */; };
+		FACE0081FACE0081FACE0081 /* AIAssistCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0080FACE0080FACE0080 /* AIAssistCoordinator.swift */; };
 		FACE0053FACE0053FACE0053 /* InputMethodController+AIAutoCorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0052FACE0052FACE0052 /* InputMethodController+AIAutoCorrection.swift */; };
 		FACE0041FACE0041FACE0041 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
 		FACE0042FACE0042FACE0042 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
@@ -252,6 +253,7 @@
 		FACE0063FACE0063FACE0063 /* AudioTapInstaller.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AudioTapInstaller.m; sourceTree = "<group>"; };
 		FACE0070FACE0070FACE0070 /* WhisperVoiceTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperVoiceTranscriber.swift; sourceTree = "<group>"; };
 		FACE0072FACE0072FACE0072 /* WhisperVoiceInputManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperVoiceInputManager.swift; sourceTree = "<group>"; };
+		FACE0080FACE0080FACE0080 /* AIAssistCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistCoordinator.swift; sourceTree = "<group>"; };
 		FACE0052FACE0052FACE0052 /* InputMethodController+AIAutoCorrection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+AIAutoCorrection.swift"; sourceTree = "<group>"; };
 		FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuarantineHelper.swift; sourceTree = "<group>"; };
 		FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAICorrector.swift; sourceTree = "<group>"; };
@@ -377,6 +379,7 @@
 				FACE0010FACE0010FACE0010 /* InputMethodController+AICorrection.swift */,
 				FACE0032FACE0032FACE0032 /* InputMethodController+AIRerank.swift */,
 				FACE0052FACE0052FACE0052 /* InputMethodController+AIAutoCorrection.swift */,
+				FACE0080FACE0080FACE0080 /* AIAssistCoordinator.swift */,
 				D43737C82DF9C35100D9707C /* InputMethodController+KeyHandlerDelegate.swift */,
 				D43737CA2DF9C48200D9707C /* InputMethodController+CandidateControllerDelegate.swift */,
 				D41355D6278D7409005E5CBD /* LanguageModelManager.h */,
@@ -400,6 +403,7 @@
 				FACE0063FACE0063FACE0063 /* AudioTapInstaller.m */,
 				FACE0070FACE0070FACE0070 /* WhisperVoiceTranscriber.swift */,
 				FACE0072FACE0072FACE0072 /* WhisperVoiceInputManager.swift */,
+				FACE0080FACE0080FACE0080 /* AIAssistCoordinator.swift */,
 				FACE0014FACE0014FACE0014 /* CodexAICorrector.swift */,
 				FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */,
 				FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */,
@@ -872,6 +876,7 @@
 				FACE0064FACE0064FACE0064 /* AudioTapInstaller.m in Sources */,
 				FACE0071FACE0071FACE0071 /* WhisperVoiceTranscriber.swift in Sources */,
 				FACE0073FACE0073FACE0073 /* WhisperVoiceInputManager.swift in Sources */,
+				FACE0081FACE0081FACE0081 /* AIAssistCoordinator.swift in Sources */,
 				FACE0015FACE0015FACE0015 /* CodexAICorrector.swift in Sources */,
 				FACE0017FACE0017FACE0017 /* ClaudeAICorrector.swift in Sources */,
 				FACE0019FACE0019FACE0019 /* LocalServerAICorrector.swift in Sources */,

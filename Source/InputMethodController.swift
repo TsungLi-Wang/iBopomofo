@@ -56,18 +56,12 @@ class McBopomofoInputMethodController: IMKInputController {
     var keyHandler: KeyHandler = KeyHandler()
     var state: InputState = InputState.Empty()
     lazy var charInfo: SystemCharacterInfo? = try? SystemCharacterInfo()
-    var aiCandidateSuggestion: AICandidateSuggestion?
-    var aiCandidateRequestSerial: UInt = 0
-    var aiCandidateDidNotifyLocalServerLoading = false
-    var aiCandidateRerankedValue: String?
-    var aiCandidateRerankWorkItem: DispatchWorkItem?
-    var aiCandidateServerRetryWorkItem: DispatchWorkItem?
-    // Phase 2:句末自動 L2 整句校正(只提示、不直接 commit)的狀態。
-    var aiAutoCorrectionSuggestion: AICandidateSuggestion?
-    var aiAutoCorrectionRequestSerial: UInt = 0
-    var aiAutoCorrectionDidNotifyLocalServerLoading = false
-    var aiAutoCorrectionWorkItem: DispatchWorkItem?
-    var aiAutoCorrectionServerRetryWorkItem: DispatchWorkItem?
+    // AI 輔助邏輯集中管理（設計報告階段一）。
+    // 所有原本散落的 aiCandidate* / aiAutoCorrection* 狀態現在由 coordinator 擁有。
+    lazy var aiAssistCoordinator: AIAssistCoordinator = {
+        let c = AIAssistCoordinator(controller: self, delegate: self)
+        return c
+    }()
 
     // Phase 3:語音輸入 push-to-talk。連按兩下「右 Shift」開始/結束。改用右 Shift
     // 是因為 macOS 內建聽寫常綁「連按兩下 Control」,改一顆系統沒綁的鍵可永久零衝突、
@@ -443,7 +437,7 @@ class McBopomofoInputMethodController: IMKInputController {
     @objc func toggleAIAutoCorrectionEnabled(_ sender: Any?) {
         let enabled = Preferences.toggleAIAutoCorrectionEnabled()
         if !enabled {
-            resetAIAutoCorrectionState()
+            aiAssistCoordinator.reset()
         }
     }
 
@@ -829,16 +823,13 @@ extension McBopomofoInputMethodController {
             handle(state: newState, previous: previous, client: client)
             state = .Empty()
         case let newState as InputState.Empty:
-            resetAICandidateAssistState()
-            resetAIAutoCorrectionState()
+            aiAssistCoordinator.reset()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.EmptyIgnoringPreviousState:
-            resetAICandidateAssistState()
-            resetAIAutoCorrectionState()
+            aiAssistCoordinator.reset()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Committing:
-            resetAICandidateAssistState()
-            resetAIAutoCorrectionState()
+            aiAssistCoordinator.reset()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Inputting:
             handle(state: newState, previous: previous, client: client)
@@ -984,9 +975,10 @@ extension McBopomofoInputMethodController {
         client.setMarkedText(
             state.attributedString, selectionRange: NSMakeRange(Int(state.cursorIndex), 0),
             replacementRange: NSMakeRange(NSNotFound, NSNotFound))
-        if !state.tooltip.isEmpty {
+        let tip = state.tooltip.isEmpty ? (state.aiTooltipMessage ?? "") : state.tooltip
+        if !tip.isEmpty {
             show(
-                tooltip: state.tooltip, composingBuffer: state.composingBuffer,
+                tooltip: tip, composingBuffer: state.composingBuffer,
                 cursorIndex: state.cursorIndex, client: client)
         }
         scheduleAIAutoCorrectionIfNeeded(for: state, client: client)
@@ -1270,13 +1262,14 @@ extension McBopomofoInputMethodController {
             gCurrentCandidateController = .vertical
         }
 
+        let coordinator = aiAssistCoordinator
         gCurrentCandidateController?.tooltip =
             switch state {
             case let state as InputState.ChoosingCandidate
-                where aiCandidateSuggestion?.originalComposingBuffer == state.composingBuffer:
+                where coordinator.aiCandidateSuggestion?.originalComposingBuffer == state.composingBuffer:
                 String(
                     format: NSLocalizedString("AI Suggestion: %@ (Tab)", comment: ""),
-                    aiCandidateSuggestion?.suggestion ?? "")
+                    coordinator.aiCandidateSuggestion?.suggestion ?? "")
             case let state as InputState.SelectingDictionary:
                 String(format: NSLocalizedString("Look up %@", comment: ""), state.selectedPhrase)
             case let state as InputState.AssociatedPhrases:
@@ -1401,5 +1394,16 @@ extension McBopomofoInputMethodController {
                         "Check McBopomofo menu for user file issues", comment: ""), stay: true)
             }
         }
+    }
+}
+
+// Conform to delegate so Coordinator can drive apply results (design report centralization).
+extension McBopomofoInputMethodController: AIAssistControllerDelegate {
+    func applyRerankResult(_ outcome: Result<String, AICorrectionError>, context: AICandidateRerankContext, serial: UInt, client: Any?) {
+        applyAICandidateRerankResult(outcome, context: context, serial: serial, client: client)
+    }
+
+    func applyAutoCorrectionResult(_ outcome: Result<String, AICorrectionError>, composingBuffer: String, serial: UInt, client: Any?) {
+        applyAIAutoCorrectionResult(outcome, composingBuffer: composingBuffer, serial: serial, client: client)
     }
 }

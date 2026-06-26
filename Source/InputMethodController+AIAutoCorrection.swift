@@ -27,125 +27,26 @@ import NotifierUI
 
 // Phase 2:句末自動 L2 整句校正。
 //
-// 與手動 ⌘Return 的關鍵差異:這裡「只提示、不直接 commit」。偵測到句末標點後,
-// 在背景以本機模型校正整句,結果不同時只顯示 tooltip 並存成 pending suggestion,
-// 由使用者按 Tab 採用。手動 ⌘Return 仍維持直接套用的行為(見 +AICorrection)。
+// L2 自動校正擴充。
+// 目前主要行為：對長句或含潛在錯誤的現階段輸入，使用上下文自動修正，並在 Inputting 時直接無聲套用（隱形警察模式）。
+// 保留 tooltip + Tab 作為 fallback 給其他狀態。手動 ⌘Return 仍維持直接套用（見 +AICorrection）。
 extension McBopomofoInputMethodController {
 
     func scheduleAIAutoCorrectionIfNeeded(for state: InputState.Inputting, client: Any?) {
         let buffer = state.composingBuffer
-
-        // 已對同一句組字區給過建議,不重打 server。
-        if let suggestion = aiAutoCorrectionSuggestion,
-            suggestion.originalComposingBuffer == buffer
-        {
-            return
-        }
-
-        guard
-            AIAutoCorrector.shouldSchedule(
-                composingBuffer: buffer, cursorIndex: Int(state.cursorIndex))
-        else {
-            cancelPendingAIAutoCorrection()
-            if aiAutoCorrectionSuggestion?.originalComposingBuffer != buffer {
-                aiAutoCorrectionSuggestion = nil
-            }
-            return
-        }
-
-        aiAutoCorrectionWorkItem?.cancel()
-        aiAutoCorrectionServerRetryWorkItem?.cancel()
-
         let preceding = Self.precedingTextForAI(from: client, maxChars: 100)
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.beginAIAutoCorrection(composingBuffer: buffer, preceding: preceding, client: client)
-        }
-        aiAutoCorrectionWorkItem = workItem
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + AIAutoCorrector.debounceInterval, execute: workItem)
+        aiAssistCoordinator.scheduleAutoCorrection(composingBuffer: buffer, preceding: preceding, cursorIndex: Int(state.cursorIndex), client: client)
     }
 
-    private func beginAIAutoCorrection(composingBuffer: String, preceding: String, client: Any?) {
-        aiAutoCorrectionWorkItem = nil
+    // begin/invoke/scheduleRetry 已搬到 AIAssistCoordinator (使用協議驅動)。
+    // 舊路徑已不再使用，保留註解以利過渡期間檢視。
 
-        guard let inputting = state as? InputState.Inputting,
-            inputting.composingBuffer == composingBuffer
-        else {
-            return
-        }
-        guard
-            AIAutoCorrector.shouldSchedule(
-                composingBuffer: composingBuffer, cursorIndex: Int(inputting.cursorIndex))
-        else {
-            return
-        }
-
-        if !AIAutoCorrector.canInvokeLocalModel() {
-            LocalServerAICorrector.startIfNeeded()
-            if !aiAutoCorrectionDidNotifyLocalServerLoading {
-                aiAutoCorrectionDidNotifyLocalServerLoading = true
-                NotifierController.notify(
-                    message: NSLocalizedString("Local AI auto-correction is loading", comment: ""))
-            }
-            scheduleAIAutoCorrectionServerRetry(
-                composingBuffer: composingBuffer, preceding: preceding, client: client, attempt: 1)
-            return
-        }
-
-        aiAutoCorrectionDidNotifyLocalServerLoading = false
-        aiAutoCorrectionServerRetryWorkItem?.cancel()
-        invokeAIAutoCorrection(composingBuffer: composingBuffer, preceding: preceding, client: client)
-    }
-
-    private func scheduleAIAutoCorrectionServerRetry(
-        composingBuffer: String, preceding: String, client: Any?, attempt: Int
-    ) {
-        guard attempt <= AIAutoCorrector.maxServerRetryAttempts else {
-            return
-        }
-
-        aiAutoCorrectionServerRetryWorkItem?.cancel()
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.aiAutoCorrectionServerRetryWorkItem = nil
-            guard let inputting = self.state as? InputState.Inputting,
-                inputting.composingBuffer == composingBuffer
-            else {
-                return
-            }
-            if AIAutoCorrector.canInvokeLocalModel() {
-                self.aiAutoCorrectionDidNotifyLocalServerLoading = false
-                self.invokeAIAutoCorrection(
-                    composingBuffer: composingBuffer, preceding: preceding, client: client)
-            } else {
-                self.scheduleAIAutoCorrectionServerRetry(
-                    composingBuffer: composingBuffer, preceding: preceding, client: client,
-                    attempt: attempt + 1)
-            }
-        }
-        aiAutoCorrectionServerRetryWorkItem = workItem
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + AIAutoCorrector.serverRetryInterval, execute: workItem)
-    }
-
-    private func invokeAIAutoCorrection(composingBuffer: String, preceding: String, client: Any?) {
-        aiAutoCorrectionRequestSerial += 1
-        let serial = aiAutoCorrectionRequestSerial
-        DispatchQueue.global(qos: .userInitiated).async {
-            let outcome = LocalServerAICorrector.correct(
-                guess: composingBuffer, preceding: preceding)
-            DispatchQueue.main.async {
-                self.applyAIAutoCorrectionResult(
-                    outcome, composingBuffer: composingBuffer, serial: serial, client: client)
-            }
-        }
-    }
-
-    private func applyAIAutoCorrectionResult(
+    func applyAIAutoCorrectionResult(
         _ outcome: Result<String, AICorrectionError>, composingBuffer: String,
         serial: UInt, client: Any?
     ) {
-        guard serial == aiAutoCorrectionRequestSerial else {
+        let coordinator = aiAssistCoordinator
+        guard serial == coordinator.aiAutoCorrectionRequestSerial else {
             NSLog("AI自動校正: 丟棄過期結果")
             return
         }
@@ -162,12 +63,30 @@ extension McBopomofoInputMethodController {
 
         // AI 認為整句已正確:不打擾使用者,清掉任何殘留建議。
         guard text != composingBuffer else {
-            aiAutoCorrectionSuggestion = nil
+            coordinator.aiAutoCorrectionSuggestion = nil
             return
         }
 
-        // 第一版只提示、不 commit。存成 pending suggestion,等使用者按 Tab 採用。
-        aiAutoCorrectionSuggestion = AICandidateSuggestion(
+        // 為支援「邊打長句時隱形修正現階段句子/字詞」的願景：
+        // 如果目前在 Inputting，直接無聲更新 composingBuffer 為修正後文字。
+        // 使用者會看到文字自己被修正，繼續打注音即可。平滑體驗為主。
+        if let inputting = state as? InputState.Inputting {
+            let correctedState = InputState.Inputting(composingBuffer: text, cursorIndex: UInt(text.count))
+            coordinator.aiAutoCorrectionSuggestion = nil
+            correctedState.pendingAISuggestion = AICandidateSuggestion(originalComposingBuffer: composingBuffer, suggestion: text)
+            correctedState.aiTooltipMessage = "AI 已自動修正"
+            state = correctedState
+            guard let imkClient = client as? IMKTextInput else { return }
+            imkClient.setMarkedText(
+                correctedState.attributedString,
+                selectionRange: NSMakeRange(Int(correctedState.cursorIndex), 0),
+                replacementRange: NSMakeRange(NSNotFound, NSNotFound))
+            // 純隱形：無聲替換，pending 和 aiTooltipMessage 保留供未來低調 UI 或記錄使用
+            return
+        }
+
+        // 其他情況（或舊行為）仍用提示 + Tab 採用。
+        coordinator.aiAutoCorrectionSuggestion = AICandidateSuggestion(
             originalComposingBuffer: composingBuffer, suggestion: text)
         showAIAutoCorrectionTooltip(text, for: inputting, client: client)
     }
@@ -184,7 +103,8 @@ extension McBopomofoInputMethodController {
 
     /// Tab 採用句末自動校正建議。僅當目前仍在同一句 Inputting 狀態時生效。
     func acceptAIAutoCorrectionSuggestionIfAvailable(client: Any!) -> Bool {
-        guard let suggestion = aiAutoCorrectionSuggestion,
+        let coordinator = aiAssistCoordinator
+        guard let suggestion = coordinator.aiAutoCorrectionSuggestion,
             let inputting = state as? InputState.Inputting,
             inputting.composingBuffer == suggestion.originalComposingBuffer
         else {
@@ -195,27 +115,22 @@ extension McBopomofoInputMethodController {
     }
 
     private func commitAIAutoCorrection(_ suggestion: String, client: Any!) {
-        cancelPendingAIAutoCorrection()
-        aiAutoCorrectionSuggestion = nil
-        aiAutoCorrectionRequestSerial += 1
+        let coordinator = aiAssistCoordinator
+        coordinator.cancelPendingAutoCorrection()
+        coordinator.aiAutoCorrectionSuggestion = nil
+        coordinator.aiAutoCorrectionRequestSerial += 1
         keyHandler.clear()
         handle(state: InputState.Committing(poppedText: suggestion), client: client)
         handle(state: InputState.Empty(), client: client)
     }
 
     func resetAIAutoCorrectionState() {
-        aiAutoCorrectionWorkItem?.cancel()
-        aiAutoCorrectionWorkItem = nil
-        aiAutoCorrectionServerRetryWorkItem?.cancel()
-        aiAutoCorrectionServerRetryWorkItem = nil
-        aiAutoCorrectionSuggestion = nil
-        aiAutoCorrectionDidNotifyLocalServerLoading = false
+        aiAssistCoordinator.reset()
     }
 
     private func cancelPendingAIAutoCorrection() {
-        aiAutoCorrectionWorkItem?.cancel()
-        aiAutoCorrectionWorkItem = nil
-        aiAutoCorrectionServerRetryWorkItem?.cancel()
-        aiAutoCorrectionServerRetryWorkItem = nil
+        aiAssistCoordinator.cancelPendingAutoCorrection()
     }
+
+    // 舊的個別 reset 已委派給 Coordinator，保留相容介面。
 }

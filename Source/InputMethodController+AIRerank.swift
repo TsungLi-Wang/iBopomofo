@@ -34,31 +34,7 @@ extension McBopomofoInputMethodController {
 
     func scheduleAICandidateRerankIfNeeded(for state: InputState.ChoosingCandidate, client: Any?) {
         let context = makeRerankContext(from: state, client: client)
-
-        if let rerankedValue = aiCandidateRerankedValue,
-            state.candidates.first?.value == rerankedValue
-                || state.candidates.first?.displayText == rerankedValue
-        {
-            return
-        }
-
-        guard AICandidateReranker.shouldSchedule(for: context) else {
-            cancelPendingAICandidateRerank()
-            if aiCandidateSuggestion?.originalComposingBuffer != state.composingBuffer {
-                aiCandidateSuggestion = nil
-            }
-            return
-        }
-
-        aiCandidateRerankWorkItem?.cancel()
-        aiCandidateServerRetryWorkItem?.cancel()
-
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.beginAICandidateRerank(context: context, client: client)
-        }
-        aiCandidateRerankWorkItem = workItem
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + AICandidateReranker.debounceInterval, execute: workItem)
+        aiAssistCoordinator.scheduleRerank(context: context, client: client)
     }
 
     private func makeRerankContext(
@@ -76,95 +52,22 @@ extension McBopomofoInputMethodController {
             candidates: Array(entries))
     }
 
-    private func beginAICandidateRerank(context: AICandidateRerankContext, client: Any?) {
-        aiCandidateRerankWorkItem = nil
-
-        guard let choosing = state as? InputState.ChoosingCandidate,
-            choosing.composingBuffer == context.composingBuffer
-        else {
-            return
-        }
-
-        guard AICandidateReranker.shouldSchedule(for: context) else {
-            return
-        }
-
-        if !AICandidateReranker.canInvokeLocalModel() {
-            LocalServerAICorrector.startIfNeeded()
-            if !aiCandidateDidNotifyLocalServerLoading {
-                aiCandidateDidNotifyLocalServerLoading = true
-                NotifierController.notify(
-                    message: NSLocalizedString("Local AI candidate suggestions are loading", comment: ""))
-            }
-            scheduleAICandidateServerRetry(context: context, client: client, attempt: 1)
-            return
-        }
-
-        aiCandidateDidNotifyLocalServerLoading = false
-        aiCandidateServerRetryWorkItem?.cancel()
-        invokeAICandidateRerank(context: context, client: client)
-    }
-
-    private func scheduleAICandidateServerRetry(
-        context: AICandidateRerankContext, client: Any?, attempt: Int
-    ) {
-        guard attempt <= AICandidateReranker.maxServerRetryAttempts else {
-            return
-        }
-
-        aiCandidateServerRetryWorkItem?.cancel()
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.aiCandidateServerRetryWorkItem = nil
-            guard let choosing = self.state as? InputState.ChoosingCandidate,
-                choosing.composingBuffer == context.composingBuffer
-            else {
-                return
-            }
-            if AICandidateReranker.canInvokeLocalModel() {
-                self.aiCandidateDidNotifyLocalServerLoading = false
-                self.invokeAICandidateRerank(context: context, client: client)
-            } else {
-                self.scheduleAICandidateServerRetry(
-                    context: context, client: client, attempt: attempt + 1)
-            }
-        }
-        aiCandidateServerRetryWorkItem = workItem
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + AICandidateReranker.serverRetryInterval, execute: workItem)
-    }
-
-    private func invokeAICandidateRerank(context: AICandidateRerankContext, client: Any?) {
-        aiCandidateRequestSerial += 1
-        let serial = aiCandidateRequestSerial
-        DispatchQueue.global(qos: .userInitiated).async {
-            let outcome = AICandidateReranker.rerank(context: context)
-            DispatchQueue.main.async {
-                self.applyAICandidateRerankResult(
-                    outcome, context: context, serial: serial, client: client)
-            }
-        }
-    }
+    // begin/invoke moved to AIAssistCoordinator (design report refactor)
+    // kept for reference during transition; currently unused.
 
     func resetAICandidateAssistState() {
-        aiCandidateRerankWorkItem?.cancel()
-        aiCandidateRerankWorkItem = nil
-        aiCandidateServerRetryWorkItem?.cancel()
-        aiCandidateServerRetryWorkItem = nil
-        aiCandidateSuggestion = nil
-        aiCandidateRerankedValue = nil
-        aiCandidateDidNotifyLocalServerLoading = false
+        aiAssistCoordinator.reset()
     }
 
     private func cancelPendingAICandidateRerank() {
-        aiCandidateRerankWorkItem?.cancel()
-        aiCandidateRerankWorkItem = nil
-        aiCandidateServerRetryWorkItem?.cancel()
-        aiCandidateServerRetryWorkItem = nil
+        aiAssistCoordinator.cancelPendingRerank()
     }
 
+    // 舊的個別 reset 已委派給 Coordinator，保留相容介面。
+
     func acceptAICandidateSuggestionIfAvailable(client: Any!) -> Bool {
-        guard let suggestion = aiCandidateSuggestion,
+        let coordinator = aiAssistCoordinator
+        guard let suggestion = coordinator.aiCandidateSuggestion,
             let currentInputting = state as? InputState.Inputting,
             currentInputting.composingBuffer == suggestion.originalComposingBuffer
         else {
@@ -175,7 +78,8 @@ extension McBopomofoInputMethodController {
     }
 
     func acceptAICandidateSuggestionFromCandidateWindowIfAvailable(client: Any!) -> Bool {
-        guard let suggestion = aiCandidateSuggestion,
+        let coordinator = aiAssistCoordinator
+        guard let suggestion = coordinator.aiCandidateSuggestion,
             let choosing = state as? InputState.ChoosingCandidate,
             choosing.composingBuffer == suggestion.originalComposingBuffer
         else {
@@ -185,11 +89,12 @@ extension McBopomofoInputMethodController {
         return true
     }
 
-    private func applyAICandidateRerankResult(
+    func applyAICandidateRerankResult(
         _ outcome: Result<String, AICorrectionError>, context: AICandidateRerankContext,
         serial: UInt, client: Any?
     ) {
-        guard serial == aiCandidateRequestSerial else {
+        let coordinator = aiAssistCoordinator
+        guard serial == coordinator.aiCandidateRequestSerial else {
             NSLog("AI候選建議: 丟棄過期結果")
             return
         }
@@ -204,46 +109,52 @@ extension McBopomofoInputMethodController {
             return
         }
         guard text != context.composingBuffer else {
-            aiCandidateSuggestion = nil
-            aiCandidateRerankedValue = nil
+            coordinator.aiCandidateSuggestion = nil
+            coordinator.aiCandidateRerankedValue = nil
             gCurrentCandidateController?.tooltip = ""
             return
         }
 
         if choosing.candidates.first?.value == text || choosing.candidates.first?.displayText == text {
-            aiCandidateSuggestion = nil
-            aiCandidateRerankedValue = text
+            coordinator.aiCandidateSuggestion = nil
+            coordinator.aiCandidateRerankedValue = text
             gCurrentCandidateController?.tooltip = ""
+            // update state fields for invisible support
+            if let choosingState = state as? InputState.ChoosingCandidate {
+                choosingState.aiRerankedTopCandidate = text
+            }
             return
         }
 
         if let rerankedCandidates = AICandidateReranker.reorderedCandidates(
             suggestion: text, candidates: choosing.candidates)
         {
-            aiCandidateSuggestion = nil
-            aiCandidateRerankedValue = text
+            coordinator.aiCandidateSuggestion = nil
+            coordinator.aiCandidateRerankedValue = text
             let rerankedState = InputState.ChoosingCandidate(
                 composingBuffer: choosing.composingBuffer,
                 cursorIndex: choosing.cursorIndex,
                 candidates: rerankedCandidates,
                 useVerticalMode: choosing.useVerticalMode)
             rerankedState.originalCursorIndex = choosing.originalCursorIndex
+            rerankedState.aiRerankedTopCandidate = text
             handle(state: rerankedState, client: client)
             return
         }
 
-        aiCandidateRerankedValue = nil
-        aiCandidateSuggestion = AICandidateSuggestion(
+        coordinator.aiCandidateRerankedValue = nil
+        coordinator.aiCandidateSuggestion = AICandidateSuggestion(
             originalComposingBuffer: context.composingBuffer, suggestion: text)
         gCurrentCandidateController?.tooltip = String(
             format: NSLocalizedString("AI Suggestion: %@ (Tab)", comment: ""), text)
     }
 
     private func commitAISuggestion(_ suggestion: String, client: Any!) {
-        cancelPendingAICandidateRerank()
-        aiCandidateSuggestion = nil
-        aiCandidateRerankedValue = nil
-        aiCandidateRequestSerial += 1
+        let coordinator = aiAssistCoordinator
+        coordinator.cancelPendingRerank()
+        coordinator.aiCandidateSuggestion = nil
+        coordinator.aiCandidateRerankedValue = nil
+        coordinator.aiCandidateRequestSerial += 1
         gCurrentCandidateController?.visible = false
         keyHandler.clear()
         handle(state: InputState.Committing(poppedText: suggestion), client: client)

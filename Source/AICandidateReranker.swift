@@ -50,21 +50,38 @@ enum AICandidateReranker {
 
     static let maxCandidateCount = 8
     static let debounceInterval: TimeInterval = 0.15
-    static let serverRetryInterval: TimeInterval = 2.0
-    static let maxServerRetryAttempts = 6
 
     private static let ambiguousCharacters = Set("在再的得地做作知資麼摸裡裏裡哪那裡这這")
+
+    /// 安全閘門：L1 rescorer 只在引擎合法候選中挑，絕不把符號/emoji 主動推到第一位。
+    /// 除非原本 engine top-1 就是符號，否則跳過符號候選（符合 handoff 要求）。
+    static func isSymbolOrEmoji(_ value: String) -> Bool {
+        guard !value.isEmpty else { return false }
+        // 含 CJK 漢字範圍 → 視為一般文字內容，不是純符號
+        let hasCJK = value.unicodeScalars.contains { s in
+            (0x4E00...0x9FFF).contains(s.value) ||
+            (0x3400...0x4DBF).contains(s.value) ||
+            (0xF900...0xFAFF).contains(s.value)
+        }
+        if hasCJK { return false }
+
+        // Emoji presentation 或 OtherSymbol
+        if value.unicodeScalars.contains(where: { $0.properties.isEmojiPresentation || $0.properties.generalCategory == .otherSymbol }) {
+            return true
+        }
+
+        // 單一或短的非字母數字可見字元，常見符號
+        if value.count <= 2 && value.allSatisfy({ !$0.isLetter && !$0.isNumber && !$0.isWhitespace }) {
+            return true
+        }
+        return false
+    }
 
     /// 是否值得啟動 L1（不檢查 server 就緒；暖機重試由 controller 處理）。
     static func shouldSchedule(for context: AICandidateRerankContext) -> Bool {
         guard Preferences.enableAICandidateRerank else { return false }
         guard context.composingBuffer.count >= 2 else { return false }
         return needsSemanticRerank(for: context)
-    }
-
-    /// L1 現在使用進程內 n-gram scorer,不再等待本機模型 server。
-    static func canInvokeLocalModel() -> Bool {
-        true
     }
 
     static func needsSemanticRerank(for context: AICandidateRerankContext) -> Bool {
@@ -198,15 +215,28 @@ struct AICandidateNGramScorer {
         guard !candidates.isEmpty else { return nil }
         guard model.isReady else { return candidates.first?.value }
 
-        var best = candidates[0].value
+        let originalTop = candidates[0].value
+        let originalTopIsSymbol = AICandidateReranker.isSymbolOrEmoji(originalTop)
+
+        var best = originalTop
         var bestScore = -Double.infinity
+        var considered = 0
         for (index, candidate) in candidates.enumerated() {
+            if !originalTopIsSymbol && AICandidateReranker.isSymbolOrEmoji(candidate.value) {
+                // 安全閘門：除非原 top-1 就是符號，否則不考慮符號/emoji 候選
+                continue
+            }
+            considered += 1
             let text = Self.contextText(replacingWith: candidate.value, in: context)
             let score = model.score(text: text, candidateValue: candidate.value) - (Double(index) * 0.03)
             if score > bestScore {
                 bestScore = score
                 best = candidate.value
             }
+        }
+        if considered == 0 {
+            // 極端情況（全為符號但原 top 不是），保險退回原 top
+            return originalTop
         }
         return best
     }
@@ -422,6 +452,39 @@ struct AICandidateNGramScorer {
             return log(
                 (count + AICandidateNGramScorer.alpha)
                     / (totalPhraseWeight + AICandidateNGramScorer.alpha * vocabularySize))
+        }
+    }
+}
+
+// Phase 1 refactor per design report: 明確協議層，把 n-gram 標為「快速層」。
+// Coordinator 之後可用這些協議來統一 L1/L2 呼叫。
+protocol CandidateRescorer {
+    func shouldRescore(_ context: AICandidateRerankContext) -> Bool
+    func rescore(context: AICandidateRerankContext) async -> Result<String, AICorrectionError>
+}
+
+/// 快速層實作：目前就是字元 n-gram，不依賴 server。
+struct NgramCandidateRescorer: CandidateRescorer {
+    func shouldRescore(_ context: AICandidateRerankContext) -> Bool {
+        AICandidateReranker.shouldSchedule(for: context)
+    }
+
+    func rescore(context: AICandidateRerankContext) async -> Result<String, AICorrectionError> {
+        // n-gram 目前同步且即時；async 包裝以符合協議，方便 Coordinator 統一呼叫。
+        AICandidateReranker.rerank(context: context)
+    }
+}
+
+protocol SentenceCorrector {
+    func correct(guess: String, preceding: String) async -> Result<String, AICorrectionError>
+}
+
+/// 目前 L2 後端（本機 llama）的包裝。設計報告階段二建議把內部 semaphore 換 async/await。
+struct LocalServerSentenceCorrector: SentenceCorrector {
+    func correct(guess: String, preceding: String) async -> Result<String, AICorrectionError> {
+        await withCheckedContinuation { continuation in
+            let result = LocalServerAICorrector.correct(guess: guess, preceding: preceding)
+            continuation.resume(returning: result)
         }
     }
 }
