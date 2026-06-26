@@ -303,3 +303,27 @@ Johnny 要兩個方向:① 語音轉出後再過一次 L2、② 用 OpenAI 辨�
 
 **驗證**:`xcodebuild test` 119/10 全綠。版本 1.7.3→1.7.4、build 2274→2275。發版 `package-dmg.sh` → commit → push → tag v1.7.4 → gh release(Latest)。
 **⚠️ 未實機驗證**:選項 2/3 的執行期(尤其 Whisper 錄 WAV→上傳)在開發機沒法測麥克風/打 OpenAI,只證明編譯+不破壞既有。錄音用 `AudioTapInstaller` 安全包裝 + 失敗退場,但能否真的錄到、上傳成功要 Johnny 實機收。WAV 用 tap buffer 原生格式(float32)寫,若 OpenAI 對 float wav 有問題,改成轉 16-bit PCM。
+
+### 2026-06-26T14:00:00+08:00 AI rescorer 重構 階段一+二v1(探勘 + baseline + 字元 n-gram 第一版)
+
+新方向(Johnny 規格):把智慧從「⌘Return 整句事後重寫」搬到「打字當下即時重排序」。**完整交接見 `RESCORER_HANDOFF.md`(可直接貼給下一位 AI)。**
+- 探勘關鍵:引擎純 unigram、`walk()` 只給 top-1 無 N-best;**L1 重排接縫已存在且已是「只重排不生成」(`InputMethodController+AIRerank.swift` / `AICandidateReranker.swift`),差別只在打分器是 4B**。任務 = 換成輕量 n-gram,非從零蓋。
+- `Source/Engine/eval/`(rerank_eval.cpp + build-and-run.sh):獨立編譯、載真實 data.txt、量 walk top-1。baseline 7/8。
+- 階段二 v1:字元 bigram 從 data.txt 詞頻推(零外部語料),rescore 只在 `node->unigrams()` 合法候選裡用左右文重挑。修好「意→一」、0 退步,但「在→再」翻不動(詞庫 bigram 太弱)→ **下一步換真語料 trigram(KenLM)+ 接進 AICandidateReranker**。
+- 這批是 eval scaffold,**未碰引擎、未碰 app、無版本變動**。
+
+#### 下一棒接手指南(rescorer 階段二續做)
+
+**一句話目標**:把智慧從「⌘Return 整句事後重寫」搬到「打字當下即時重排序」;rescorer **只在引擎已產生的合法候選裡重挑,絕不生成**(根除「AI 改你原意」)。
+
+**下一步(依優先序)**:
+1. **補真實測資**:跟 Johnny 要 20~50 筆他真實會打、常選錯的句子放進 harness(8 筆太少、無統計意義)。
+2. **換真語料 trigram(翻硬同音字的關鍵)**:用公開繁中語料(維基/政府開放資料/新聞)訓練 KenLM 或等價純 C++ trigram,取代目前的詞庫 bigram(詞庫 bigram 對「在/再」先天無力,已驗)。對齊可用 `Source/Data/curation/` + `count_occurrences.py` + BPMFMappings(漢字→注音)。進程內、低延遲、**不准用 llama-server**。
+3. **接進活的輸入法**:把 n-gram 打分器接到 `AICandidateReranker`(取代/前置於 llama 呼叫)。整合進 app build(pbxproj 新檔別撞號,已用到 FACE0073,新檔從 FACE0074+;先 `xcodebuild test -scheme McBopomofo` 確保 119/10 不破壞)。
+4. **before/after 用 harness 量**,沒有數字提升不算完成(Johnny 硬性要求)。
+
+**護欄**:rescorer 只重排不生成;即時層不用 llama/生成式;⌘Return 的 4B/Claude/Codex 路徑保留當備援+語音後修、本次不改;**不做內部更名**(bundle id/input source id/module/資料路徑的 McBopomofo 命名別碰);改引擎前先有 baseline 數字;commit 用筆名 `老王 LaoWang <laowang@users.noreply.github.com>`。
+
+**平行待辦(別跟 rescorer 混做)**:使用者第二半痛點「被迫接受詞組、想逐字自選」→ 現成解 = libchewing Simple mode(關自動組詞+穩定候選排序),等 rescorer 穩了再單獨評估。
+
+**參考**:vChewing 技術白皮書(McBopomofo 的 fork,逐模組對照,The Unlicense)`https://vchewing.github.io/TechnicalWhitePaper.html`。
