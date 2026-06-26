@@ -201,5 +201,5 @@
 "Voice input is ready. Double-tap right Shift again to start speaking" = "語音輸入授權完成，請再連按兩下右 Shift 開始說話";
 "Listening… double-tap right Shift to stop" = "聆聽中…再連按兩下右 Shift 結束";
 "Voice input stopped" = "語音輸入已結束";
-"Recognizing…" = "辨識中…";
+"Voice input ended automatically. Double-tap right Shift to start again" = "語音這段已自動結束，請再連按兩下右 Shift 重新開始";
 "No speech detected" = "沒聽到內容";

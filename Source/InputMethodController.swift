@@ -494,6 +494,14 @@ class McBopomofoInputMethodController: IMKInputController {
                 self.voiceInputStopNotificationPending = false
                 NotifierController.notify(
                     message: NSLocalizedString("Voice input stopped", comment: ""))
+            } else {
+                // 走到這裡代表使用者沒有主動雙擊停止,是辨識器自行結束這段(偵測到句尾
+                // 或達到時間上限)。出字後補一則提示,避免麥克風被靜默關掉、使用者卻
+                // 對著已結束的 session 繼續講而不自知。
+                NotifierController.notify(
+                    message: NSLocalizedString(
+                        "Voice input ended automatically. Double-tap right Shift to start again",
+                        comment: ""))
             }
         }
         let wasAuthorizedBeforeRequest = manager.hasRequiredAuthorization

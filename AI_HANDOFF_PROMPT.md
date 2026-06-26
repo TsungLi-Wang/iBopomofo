@@ -18,15 +18,15 @@
 - L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。
 - L1 快速語義：Phase 1 MVP 已加強（debounce、暖機重試、候選同音觸發、選單與偏好設定開關）。
 - L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
-- L3 語音輸入：**已實機驗證可用並隨 v1.7 / v1.7.1 / v1.7.2 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。
+- L3 語音輸入：**已實機驗證可用並隨 v1.7 / v1.7.1 / v1.7.2 / v1.7.3 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。
 
-**目前發佈狀態:已發到 v1.7.2**(GitHub Release,Latest)。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 119 tests / 10 suites 全綠。
+**目前發佈狀態:已發到 v1.7.3**(GitHub Release,Latest)。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 119 tests / 10 suites 全綠。
 
 Phase 狀態：
 
 - Phase 1：約 95% 完成。L1 候選重排 + debounce + server 重試 + 選單/偏好設定開關已完成；完整 `xcodebuild test` 已可穩定全綠並乾淨結束(見「測試狀態」),L1 觸發條件已收緊以降低過度觸發。
 - Phase 2：MVP 已落地並隨 v1.6 發佈(實驗功能,預設關閉)。句末標點自動觸發 L2,第一版只提示不 commit,Tab 採用;手動 `⌘Return` 行為不變。純邏輯測試已補。真機已由 Johnny 確認可動。
-- Phase 3：**完成並已隨 v1.7 / v1.7.1 / v1.7.2 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(**連按兩下右 Shift** 開始/結束;v1.7 原為 Control,v1.7.1 改右 Shift 避開系統聽寫衝突)已實作。v1.7.2 補上首次授權兩段式流程、授權後輸入源恢復、CoreAudio tap 防 crash 與通知去重。下一步可做:辨識準度/標點、語音轉出後可選再過一次 L2、常駐聆聽模式。詳見下方交班日誌。
+- Phase 3：**完成並已隨 v1.7 / v1.7.1 / v1.7.2 / v1.7.3 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(**連按兩下右 Shift** 開始/結束;v1.7 原為 Control,v1.7.1 改右 Shift 避開系統聽寫衝突)已實作。v1.7.2 補上首次授權兩段式流程、授權後輸入源恢復、CoreAudio tap 防 crash 與通知去重。v1.7.3 補上「辨識器自行結束時提示」(選項 b)、README 使用說明、清字串。下一步可做:辨識準度/標點、語音轉出後可選再過一次 L2、選項 a 連續聆聽模式(isFinal 後自動重啟 request)。詳見下方交班日誌。
 - Phase 4：未做。注音領域微調尚未實作。
 
 ## 已完成的 Phase 1 工作
@@ -260,3 +260,30 @@ Phase 3 與 L1/L2 本質不同:L1/L2 是「文字進 → 文字校正」,Phase 3
 **後續可做**:
 - 這版保留短延遲 `0.05s` 後才 `manager.start()`,只是避開同一個 key event 剛結束的邊界,不是授權延遲。若未來要再優化啟動手感,可以實測降到 0 或把啟動完成通知改成等 `audioEngine.start()` 成功後再顯示。
 - 若要再診斷 IME 執行期問題,仍建議短期加固定檔 log 定位,查完務必移除;不要靠 `log stream` 撈 McBopomofo,噪音太大。
+
+### 2026-06-26T11:00:00+08:00 v1.7.3:辨識自行結束提示(選項 b)+ README 使用說明 + 清字串
+
+Phase 3 收尾小版。起點是 Johnny 問「辨識器自行靜默斷句結束 session」到底是什麼狀況、該怎麼處理。
+
+**問題本質**:`SFSpeechRecognizer` 會在偵測到句尾或達到時間上限時**自行回 `isFinal`**,而使用者並沒有雙擊停止。原本程式碼此時 commit 文字 + `teardown()` 直接結束錄音,**且不發任何通知** → 使用者以為還在聽、對著已關掉的麥克風繼續講而不自知。
+
+**當時給 Johnny 的兩個方向**:
+- (a) 連續模式:isFinal 後若非使用者停止 → commit 後自動重啟一個新 request,維持 session 到使用者雙擊才停。代價:工較多、每次停頓會分段出字。
+- (b) 不要再靜默:行為不變,但辨識器自行結束時補一則提示。代價小、零行為風險。
+
+**Johnny 選 (b)**(理由:此 edge case 本就少見,先解掉最困惑的「靜默」,等真實體感再決定要不要 (a))。
+
+**本次修改**:
+- `InputMethodController.swift` 的 `manager.onFinalText` 加 `else` 分支:利用既有 `voiceInputStopNotificationPending`(只在使用者主動停止時為 true)。出字時若該旗標為 `false`,代表是辨識器自行結束,補通知「語音這段已自動結束,請再連按兩下右 Shift 重新開始」。**沒動 `VoiceInputManager`、沒碰 happy path**。
+- 三語新增字串 `Voice input ended automatically. Double-tap right Shift to start again`。
+- 清除三語未使用字串 `Recognizing…`(v1.7.2 通知去重時拿掉使用端、字串忘了清;已確認 swift/m/h/mm 零引用)。
+- README 新增「## 語音輸入(實驗)」使用說明區段(前置開聽寫、首次兩段式授權、操作步驟、常見狀況排查);第 13 行功能 bullet 收斂並導引到該節。開發緣由(為何右 Shift、isFinal 邊界)刻意不放 README,留本檔。
+
+**驗證**:
+- `xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug CODE_SIGNING_ALLOWED=NO` 通過:119 tests / 10 suites。
+- 版本 1.7.2→1.7.3、build 2273→2274。**未新增檔案,pbxproj 不動**(版本真實來源是 plist 字面值,非 pbxproj 的 `MARKETING_VERSION`)。
+- 發版照舊 `./package-dmg.sh` → commit → push → tag v1.7.3 → gh release。
+
+**後續可做**:
+- 若實際長講常被自動截斷,再實作選項 (a) 連續模式。
+- 「自動結束提示」這條目前無自動測試,靠實機驗;觸發偵測與通知都跟 `NSEvent` / `NotifierController` 綁緊,要測需先把判斷抽成純函式。

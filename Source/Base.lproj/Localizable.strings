@@ -200,5 +200,5 @@
 "Voice input is ready. Double-tap right Shift again to start speaking" = "Voice input is ready. Double-tap right Shift again to start speaking";
 "Listening… double-tap right Shift to stop" = "Listening… double-tap right Shift to stop";
 "Voice input stopped" = "Voice input stopped";
-"Recognizing…" = "Recognizing…";
+"Voice input ended automatically. Double-tap right Shift to start again" = "Voice input ended automatically. Double-tap right Shift to start again";
 "No speech detected" = "No speech detected";
