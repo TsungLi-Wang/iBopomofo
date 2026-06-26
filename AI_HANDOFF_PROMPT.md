@@ -410,3 +410,33 @@ Johnny 提出改用外部 AI 產生「在/再」合成語料,先跑小型實驗,
 
 **重跑/驗證**：`xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug CODE_SIGNING_ALLOWED=NO`（確保 129+ tests 綠）
 
+### 2026-06-26T18:35:42+08:00 發佈 v1.8.0（隱形警察階段一）+ 本機安裝排障
+
+這次 session 把「隱形中文警察重構階段一」正式打版發佈，並處理本機重裝。
+
+**已完成（全部驗過）**：
+
+1. **版本號推進 1.7.5 → 1.8.0 / build 2276 → 2277**。版本真實來源是 `Source/McBopomofo-Info.plist` 字面值（不是 pbxproj 的 MARKETING_VERSION）。`CHANGELOG.md` 的 `[Unreleased]` 隱形警察那批已移進 `[v1.8.0] - 2026-06-26`。
+2. **GitHub Release v1.8.0 已發佈並標記 Latest**，附 `LaoWangZhuyin.dmg`（18MB，內嵌 v1.8.0 安裝器）。tag `v1.8.0` 指向 commit `f09565b`。發佈前 `xcodebuild test` 129 tests / 11 suites 全綠。發佈意義：以後 `scripts/install.sh` 抓的就是 1.8.0，不會再卡在 1.7.5。
+3. **本機 `~/Library/Input Methods/McBopomofo.app` 已是 v1.8.0**（先 killall + 就地 ditto 覆蓋，不 rm -rf；再跑 `McBopomofo install` 註冊）。
+4. 雜項：`.gitignore` 加 `*.profraw`（覆蓋率殘留檔，會誤入 commit）；移除 `AI_HANDOFF_PROMPT.md` 對兩份已棄用 `~/Documents/` 設計/交班文件的殘留引用（那兩份早已不存在，設計哲學已融進本檔與 CHANGELOG）。
+
+**未完成 / 卡住的一步（重要，給下一棒）**：
+
+- **輸入源尚未「啟用進輸入選單」**。症狀：`defaults read com.apple.HIToolbox AppleEnabledInputSources` 找不到 McBopomofo，選單列選不到、不能打字。
+- **根因（已查證，不要再重踩）**：從**非 GUI session 的 CLI**（本 agent 的 Bash）跑 `McBopomofo install` / `install --all`，`InputSourceHelper.enable()`（即 `TISEnableInputSource`）會**回報成功但不會真的寫進 AppleEnabledInputSources / 不會進選單**。`exit=0`、log 印 "All input sources enabled" 都是假象。`McBopomofoInstaller` 的 AppDelegate（`installInputMethod`）在 macOS 12+ 是**無條件呼叫 `enable()`，但它跑在 Aqua GUI session 裡**，所以才生效——這就是「別人重裝都沒事」的原因（他們用 GUI 安裝器，不是 CLI）。
+- **macOS 硬限制**：把輸入法「開進選單」一定要 GUI session 的動作，沒有純 CLI / 純背景的零接觸做法。可行路徑只有三條，**都需要使用者點一下或授權一次**：(a) 開 `McBopomofoInstaller.app` 點「同意並安裝」一顆鈕（最乾淨，會自動 kill+裝+enable+開設定+自動關閉）；(b) 系統設定 ▸ 鍵盤 ▸ 輸入來源 ▸ 編輯 ▸ + ▸ 中文 ▸ 老王注音；(c) computer-use 代點，但需先授予「螢幕錄製」權限給控制端 app（通常還要重啟），反而更麻煩。
+- 本 session 已把安裝器視窗開在使用者螢幕上，等他點「同意並安裝」即完成。**下一棒若使用者回報仍沒進選單，先別重跑 CLI install（無效），直接走 GUI 安裝器或 System Settings。**
+
+**驗證指令**（使用者點完安裝器後，下一棒可一鍵確認）：
+
+```bash
+defaults read com.apple.HIToolbox AppleEnabledInputSources | grep -ci bopomofo   # >0 = 已啟用
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' ~/Library/Input\ Methods/McBopomofo.app/Contents/Info.plist  # 應為 1.8.0
+pgrep -lf 'Input Methods/McBopomofo.app' # 程序在跑
+```
+
+**功能完整性已驗**：master = origin/master（ahead 0 / behind 0）；v1.0~v1.7.5 全部 17 個 release tag 都是 master 祖先；master 比 v1.7.5 多 9 個 commit（隱形警察那批）。故 v1.8.0 = 歷來所有功能（L0 打字 / L1 候選重排 / L2 整句+句末校正 / L3 語音三來源）+ 隱形警察 Coordinator 重構，沒有遺漏。
+
+**下一步（設計方向不變）**：①低調隱形提示（用 InputState 已預留 `pendingAISuggestion` / `aiTooltipMessage`）②引擎節點覆寫小設計（不動碼，先寫風險評估）③L2 句末自動校正實機驗證（實驗開關，預設關）。
+
