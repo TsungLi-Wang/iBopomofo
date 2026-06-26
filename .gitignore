@@ -13,6 +13,8 @@ xcuserdata
 # C_count.occ.exe
 .idea
 .swiftpm
+# Coverage profile artifacts from running instrumented tests
+*.profraw
 .vscode
 __pycache__
 codecov_comment.md
