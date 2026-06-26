@@ -8,7 +8,22 @@
 
 ### 新增
 
-- `Source/Engine/eval/convert_eval_tsv_to_cases.py`:把 `expected_text<TAB>target_char<TAB>note` 測資轉成 rescorer harness 可跑的注音 cases,並記錄在/再合成語料實驗流程與初步結果。
+- AI 隱形中文警察重構：新增 `AIAssistCoordinator.swift`，集中 L1/L2 狀態與排程邏輯。
+- 定義 `CandidateRescorer` / `SentenceCorrector` 協議，讓 L1 明確為快速 n-gram 層。
+- L2 自動校正擴大觸發（長句 + 歧義字），在 Inputting 時直接無聲套用修正文字（更隱形）。
+- 在 InputState 預留 `pendingAISuggestion`、`aiTooltipMessage` 等欄位，為低調隱形 UI 準備。
+- 清理舊 ai* 狀態散落與死碼；所有 AI 邏輯開始由 Coordinator 擁有。
+
+### 變更
+
+- L2 從「只提示 + Tab」演進為長句輸入時的即時隱形修正，符合「邊打邊修現階段句子」的目標。
+- 重置與排程已委派給 Coordinator，Controller 更瘦身。
+- 保留階段性開關（enableAIAutoCorrection 等），高信心可直接改。
+
+### 備註
+
+- 這是「AI 隱形中文警察」設計報告階段一的基礎實作。L1 仍只重排候選、不生成；行為向後相容。
+- 詳細交班與後續提示見 ~/Documents/ 的 handoff 文件。
 
 ## [v1.7.5] - 2026-06-26
 
