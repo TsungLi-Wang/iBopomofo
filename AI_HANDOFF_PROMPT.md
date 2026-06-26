@@ -377,3 +377,42 @@ Johnny 提出改用外部 AI 產生「在/再」合成語料,先跑小型實驗,
 4. 只有當 real eval 有明確提升、seed cases 無退步、符號防護通過後,才考慮把整理後的 `rescorer-char-ngrams.tsv` 納入 bundle / pbxproj。
 
 **重跑指令**詳見 `Source/Engine/eval/README.md` 的 `Synthetic 在 / 再 Experiment`。
+
+### 2026-06-26 AI 隱形中文警察重構（階段一基礎）
+
+新方向（基於設計報告 + 用戶願景）：讓 AI 像「隱形國文警察」，打長串注音時邊打邊用上下文檢查「現階段」句子/字詞並修正。重點是順暢體驗 + 階段性控制。
+
+**本次落地**：
+- 新增 `AIAssistCoordinator.swift`，集中 L1/L2 的狀態、workItem、serial、debounce 邏輯。
+- 定義協議 `CandidateRescorer`（L1 快速層）與 `SentenceCorrector`（L2）。
+- L1 維持 in-process n-gram 重排（只重排候選）。
+- L2 擴大觸發（長句 + 歧義字），在 Inputting 狀態直接無聲套用修正文字到 composingBuffer（隱形自動修正）。
+- 在 `InputState` 預留 `pendingAISuggestion`、`aiTooltipMessage` 等欄位，為更隱形流程準備。
+- 清理散落狀態與死碼；Controller 開始瘦身。
+- CHANGELOG 更新；build + 124 tests 全綠。
+
+**用戶願景（白話）**：
+打長長一串注音時，隱形警察隨時看你現在打的句子/字詞有沒有錯（用上下文），然後修正。改完你繼續打就好。功能要能階段開關（成熟再開），高信心直接改 OK。
+
+**下一棒優先順序**：
+1. 把 Coordinator 徹底接管所有決策與 apply 邏輯（讓舊 extension 更薄）。
+2. 實作低調隱形提示（用 state 欄位，極低調顯示或短暫提示）。
+3. 強化即時性（停頓偵測、更多長句檢查），但保持「繼續打 = 忽略」。
+4. 開始混合打分與更緊的傳統 LM 整合。
+5. 驗證平順體驗 + 階段性 prefs。
+
+**護欄**：
+- L1 絕不生成，只重排。
+- 維持 prefs 控制（enableAICandidateRerank、enableAIAutoCorrection）。
+- 不動 L0 引擎。
+- commit 作者用老王。
+- 詳細見老地方（~/Documents/）的 handoff 文件與設計報告。
+- 老地方也有給下個 AI 的提示詞。
+
+**重跑/驗證**：xcodebuild test ... （確保 124+ tests 綠）
+
+老地方交班文件：
+- laowang-zhuyin-ai-invisible-police-handoff-2026-06-26.md
+- laowang-zhuyin-ai-invisible-police-next-ai-prompt-2026-06-26.txt
+- 老王注音_AI隱形中文警察三點設計報告.md
+
