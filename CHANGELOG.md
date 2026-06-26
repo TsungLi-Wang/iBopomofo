@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+## [v1.8.0] - 2026-06-26
+
+AI 隱形中文警察重構階段一：把 L1/L2 的狀態與決策集中到單一 Coordinator，並把 L2 句末自動校正改回非破壞性行為。架構重整為主，行為向後相容。
+
 ### 新增
 
 - AI 隱形中文警察重構：新增 `AIAssistCoordinator.swift`，集中 L1/L2 的狀態、排程、serial 與 accept 決策，成為單一真相來源。
@@ -287,6 +291,7 @@ AI 架構重構與 README 產品化。
 - 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
 - 建立自架 DMG 打包流程。
 
+[v1.8.0]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.8.0
 [v1.5.3]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.3
 [v1.5.2]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.2
 [v1.5.1]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.1

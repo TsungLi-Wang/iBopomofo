@@ -406,13 +406,7 @@ Johnny 提出改用外部 AI 產生「在/再」合成語料,先跑小型實驗,
 - 維持 prefs 控制（enableAICandidateRerank、enableAIAutoCorrection）。
 - 不動 L0 引擎。
 - commit 作者用老王。
-- 詳細見老地方（~/Documents/）的 handoff 文件與設計報告。
-- 老地方也有給下個 AI 的提示詞。
+- 隱形中文警察的三點設計哲學已融入本檔交班日誌與 `CHANGELOG.md`，不再依賴任何外部設計文件（早期那兩份 `~/Documents/` 文件已棄用，不要再去找、不要再引用）。
 
-**重跑/驗證**：xcodebuild test ... （確保 124+ tests 綠）
-
-老地方交班文件：
-- laowang-zhuyin-ai-invisible-police-handoff-2026-06-26.md
-- laowang-zhuyin-ai-invisible-police-next-ai-prompt-2026-06-26.txt
-- 老王注音_AI隱形中文警察三點設計報告.md
+**重跑/驗證**：`xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug CODE_SIGNING_ALLOWED=NO`（確保 129+ tests 綠）
 
