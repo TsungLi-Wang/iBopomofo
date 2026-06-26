@@ -5,6 +5,8 @@ set -euo pipefail
 
 ENGINE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DATA="$ENGINE_DIR/../Data/data.txt"
+CASES="${1:-$ENGINE_DIR/eval/cases.tsv}"
+MODEL="${2:-}"
 BIN="${TMPDIR:-/tmp}/rerank_eval"
 
 clang++ -std=c++17 -O2 -I"$ENGINE_DIR" -I"$ENGINE_DIR/gramambular2" \
@@ -15,4 +17,8 @@ clang++ -std=c++17 -O2 -I"$ENGINE_DIR" -I"$ENGINE_DIR/gramambular2" \
   "$ENGINE_DIR/MemoryMappedFile.cpp" \
   -o "$BIN"
 
-"$BIN" "$DATA"
+if [[ -n "$MODEL" ]]; then
+  "$BIN" "$DATA" "$CASES" "$MODEL"
+else
+  "$BIN" "$DATA" "$CASES"
+fi

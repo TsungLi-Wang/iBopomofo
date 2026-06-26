@@ -6,6 +6,28 @@
 
 ## [Unreleased]
 
+## [v1.7.5] - 2026-06-26
+
+即時候選重排改為本機 n-gram scorer,並補齊 rescorer eval / training 工具。
+
+### 變更
+
+- **L1 候選重排不再呼叫本機 llama-server**:打字當下的候選建議改為進程內 character n-gram scorer,只在引擎已產生的合法候選裡重排,不生成新文字。
+- **候選上下文更精準**:L1 rerank context 新增 composing buffer 的 cursor index,用目前候選所在位置替換評分,避免把候選誤接在 buffer 尾端。
+- **避免無效重建候選窗**:若 scorer 選中的本來就是第一候選,直接清掉提示狀態,不重建相同候選列表。
+
+### 新增
+
+- `Source/Engine/eval/cases.tsv`:把 rescorer seed cases 從 C++ 程式碼抽成 TSV,方便追加 Johnny 的真實錯選測資。
+- `Source/Engine/eval/train_char_ngram.py`:可從純文字或 `.bz2` 維基 dump 訓練 character unigram / bigram / trigram TSV 模型,支援 `--max-text-chars` 用部分語料快速實驗。
+- `Source/Engine/eval/fetch_zhwiki_corpus.sh`:下載 / resume 中文維基 dump 到 ignored corpus 目錄。
+- `Source/Engine/eval/README.md`:記錄 baseline、外部語料訓練、generated model 與 app fallback 行為。
+
+### 備註
+
+- 目前尚未把外部語料模型包進 app;app 若找不到 bundled `rescorer-char-ngrams.tsv`,會從既有 `data.txt` 建立小型 fallback model。
+- 部分維基語料已證實可訓練與評測,但目前 10M / 50M 字實驗沒有改善 8 筆 seed case 的整體分數,因此不作為正式模型發佈。
+
 ## [v1.7.4] - 2026-06-26
 
 語音輸入新增「辨識來源」三選一(實驗功能)。

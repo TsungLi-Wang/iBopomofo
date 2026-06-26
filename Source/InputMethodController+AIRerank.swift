@@ -72,6 +72,7 @@ extension McBopomofoInputMethodController {
         return AICandidateRerankContext(
             preceding: Self.precedingTextForAI(from: client, maxChars: 80),
             composingBuffer: state.composingBuffer,
+            cursorIndex: Int(state.cursorIndex),
             candidates: Array(entries))
     }
 
@@ -205,6 +206,13 @@ extension McBopomofoInputMethodController {
         guard text != context.composingBuffer else {
             aiCandidateSuggestion = nil
             aiCandidateRerankedValue = nil
+            gCurrentCandidateController?.tooltip = ""
+            return
+        }
+
+        if choosing.candidates.first?.value == text || choosing.candidates.first?.displayText == text {
+            aiCandidateSuggestion = nil
+            aiCandidateRerankedValue = text
             gCurrentCandidateController?.tooltip = ""
             return
         }

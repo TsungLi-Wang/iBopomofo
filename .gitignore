@@ -19,3 +19,7 @@ codecov_comment.md
 DerivedData
 # Phase 2 打包輸出(dmg 太大,不入 git)
 /dist/
+
+# Rescorer corpus/model artifacts are generated locally from external corpora.
+/Source/Engine/eval/corpus/
+/Source/Engine/eval/generated/

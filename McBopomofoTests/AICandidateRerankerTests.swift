@@ -169,4 +169,71 @@ struct AICandidateRerankerTests {
 
         #expect(AICandidateReranker.reorderedCandidates(suggestion: "怎麼", candidates: original) == nil)
     }
+
+    @Test("n-gram scorer 只從候選中依上下文選再說")
+    func nGramScorerSelectsAgainForSayAgainContext() {
+        let scorer = AICandidateNGramScorer(lines: [
+            "ㄨㄛˇ-ㄗㄞˋ-ㄓㄜˋ-ㄌㄧˇ 我在這裡 2.8",
+            "ㄨㄛˇ-ㄗㄞˋ-ㄕㄨㄛ-ㄧ-ㄘˋ 我再說一次 3.4",
+            "ㄗㄞˋ-ㄕㄨㄛ 再說 3.0",
+            "ㄗㄞˋ-ㄓㄜˋ-ㄌㄧˇ 在這裡 3.0",
+        ])
+        let context = AICandidateRerankContext(
+            preceding: "",
+            composingBuffer: "我在說一次",
+            cursorIndex: 2,
+            candidates: [
+                .init(value: "在", reading: "ㄗㄞˋ"),
+                .init(value: "再", reading: "ㄗㄞˋ"),
+                .init(value: "載", reading: "ㄗㄞˋ"),
+            ])
+
+        #expect(scorer.bestCandidateValue(for: context) == "再")
+    }
+
+    @Test("n-gram scorer 依上下文保留在這裡")
+    func nGramScorerKeepsAtForLocationContext() {
+        let scorer = AICandidateNGramScorer(lines: [
+            "ㄨㄛˇ-ㄗㄞˋ-ㄓㄜˋ-ㄌㄧˇ 我在這裡 3.4",
+            "ㄨㄛˇ-ㄗㄞˋ-ㄕㄨㄛ-ㄧ-ㄘˋ 我再說一次 2.8",
+            "ㄗㄞˋ-ㄕㄨㄛ 再說 3.0",
+            "ㄗㄞˋ-ㄓㄜˋ-ㄌㄧˇ 在這裡 3.0",
+        ])
+        let context = AICandidateRerankContext(
+            preceding: "",
+            composingBuffer: "我在這裡",
+            cursorIndex: 2,
+            candidates: [
+                .init(value: "在", reading: "ㄗㄞˋ"),
+                .init(value: "再", reading: "ㄗㄞˋ"),
+                .init(value: "載", reading: "ㄗㄞˋ"),
+            ])
+
+        #expect(scorer.bestCandidateValue(for: context) == "在")
+    }
+
+    @Test("n-gram scorer 可讀取外部 TSV trigram 模型")
+    func nGramScorerLoadsExternalModelLines() {
+        let scorer = AICandidateNGramScorer(modelLines: [
+            "# laowang-char-ngram-v1",
+            "U\t我\t10",
+            "U\t在\t10",
+            "U\t再\t10",
+            "U\t說\t10",
+            "B\t我\t再\t20",
+            "B\t再\t說\t20",
+            "T\t我\t再\t說\t20",
+            "P\t再\t20",
+        ])
+        let context = AICandidateRerankContext(
+            preceding: "",
+            composingBuffer: "我在說",
+            cursorIndex: 2,
+            candidates: [
+                .init(value: "在", reading: "ㄗㄞˋ"),
+                .init(value: "再", reading: "ㄗㄞˋ"),
+            ])
+
+        #expect(scorer.bestCandidateValue(for: context) == "再")
+    }
 }

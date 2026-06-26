@@ -32,7 +32,18 @@ struct AICandidateRerankEntry: Equatable {
 struct AICandidateRerankContext: Equatable {
     let preceding: String
     let composingBuffer: String
+    let cursorIndex: Int?
     let candidates: [AICandidateRerankEntry]
+
+    init(
+        preceding: String, composingBuffer: String, cursorIndex: Int? = nil,
+        candidates: [AICandidateRerankEntry]
+    ) {
+        self.preceding = preceding
+        self.composingBuffer = composingBuffer
+        self.cursorIndex = cursorIndex
+        self.candidates = candidates
+    }
 }
 
 enum AICandidateReranker {
@@ -48,13 +59,12 @@ enum AICandidateReranker {
     static func shouldSchedule(for context: AICandidateRerankContext) -> Bool {
         guard Preferences.enableAICandidateRerank else { return false }
         guard context.composingBuffer.count >= 2 else { return false }
-        guard LocalServerAICorrector.isModelInstalled else { return false }
         return needsSemanticRerank(for: context)
     }
 
-    /// 可立即呼叫本機 server 執行 L1。
+    /// L1 現在使用進程內 n-gram scorer,不再等待本機模型 server。
     static func canInvokeLocalModel() -> Bool {
-        LocalServerAICorrector.isModelInstalled && LocalServerAICorrector.isReady
+        true
     }
 
     static func needsSemanticRerank(for context: AICandidateRerankContext) -> Bool {
@@ -137,68 +147,10 @@ enum AICandidateReranker {
     }
 
     static func rerank(context: AICandidateRerankContext) -> Result<String, AICorrectionError> {
-        let name = AICorrectionBackendName.local
-        guard let base = LlamaServerManager.shared.ensureReady(),
-            let endpointURL = URL(string: base + "/v1/chat/completions")
-        else {
-            return .failure(.unavailable(backend: name, detail: "模型 server 未就緒"))
+        guard let suggestion = AICandidateNGramScorer.shared.bestCandidateValue(for: context) else {
+            return .failure(.malformedResponse(backend: AICorrectionBackendName.local))
         }
-
-        var req = URLRequest(url: endpointURL)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "content-type")
-        req.timeoutInterval = 8
-
-        let body: [String: Any] = [
-            "messages": [
-                ["role": "system", "content": AICorrectionPrompt.rerankSystemPrompt],
-                ["role": "user", "content": AICorrectionPrompt.rerankPrompt(context: context)],
-            ],
-            "temperature": 0,
-            "max_tokens": 32,
-            "stream": false,
-            "stop": ["\n"],
-        ]
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else {
-            return .failure(.malformedResponse(backend: name))
-        }
-        req.httpBody = httpBody
-
-        let sem = DispatchSemaphore(value: 0)
-        var result: Result<String, AICorrectionError> = .failure(.malformedResponse(backend: name))
-        URLSession.shared.dataTask(with: req) { data, response, error in
-            defer { sem.signal() }
-            if let error {
-                NSLog("AI候選建議 本機 server 連線失敗:\(error.localizedDescription)")
-                result = .failure(.unavailable(backend: name, detail: "模型 server 連線失敗"))
-                return
-            }
-            guard let http = response as? HTTPURLResponse else {
-                result = .failure(.malformedResponse(backend: name))
-                return
-            }
-            guard http.statusCode == 200 else {
-                result = .failure(.httpError(backend: name, status: http.statusCode))
-                return
-            }
-            guard let data,
-                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let choices = json["choices"] as? [[String: Any]],
-                let message = choices.first?["message"] as? [String: Any],
-                let text = message["content"] as? String,
-                let suggestion = AICorrectionPrompt.extractRerankSuggestion(from: text)
-            else {
-                result = .failure(.malformedResponse(backend: name))
-                return
-            }
-            result = .success(OpenCCBridge.shared.convertToTraditional(suggestion) ?? suggestion)
-        }.resume()
-
-        guard sem.wait(timeout: .now() + 10) == .success else {
-            NSLog("AI候選建議: 本機 server 請求逾時")
-            return .failure(.timeout(backend: name))
-        }
-        return result
+        return .success(suggestion)
     }
 
     static func reorderedCandidates(
@@ -216,5 +168,260 @@ enum AICandidateReranker {
         let selected = reordered.remove(at: selectedIndex)
         reordered.insert(selected, at: 0)
         return reordered
+    }
+}
+
+struct AICandidateNGramScorer {
+    static let shared = AICandidateNGramScorer()
+
+    private static let alpha = 0.25
+    private static let trigramWeight = 0.72
+    private static let bigramWeight = 0.28
+    private static let maxContextChars = 24
+
+    private let model: Model
+
+    init(lines: [String]? = nil) {
+        if let lines {
+            model = Model(lines: lines)
+        } else {
+            model = Model(bundleNGramResourceName: "rescorer-char-ngrams", fallbackDataResourceName: "data")
+        }
+    }
+
+    init(modelLines: [String]) {
+        model = Model(modelLines: modelLines)
+    }
+
+    func bestCandidateValue(for context: AICandidateRerankContext) -> String? {
+        let candidates = Array(context.candidates.prefix(AICandidateReranker.maxCandidateCount))
+        guard !candidates.isEmpty else { return nil }
+        guard model.isReady else { return candidates.first?.value }
+
+        var best = candidates[0].value
+        var bestScore = -Double.infinity
+        for (index, candidate) in candidates.enumerated() {
+            let text = Self.contextText(replacingWith: candidate.value, in: context)
+            let score = model.score(text: text, candidateValue: candidate.value) - (Double(index) * 0.03)
+            if score > bestScore {
+                bestScore = score
+                best = candidate.value
+            }
+        }
+        return best
+    }
+
+    static func contextText(replacingWith value: String, in context: AICandidateRerankContext) -> String {
+        let composing = context.composingBuffer
+        guard let current = context.candidates.first?.value, !current.isEmpty else {
+            return suffix(context.preceding, count: maxContextChars) + value
+        }
+
+        if composing == current {
+            return suffix(context.preceding, count: maxContextChars) + value
+        }
+
+        if let range = replacementRange(of: current, in: composing, cursorIndex: context.cursorIndex) {
+            let replaced = composing.replacingCharacters(in: range, with: value)
+            return suffix(context.preceding, count: maxContextChars) + replaced
+        }
+
+        return suffix(context.preceding, count: maxContextChars) + composing + value
+    }
+
+    private static func replacementRange(
+        of current: String, in composing: String, cursorIndex: Int?
+    ) -> Range<String.Index>? {
+        guard !current.isEmpty else { return nil }
+        let searchEnd: String.Index
+        if let cursorIndex {
+            let bounded = max(0, min(cursorIndex, composing.count))
+            searchEnd = composing.index(composing.startIndex, offsetBy: bounded)
+        } else {
+            searchEnd = composing.endIndex
+        }
+
+        if searchEnd >= composing.startIndex,
+            let start = composing[..<searchEnd].range(of: current, options: .backwards)?.lowerBound
+        {
+            let end = composing.index(start, offsetBy: current.count)
+            return start..<end
+        }
+
+        return composing.range(of: current, options: .backwards)
+    }
+
+    private static func suffix(_ text: String, count: Int) -> String {
+        guard text.count > count else { return text }
+        return String(text.suffix(count))
+    }
+
+    private struct Model {
+        private var unigrams: [Character: Double] = [:]
+        private var bigrams: [String: Double] = [:]
+        private var bigramLeftTotals: [Character: Double] = [:]
+        private var trigrams: [String: Double] = [:]
+        private var trigramLeftTotals: [String: Double] = [:]
+        private var phraseWeights: [String: Double] = [:]
+        private var totalPhraseWeight = 0.0
+        private var vocabularySize = 1.0
+
+        var isReady: Bool {
+            !unigrams.isEmpty
+        }
+
+        init(bundleNGramResourceName: String, fallbackDataResourceName: String) {
+            let bundle = Bundle(for: McBopomofoInputMethodController.self)
+            if let url = bundle.url(forResource: bundleNGramResourceName, withExtension: "tsv"),
+                let content = try? String(contentsOf: url, encoding: .utf8)
+            {
+                self.init(modelLines: content.components(separatedBy: .newlines))
+                return
+            }
+            guard let url = bundle.url(forResource: fallbackDataResourceName, withExtension: "txt"),
+                let content = try? String(contentsOf: url, encoding: .utf8)
+            else {
+                self.init(dataLines: [])
+                return
+            }
+            self.init(dataLines: content.components(separatedBy: .newlines))
+        }
+
+        init(lines: [String]) {
+            self.init(dataLines: lines)
+        }
+
+        init(dataLines: [String]) {
+            for line in dataLines {
+                addDataLine(line)
+            }
+            vocabularySize = max(1.0, Double(unigrams.count))
+        }
+
+        init(modelLines: [String]) {
+            for line in modelLines {
+                addModelLine(line)
+            }
+            vocabularySize = max(1.0, Double(unigrams.count))
+        }
+
+        mutating private func addModelLine(_ line: String) {
+            guard !line.isEmpty, !line.hasPrefix("#") else { return }
+            let fields = line.split(separator: "\t", omittingEmptySubsequences: false)
+            guard let tag = fields.first, let countText = fields.last,
+                let count = Double(countText), count > 0
+            else {
+                return
+            }
+
+            if tag == "U", fields.count == 3, let char = fields[1].first {
+                unigrams[char, default: 0] += count
+            } else if tag == "B", fields.count == 4,
+                let left = fields[1].first, let right = fields[2].first
+            {
+                let key = String(left) + String(right)
+                bigrams[key, default: 0] += count
+                bigramLeftTotals[left, default: 0] += count
+            } else if tag == "T", fields.count == 5,
+                let first = fields[1].first, let second = fields[2].first,
+                let third = fields[3].first
+            {
+                let left = String(first) + String(second)
+                let key = left + String(third)
+                trigrams[key, default: 0] += count
+                trigramLeftTotals[left, default: 0] += count
+            } else if tag == "P", fields.count == 3 {
+                phraseWeights[String(fields[1]), default: 0] += count
+                totalPhraseWeight += count
+            }
+        }
+
+        mutating private func addDataLine(_ line: String) {
+            guard !line.isEmpty, !line.hasPrefix("#") else { return }
+            let parts = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
+            guard parts.count >= 3 else { return }
+
+            let value = String(parts[1])
+            guard value.count >= 1 else { return }
+            let score = Double(parts[2]).map { exp($0) } ?? 1.0
+            let weight = max(score, 1e-12)
+            let chars = Array(value)
+
+            phraseWeights[value, default: 0] += weight
+            totalPhraseWeight += weight
+
+            for char in chars {
+                unigrams[char, default: 0] += weight
+            }
+            guard chars.count >= 2 else { return }
+            for index in 0..<(chars.count - 1) {
+                let key = String(chars[index]) + String(chars[index + 1])
+                bigrams[key, default: 0] += weight
+                bigramLeftTotals[chars[index], default: 0] += weight
+            }
+            guard chars.count >= 3 else { return }
+            for index in 0..<(chars.count - 2) {
+                let left = String(chars[index]) + String(chars[index + 1])
+                let key = left + String(chars[index + 2])
+                trigrams[key, default: 0] += weight
+                trigramLeftTotals[left, default: 0] += weight
+            }
+        }
+
+        func score(text: String, candidateValue: String) -> Double {
+            let chars = Array(text)
+            guard !chars.isEmpty else { return -Double.infinity }
+
+            var total = phraseLogProbability(candidateValue) * 0.12
+            for index in chars.indices {
+                if index >= 2 {
+                    total += AICandidateNGramScorer.trigramWeight * trigramLogProbability(
+                        chars[index - 2], chars[index - 1], chars[index])
+                    total += AICandidateNGramScorer.bigramWeight * bigramLogProbability(
+                        chars[index - 1], chars[index])
+                } else if index >= 1 {
+                    total += bigramLogProbability(chars[index - 1], chars[index])
+                } else {
+                    total += unigramLogProbability(chars[index])
+                }
+            }
+            return total
+        }
+
+        private func unigramLogProbability(_ char: Character) -> Double {
+            let total = unigrams.values.reduce(0, +)
+            let count = unigrams[char] ?? 0
+            return log(
+                (count + AICandidateNGramScorer.alpha)
+                    / (total + AICandidateNGramScorer.alpha * vocabularySize))
+        }
+
+        private func bigramLogProbability(_ left: Character, _ right: Character) -> Double {
+            let key = String(left) + String(right)
+            let count = bigrams[key] ?? 0
+            let leftTotal = bigramLeftTotals[left] ?? 0
+            return log(
+                (count + AICandidateNGramScorer.alpha)
+                    / (leftTotal + AICandidateNGramScorer.alpha * vocabularySize))
+        }
+
+        private func trigramLogProbability(
+            _ first: Character, _ second: Character, _ third: Character
+        ) -> Double {
+            let left = String(first) + String(second)
+            let key = left + String(third)
+            let count = trigrams[key] ?? 0
+            let leftTotal = trigramLeftTotals[left] ?? 0
+            return log(
+                (count + AICandidateNGramScorer.alpha)
+                    / (leftTotal + AICandidateNGramScorer.alpha * vocabularySize))
+        }
+
+        private func phraseLogProbability(_ value: String) -> Double {
+            let count = phraseWeights[value] ?? 0
+            return log(
+                (count + AICandidateNGramScorer.alpha)
+                    / (totalPhraseWeight + AICandidateNGramScorer.alpha * vocabularySize))
+        }
     }
 }
