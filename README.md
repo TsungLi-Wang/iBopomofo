@@ -102,6 +102,14 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/laowang-zhuyin/master/
 
 說話過程中不會逐字顯示，辨識完成才一次出字。出來的文字直接落入輸入框，不進注音組字區、不需選字。只有右 Shift 會觸發，左 Shift 不會。
 
+### 辨識來源（三選一，輸入法選單可切）
+
+輸入法選單的「語音輸入」項下面有三個辨識來源，可隨時切換：
+
+- **Apple（離線）**：系統內建辨識，離線、零成本（預設）。
+- **Apple + AI 修正**：Apple 辨識後，再用目前選的 AI 後端修一次錯字與標點，仍離線。
+- **OpenAI Whisper（雲端）**：錄完整段上傳 OpenAI 辨識，辨識力最強，但需在「AI 修正設定…」填入自己的 OpenAI API key（按量付費、需連網，與 ChatGPT/Codex 訂閱不同）。
+
 ### 常見狀況
 
 - **跳出「需要聽寫」**：到系統設定開啟聽寫（見上）。

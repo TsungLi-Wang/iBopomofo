@@ -6,6 +6,23 @@
 
 ## [Unreleased]
 
+## [v1.7.4] - 2026-06-26
+
+語音輸入新增「辨識來源」三選一(實驗功能)。
+
+### 新增
+
+- **語音辨識來源可切換(輸入法選單)**,三選一:
+  - **Apple(離線)**:系統內建辨識,離線、零成本(預設,即原行為)。
+  - **Apple + AI 修正**:Apple 辨識後再過一次目前選的 AI 後端修正錯字與標點,離線。AI 修正失敗時自動退回原文,不卡語音。
+  - **OpenAI Whisper(雲端)**:錄完整段上傳 OpenAI transcription API 辨識,辨識力最強;需使用者自備 OpenAI API key(按量付費、需連網),輸出統一過 OpenCC 轉繁。
+- 「AI 修正設定…」新增 OpenAI 語音 API key(存 Keychain)與語音模型欄位(預設 `whisper-1`)。
+
+### 備註
+
+- OpenAI Whisper 來源為雲端可選後端,與 ChatGPT/Codex 訂閱不同,需另備 OpenAI Platform API key。
+- 語音相關仍屬實驗功能;Whisper 錄音與上傳路徑尚待更廣泛實機驗證。
+
 ## [v1.7.3] - 2026-06-26
 
 語音輸入收尾:辨識自動結束提示、使用說明文件、清理未使用字串。

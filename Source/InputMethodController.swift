@@ -119,12 +119,31 @@ class McBopomofoInputMethodController: IMKInputController {
         aiAutoCorrectionItem.state = Preferences.enableAIAutoCorrection.state
 
         let voiceInputTitle =
-            VoiceInputManager.shared.isRecording
+            McBopomofoInputMethodController.isAnyVoiceRecording
             ? NSLocalizedString("Stop Voice Input", comment: "")
             : NSLocalizedString("Voice Input (Experimental)", comment: "")
         menu.addItem(
             withTitle: voiceInputTitle,
             action: #selector(toggleVoiceInput(_:)), keyEquivalent: "")
+
+        // 語音辨識來源(三選一,做法同下方「AI 修正模型」:各項各自 selector + 勾勾)。
+        let voiceSourceNames = [
+            NSLocalizedString("Voice Source: Apple (Offline)", comment: ""),
+            NSLocalizedString("Voice Source: Apple + AI Correction", comment: ""),
+            NSLocalizedString("Voice Source: OpenAI Whisper (Cloud)", comment: ""),
+        ]
+        let voiceSourceSelectors: [Selector] = [
+            #selector(selectVoiceSourceApple(_:)),
+            #selector(selectVoiceSourceAppleAI(_:)),
+            #selector(selectVoiceSourceWhisper(_:)),
+        ]
+        let currentVoiceSource = McBopomofoInputMethodController.voiceInputSource
+        for (idx, vname) in voiceSourceNames.enumerated() {
+            let item = menu.addItem(
+                withTitle: vname, action: voiceSourceSelectors[idx], keyEquivalent: "")
+            item.state = (currentVoiceSource == idx) ? .on : .off
+            item.tag = idx
+        }
 
         // AI 整句修正模型切換器(⌘↵ 觸發時使用;可隨時切換)
         menu.addItem(NSMenuItem.separator())
@@ -467,13 +486,63 @@ class McBopomofoInputMethodController: IMKInputController {
 
     // Phase 3:語音輸入。選單或「連按兩下右 Shift」push-to-talk 觸發,獨立於打字流程。
     // 辨識出的最終文字走既有 commit 出口落地,不繞 KeyHandler / InputState。
+    // 語音辨識來源:0=Apple 原生(離線) 1=Apple + AI 修正 2=OpenAI Whisper(雲端)。
+    // 未設定時預設 0(Apple 原生,離線、零成本)。
+    static var voiceInputSource: Int {
+        get { UserDefaults.standard.integer(forKey: "VoiceInputSource") }
+        set { UserDefaults.standard.set(newValue, forKey: "VoiceInputSource") }
+    }
+
+    // 任一來源正在錄音(選單標題與停止判斷都看這個)。
+    static var isAnyVoiceRecording: Bool {
+        VoiceInputManager.shared.isRecording || WhisperVoiceInputManager.shared.isRecording
+    }
+
     @objc func toggleVoiceInput(_ sender: Any?) {
-        let manager = VoiceInputManager.shared
-        if manager.isRecording {
+        // 停止:不論哪個來源在錄,都先把它停下。
+        if VoiceInputManager.shared.isRecording {
             voiceInputStopNotificationPending = true
-            manager.stop()
+            VoiceInputManager.shared.stop()
             return
         }
+        if WhisperVoiceInputManager.shared.isRecording {
+            voiceInputStopNotificationPending = true
+            WhisperVoiceInputManager.shared.stop()
+            NotifierController.notify(
+                message: NSLocalizedString("Transcribing the recording…", comment: ""))
+            return
+        }
+        // 開始:依目前選的語音來源分流。
+        switch Self.voiceInputSource {
+        case 2:
+            startWhisperVoiceInput()
+        default:
+            startAppleVoiceInput(applyL2: Self.voiceInputSource == 1)
+        }
+    }
+
+    /// 出字 + 通知去重。`voiceInputStopNotificationPending` 為 true 代表使用者主動停止;
+    /// 為 false 代表辨識器/錄音自行結束(補「已自動結束」提示,避免靜默)。
+    private func commitVoiceRecognizedText(_ text: String) {
+        let client = currentClient
+        keyHandler.clear()
+        handle(state: InputState.Committing(poppedText: text), client: client)
+        handle(state: InputState.Empty(), client: client)
+        if voiceInputStopNotificationPending {
+            voiceInputStopNotificationPending = false
+            NotifierController.notify(
+                message: NSLocalizedString("Voice input stopped", comment: ""))
+        } else {
+            NotifierController.notify(
+                message: NSLocalizedString(
+                    "Voice input ended automatically. Double-tap right Shift to start again",
+                    comment: ""))
+        }
+    }
+
+    /// 來源 0/1:Apple 內建辨識(邊講邊辨識)。`applyL2` 時,辨識文字先過一次 AI 修正再出字。
+    private func startAppleVoiceInput(applyL2: Bool) {
+        let manager = VoiceInputManager.shared
         manager.onError = { [weak self] message in
             self?.voiceInputStopNotificationPending = false
             NotifierController.notify(message: message)
@@ -486,22 +555,14 @@ class McBopomofoInputMethodController: IMKInputController {
                     message: NSLocalizedString("No speech detected", comment: ""))
                 return
             }
-            let client = self.currentClient
-            self.keyHandler.clear()
-            self.handle(state: InputState.Committing(poppedText: text), client: client)
-            self.handle(state: InputState.Empty(), client: client)
-            if self.voiceInputStopNotificationPending {
-                self.voiceInputStopNotificationPending = false
+            if applyL2 {
                 NotifierController.notify(
-                    message: NSLocalizedString("Voice input stopped", comment: ""))
+                    message: NSLocalizedString("AI is polishing the voice text…", comment: ""))
+                self.correctVoiceText(text, client: self.currentClient) { [weak self] corrected in
+                    self?.commitVoiceRecognizedText(corrected ?? text)
+                }
             } else {
-                // 走到這裡代表使用者沒有主動雙擊停止,是辨識器自行結束這段(偵測到句尾
-                // 或達到時間上限)。出字後補一則提示,避免麥克風被靜默關掉、使用者卻
-                // 對著已結束的 session 繼續講而不自知。
-                NotifierController.notify(
-                    message: NSLocalizedString(
-                        "Voice input ended automatically. Double-tap right Shift to start again",
-                        comment: ""))
+                self.commitVoiceRecognizedText(text)
             }
         }
         let wasAuthorizedBeforeRequest = manager.hasRequiredAuthorization
@@ -518,7 +579,8 @@ class McBopomofoInputMethodController: IMKInputController {
             guard wasAuthorizedBeforeRequest else {
                 NotifierController.notify(
                     message: NSLocalizedString(
-                        "Voice input is ready. Double-tap right Shift again to start speaking", comment: ""))
+                        "Voice input is ready. Double-tap right Shift again to start speaking",
+                        comment: ""))
                 return
             }
             NotifierController.notify(
@@ -526,6 +588,51 @@ class McBopomofoInputMethodController: IMKInputController {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 manager.start()
             }
+        }
+    }
+
+    /// 來源 2:OpenAI Whisper(錄完整段 → 上傳雲端辨識)。只需要麥克風授權。
+    private func startWhisperVoiceInput() {
+        guard AICorrectionConfig.openAIAPIKey != nil else {
+            NotifierController.notify(
+                message: NSLocalizedString(
+                    "OpenAI voice needs an API key: set it in AI Correction Settings", comment: ""))
+            return
+        }
+        let manager = WhisperVoiceInputManager.shared
+        manager.onError = { [weak self] message in
+            self?.voiceInputStopNotificationPending = false
+            NotifierController.notify(message: message)
+        }
+        manager.onFinalText = { [weak self] text in
+            guard let self else { return }
+            guard !text.isEmpty else {
+                self.voiceInputStopNotificationPending = false
+                NotifierController.notify(
+                    message: NSLocalizedString("No speech detected", comment: ""))
+                return
+            }
+            self.commitVoiceRecognizedText(text)
+        }
+        let wasAuthorizedBeforeRequest = manager.hasRequiredAuthorization
+        manager.requestAuthorization { granted in
+            guard granted else {
+                self.voiceInputStopNotificationPending = false
+                NotifierController.notify(
+                    message: NSLocalizedString(
+                        "Microphone or speech recognition permission denied", comment: ""))
+                return
+            }
+            guard wasAuthorizedBeforeRequest else {
+                NotifierController.notify(
+                    message: NSLocalizedString(
+                        "Voice input is ready. Double-tap right Shift again to start speaking",
+                        comment: ""))
+                return
+            }
+            NotifierController.notify(
+                message: NSLocalizedString("Listening… double-tap right Shift to stop", comment: ""))
+            manager.start()
         }
     }
 
@@ -596,6 +703,30 @@ class McBopomofoInputMethodController: IMKInputController {
     @objc func selectAIBackendHaiku(_ sender: Any?) { setAIBackend(1) }
     @objc func selectAIBackendOpus(_ sender: Any?) { setAIBackend(2) }
     @objc func selectAIBackendLocal(_ sender: Any?) { setAIBackend(3) }
+
+    // 語音辨識來源切換:同樣每項各自 selector(IMK 選單派送對 extension/sender.tag 不可靠)。
+    @objc func selectVoiceSourceApple(_ sender: Any?) { setVoiceSource(0) }
+    @objc func selectVoiceSourceAppleAI(_ sender: Any?) { setVoiceSource(1) }
+    @objc func selectVoiceSourceWhisper(_ sender: Any?) { setVoiceSource(2) }
+
+    private func setVoiceSource(_ index: Int) {
+        McBopomofoInputMethodController.voiceInputSource = index
+        UserDefaults.standard.synchronize()
+        let names = [
+            NSLocalizedString("Apple (Offline)", comment: ""),
+            NSLocalizedString("Apple + AI Correction", comment: ""),
+            NSLocalizedString("OpenAI Whisper (Cloud)", comment: ""),
+        ]
+        let name = (index >= 0 && index < names.count) ? names[index] : "?"
+        NotifierController.notify(
+            message: NSLocalizedString("Voice source switched to:", comment: "") + " " + name)
+        // 選了 Whisper 但還沒填 key:提早提示,免得雙擊右 Shift 才發現不能用。
+        if index == 2, AICorrectionConfig.openAIAPIKey == nil {
+            NotifierController.notify(
+                message: NSLocalizedString(
+                    "OpenAI voice needs an API key: set it in AI Correction Settings", comment: ""))
+        }
+    }
 
     // 開啟 AI 修正設定視窗。action 同樣放主 class 本體(IMK 選單派送對 extension 的 @objc 不一定找得到)。
     @objc func openAISettings(_ sender: Any?) {

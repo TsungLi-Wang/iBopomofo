@@ -28,6 +28,7 @@ enum AICorrectionBackendName {
     static let claude = "Claude"
     static let codex = "Codex"
     static let local = "本機 AI"
+    static let openAIVoice = "OpenAI 語音"
 }
 
 /// AI 修正後端失敗的結構化原因。

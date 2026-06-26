@@ -205,3 +205,13 @@
 "Voice input stopped" = "Voice input stopped";
 "Voice input ended automatically. Double-tap right Shift to start again" = "Voice input ended automatically. Double-tap right Shift to start again";
 "No speech detected" = "No speech detected";
+"Voice Source: Apple (Offline)" = "Voice Source: Apple (Offline)";
+"Voice Source: Apple + AI Correction" = "Voice Source: Apple + AI Correction";
+"Voice Source: OpenAI Whisper (Cloud)" = "Voice Source: OpenAI Whisper (Cloud)";
+"Apple (Offline)" = "Apple (Offline)";
+"Apple + AI Correction" = "Apple + AI Correction";
+"OpenAI Whisper (Cloud)" = "OpenAI Whisper (Cloud)";
+"Voice source switched to:" = "Voice source switched to:";
+"OpenAI voice needs an API key: set it in AI Correction Settings" = "OpenAI voice needs an API key: set it in AI Correction Settings";
+"AI is polishing the voice text…" = "AI is polishing the voice text…";
+"Transcribing the recording…" = "Transcribing the recording…";

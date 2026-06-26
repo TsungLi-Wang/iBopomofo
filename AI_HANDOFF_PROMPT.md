@@ -18,15 +18,15 @@
 - L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。
 - L1 快速語義：Phase 1 MVP 已加強（debounce、暖機重試、候選同音觸發、選單與偏好設定開關）。
 - L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
-- L3 語音輸入：**已實機驗證可用並隨 v1.7 / v1.7.1 / v1.7.2 / v1.7.3 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。
+- L3 語音輸入：**已隨 v1.7 ~ v1.7.4 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。v1.7.4 加「辨識來源」三選一(Apple / Apple+L2 / OpenAI Whisper 雲端)。
 
-**目前發佈狀態:已發到 v1.7.3**(GitHub Release,Latest)。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 119 tests / 10 suites 全綠。
+**目前發佈狀態:已發到 v1.7.4**(GitHub Release,Latest)。v1.7.4 = 語音「辨識來源」三選一(Apple 原生 / Apple+L2 修正 / OpenAI Whisper 雲端,使用者自備 OpenAI key);⚠️ Whisper 錄音上傳路徑尚待更廣泛實機驗證。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 119 tests / 10 suites 全綠。
 
 Phase 狀態：
 
 - Phase 1：約 95% 完成。L1 候選重排 + debounce + server 重試 + 選單/偏好設定開關已完成；完整 `xcodebuild test` 已可穩定全綠並乾淨結束(見「測試狀態」),L1 觸發條件已收緊以降低過度觸發。
 - Phase 2：MVP 已落地並隨 v1.6 發佈(實驗功能,預設關閉)。句末標點自動觸發 L2,第一版只提示不 commit,Tab 採用;手動 `⌘Return` 行為不變。純邏輯測試已補。真機已由 Johnny 確認可動。
-- Phase 3：**完成並已隨 v1.7 / v1.7.1 / v1.7.2 / v1.7.3 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(**連按兩下右 Shift** 開始/結束;v1.7 原為 Control,v1.7.1 改右 Shift 避開系統聽寫衝突)已實作。v1.7.2 補上首次授權兩段式流程、授權後輸入源恢復、CoreAudio tap 防 crash 與通知去重。v1.7.3 補上「辨識器自行結束時提示」(選項 b)、README 使用說明、清字串。下一步可做:辨識準度/標點、語音轉出後可選再過一次 L2、選項 a 連續聆聽模式(isFinal 後自動重啟 request)。詳見下方交班日誌。
+- Phase 3：**完成並已隨 v1.7 / v1.7.1 / v1.7.2 / v1.7.3 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(**連按兩下右 Shift** 開始/結束;v1.7 原為 Control,v1.7.1 改右 Shift 避開系統聽寫衝突)已實作。v1.7.2 補上首次授權兩段式流程、授權後輸入源恢復、CoreAudio tap 防 crash 與通知去重。v1.7.3 補上「辨識器自行結束時提示」(選項 b)、README 使用說明、清字串。**v1.7.4 加「辨識來源」三選一**:Apple 原生 / Apple+L2(等同「語音轉出後再過一次 L2」,已實作)/ OpenAI Whisper 雲端(使用者自備 key)。下一步可做:辨識準度/標點、選項 a 連續聆聽模式(isFinal 後自動重啟 request)、Whisper 實機驗證。詳見下方交班日誌。
 - Phase 4：未做。注音領域微調尚未實作。
 
 ## 已完成的 Phase 1 工作
@@ -287,3 +287,19 @@ Phase 3 收尾小版。起點是 Johnny 問「辨識器自行靜默斷句結束 
 **後續可做**:
 - 若實際長講常被自動截斷,再實作選項 (a) 連續模式。
 - 「自動結束提示」這條目前無自動測試,靠實機驗;觸發偵測與通知都跟 `NSEvent` / `NotifierController` 綁緊,要測需先把判斷抽成純函式。
+
+### 2026-06-26T12:10:00+08:00 v1.7.4:語音「辨識來源」三選一(Apple / Apple+L2 / OpenAI Whisper)
+
+Johnny 要兩個方向:① 語音轉出後再過一次 L2、② 用 OpenAI 辨識當可選後端。收斂成**一個「語音辨識來源」選單(三選一)**,做法仿「AI 修正模型」選單。
+
+**關鍵釐清(務必記)**:Johnny 講的「用 Codex 接語音辨識」其實**做不到**——Codex 是 OpenAI 的 coding agent CLI,不吃音訊、無 STT。OpenAI 的語音辨識是**另一條 API**(`/v1/audio/transcriptions`,whisper-1 / gpt-4o-transcribe),**必須用 OpenAI Platform 付費 API key,ChatGPT/Codex 訂閱不通用**。價格是使用者自付的事,不是我們的決策依據(Johnny 明確糾正過,別再為這種「可選的使用者自付費後端」去查價/糾結成本)。
+
+**三來源(UserDefaults `VoiceInputSource`,預設 0)**:
+- 0 = Apple 原生(離線,即原行為)。
+- 1 = Apple + L2:Apple 辨識文字 → `correctVoiceText`(過目前選的 AI 後端)→ 出字。L2 任何失敗(後端未就緒/錯誤/空)都退回原文,不卡語音。等同「語音轉出後再過一次 L2」。
+- 2 = OpenAI Whisper:新 `WhisperVoiceInputManager`(錄音 tap 寫 WAV 暫存,停止後讀檔)+ `WhisperVoiceTranscriber`(multipart POST `/v1/audio/transcriptions`,Bearer key,`language=zh`,回 `text`,過 OpenCC 轉繁)。只需麥克風授權,不需 Speech 授權/系統聽寫。
+
+**架構**:`toggleVoiceInput` 依來源分流 start/stop;Apple 路徑(0/1)沿用 `VoiceInputManager`,Whisper 路徑(2)用 `WhisperVoiceInputManager`;`commitVoiceRecognizedText` 共用(含 stop vs 自動結束去重)。OpenAI key 走 `AIKeychain`(已泛化成多帳號:`ClaudeAPIKey` / `OpenAIAPIKey`),設定視窗加兩欄(key + 模型,模型預設 `whisper-1`,想換 gpt-4o-transcribe 自填)。新檔 pbxproj 用 `FACE0070~0073`。
+
+**驗證**:`xcodebuild test` 119/10 全綠。版本 1.7.3→1.7.4、build 2274→2275。發版 `package-dmg.sh` → commit → push → tag v1.7.4 → gh release(Latest)。
+**⚠️ 未實機驗證**:選項 2/3 的執行期(尤其 Whisper 錄 WAV→上傳)在開發機沒法測麥克風/打 OpenAI,只證明編譯+不破壞既有。錄音用 `AudioTapInstaller` 安全包裝 + 失敗退場,但能否真的錄到、上傳成功要 Johnny 實機收。WAV 用 tap buffer 原生格式(float32)寫,若 OpenAI 對 float wav 有問題,改成轉 16-bit PCM。
