@@ -8,21 +8,25 @@
 
 ### 新增
 
-- AI 隱形中文警察重構：新增 `AIAssistCoordinator.swift`，集中 L1/L2 狀態與排程邏輯。
+- AI 隱形中文警察重構：新增 `AIAssistCoordinator.swift`，集中 L1/L2 的狀態、排程、serial 與 accept 決策，成為單一真相來源。
 - 定義 `CandidateRescorer` / `SentenceCorrector` 協議，讓 L1 明確為快速 n-gram 層。
-- L2 自動校正擴大觸發（長句 + 歧義字），在 Inputting 時直接無聲套用修正文字（更隱形）。
 - 在 InputState 預留 `pendingAISuggestion`、`aiTooltipMessage` 等欄位，為低調隱形 UI 準備。
-- 清理舊 ai* 狀態散落與死碼；所有 AI 邏輯開始由 Coordinator 擁有。
+- 補上 `AIAssistCoordinator` 純決策的單元測試（accept 配對、consume bump serial、reset）。
 
 ### 變更
 
-- L2 從「只提示 + Tab」演進為長句輸入時的即時隱形修正，符合「邊打邊修現階段句子」的目標。
-- 重置與排程已委派給 Coordinator，Controller 更瘦身。
-- 保留階段性開關（enableAIAutoCorrection 等），高信心可直接改。
+- L2 句末自動校正維持「只跳低調提示、按 Tab 才套用」的非破壞性行為；採用走既有 commit 出口。
+- serial 過期判斷與 accept 配對由 Coordinator 擁有，Controller 只負責把結果套到 state；清理散落的 ai* 直接存取與死碼。
+- 保留階段性開關（`enableAICandidateRerank` / `enableAIAutoCorrection`），預設不變。
+
+### 修正
+
+- 移除 L2 早期版本用 `setMarkedText` 直接覆蓋組字區的「假修正」：注音引擎為讀音驅動，該做法不更新引擎狀態，會被下一個按鍵或送出蓋回原文，且違反「只在引擎狀態裡操作」原則。
 
 ### 備註
 
-- 這是「AI 隱形中文警察」設計報告階段一的基礎實作。L1 仍只重排候選、不生成；行為向後相容。
+- 這是「AI 隱形中文警察」設計報告階段一的重構基礎。L1 仍只重排候選、不生成；行為向後相容。
+- 真正的「邊打邊隱形修正」需走引擎節點覆寫（僅適用讀音不變的同音/近音錯字），待 Coordinator 穩定後另行設計；改讀音的整句校正本質上只能在 commit 邊界套用。
 - 詳細交班與後續提示見 ~/Documents/ 的 handoff 文件。
 
 ## [v1.7.5] - 2026-06-26
