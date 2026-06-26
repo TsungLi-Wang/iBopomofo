@@ -28,8 +28,10 @@ import NotifierUI
 // Phase 2:句末自動 L2 整句校正。
 //
 // L2 自動校正擴充。
-// 目前主要行為：對長句或含潛在錯誤的現階段輸入，使用上下文自動修正，並在 Inputting 時直接無聲套用（隱形警察模式）。
-// 保留 tooltip + Tab 作為 fallback 給其他狀態。手動 ⌘Return 仍維持直接套用（見 +AICorrection）。
+// 目前行為(非破壞性):對長句或含潛在錯誤的現階段輸入,用上下文在背景取得修正建議,
+// 只跳低調提示,使用者按 Tab 才真正套用;繼續打字則忽略。手動 ⌘Return 仍維持直接套用
+// (見 +AICorrection)。「邊打邊隱形修正」的願景需走引擎節點覆寫,待 Coordinator 穩定後設計;
+// 早期版本曾用 setMarkedText 直接塞文字,但那與讀音驅動的引擎脫鉤、會被後續按鍵蓋掉,已移除。
 extension McBopomofoInputMethodController {
 
     func scheduleAIAutoCorrectionIfNeeded(for state: InputState.Inputting, client: Any?) {
@@ -67,25 +69,13 @@ extension McBopomofoInputMethodController {
             return
         }
 
-        // 為支援「邊打長句時隱形修正現階段句子/字詞」的願景：
-        // 如果目前在 Inputting，直接無聲更新 composingBuffer 為修正後文字。
-        // 使用者會看到文字自己被修正，繼續打注音即可。平滑體驗為主。
-        if let inputting = state as? InputState.Inputting {
-            let correctedState = InputState.Inputting(composingBuffer: text, cursorIndex: UInt(text.count))
-            coordinator.aiAutoCorrectionSuggestion = nil
-            correctedState.pendingAISuggestion = AICandidateSuggestion(originalComposingBuffer: composingBuffer, suggestion: text)
-            correctedState.aiTooltipMessage = "AI 已自動修正"
-            state = correctedState
-            guard let imkClient = client as? IMKTextInput else { return }
-            imkClient.setMarkedText(
-                correctedState.attributedString,
-                selectionRange: NSMakeRange(Int(correctedState.cursorIndex), 0),
-                replacementRange: NSMakeRange(NSNotFound, NSNotFound))
-            // 純隱形：無聲替換，pending 和 aiTooltipMessage 保留供未來低調 UI 或記錄使用
-            return
-        }
-
-        // 其他情況（或舊行為）仍用提示 + Tab 採用。
+        // 非破壞性:只儲存建議 + 顯示低調提示,使用者按 Tab 才真正套用。
+        //
+        // 刻意不在這裡直接改 composingBuffer。注音引擎是讀音驅動的,從 Swift 端
+        // 用 setMarkedText 塞自由文字並不會更新 keyHandler 的引擎狀態,會在下一個
+        // 按鍵或送出時被引擎以原文蓋掉(假修正),也違反「只在引擎狀態裡操作」原則。
+        // 真正的隱形修正應走「在引擎讀音格子上覆寫節點」的路徑,待 Coordinator
+        // 穩定後再設計(見 ~/Documents 的隱形警察交班與設計報告)。
         coordinator.aiAutoCorrectionSuggestion = AICandidateSuggestion(
             originalComposingBuffer: composingBuffer, suggestion: text)
         showAIAutoCorrectionTooltip(text, for: inputting, client: client)
