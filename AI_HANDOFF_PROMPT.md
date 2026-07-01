@@ -440,3 +440,24 @@ pgrep -lf 'Input Methods/McBopomofo.app' # 程序在跑
 
 **下一步（設計方向不變）**：①低調隱形提示（用 InputState 已預留 `pendingAISuggestion` / `aiTooltipMessage`）②引擎節點覆寫小設計（不動碼，先寫風險評估）③L2 句末自動校正實機驗證（實驗開關，預設關）。
 
+### 2026-07-01T17:23:14+08:00 隱形提示落地 + 引擎覆寫風險評估 + L2 驗證清單（上一棒的三下一步）
+
+接手先做狀態確認，發現兩件要更正的事，再把上一棒留的三個「下一步」全做掉。
+
+**狀態確認的更正**：
+
+- 「輸入源沒進選單（`AppleEnabledInputSources` bopomofo=0）」這步：使用者回報**已自行解決**，不要再碰、也別再假設它卡著（我一開始誤判、該先問）。
+- 交班宣稱「129 tests 全綠」的**驗證方式有誤導**：`xcodebuild ... | tail -5` 的 exit code 是 `tail` 的、不是 `xcodebuild` 的；且我先後對**同一個 DerivedData** 併發跑兩次 test，把 PCH 快取搞髒（`InputSourceHelper.modulemap` mtime 比 `.pch.gch` 新 → clang fatal），誤報失敗。**正解**：清掉該專案 DerivedData（可再生快取，非已裝 .app，不受「別 rm -rf」規則約束）重跑 → `** TEST SUCCEEDED **`，125 XCTest + Swift Testing 全綠。**教訓**：驗測試別 `| tail`（吃掉真 exit code）；別對同一 DerivedData 併發跑 xcodebuild。
+
+**三個下一步全做**：
+
+1. **①低調隱形提示（已落地、已測）**：L2 句末自動校正的建議改走 `InputState.Inputting.pendingAISuggestion` / `aiTooltipMessage`（先前這兩欄只在 `InputMethodController.swift:978` 被讀、從沒被寫——正是要補的洞）。新增純決策 `AIAutoCorrector.suggestionOutcome(result:composingBuffer:)`（`.noHint` / `.hint`）＋ 3 個 Swift Testing 測試。提示文字收斂為低調版新字串 `"Suggest: %@ (Tab)"`（zh：`建議 %@（Tab）`），三語同步。採用（Tab）真相來源仍在 Coordinator，顯示真相來源在 state 欄位，兩者一致。非破壞性、實驗開關預設不變。**已驗**：clean `xcodebuild test` 全綠。**未做**：實機打字觀感（見 ③）。
+2. **②引擎節點覆寫小設計（只寫文件、不動碼）**：`docs/engine-node-override.md`。關鍵發現——引擎**早有** `overrideCandidate` 原語且候選選字本來就走它（`reading_grid.h` + `KeyHandler.mm:fixNodeWithReading`），機制風險低；它只能在既有 unigram 裡改選 → **引擎級保證「只重排不生成」、只能修同讀音錯字（在/再、的/得/地…）、改不了讀音**。最尖銳兩個風險：**R1 UOM 汙染**（`fixNodeWithReading` 會 `observe`，隱形修正若複用等於偷偷訓練覆寫模型 → 需 override-without-observe 路徑）、**R6 靜默改字的使用者自主權**。分 Phase A→D，白名單、可回退、要 C++ gtest + eval 數字才算數。
+3. **③L2 實機驗證（我按不了鍵，交清單給使用者）**：`docs/l2-autocorrect-verification.md`。8 步驗證表（觸發/不觸發/Tab 採用/繼續打字忽略/AI 認為正確不打擾），含新低調提示的驗證重點與排障。**這件本質要人在鍵盤前**，無頭環境做不了，我不假裝驗過。
+
+**雜項清理**：清掉 `CHANGELOG.md:34` 與 `InputMethodController+AIAutoCorrection.swift` 註解對已棄用 `~/Documents/` 文件的殘留引用（改指 `AI_HANDOFF_PROMPT.md` / `docs/`）。CHANGELOG `[Unreleased]` 已記本批變更。
+
+**未發版**（release 一律先問）。版本仍 1.8.0 / build 2277，master。
+
+**下一棒**：跑 `docs/l2-autocorrect-verification.md` 收實機結果；若要真做「邊打邊隱形修正」，照 `docs/engine-node-override.md` 的 Phase A 起手（先 C++ gtest + eval，別急著對使用者開實驗開關）。
+

@@ -84,4 +84,24 @@ enum AIAutoCorrector {
     static func canInvokeLocalModel() -> Bool {
         LocalServerAICorrector.isModelInstalled && LocalServerAICorrector.isReady
     }
+
+    // MARK: - 低調隱形提示的顯示決策
+
+    /// L2 校正結果拿到後,要不要對使用者顯示低調提示。
+    ///
+    /// 這是純決策:不碰 IMK / state。實際把提示掛到 `InputState.Inputting` 的
+    /// `pendingAISuggestion` / `aiTooltipMessage` 欄位、以及畫面顯示,由 controller 做。
+    enum SuggestionOutcome: Equatable {
+        /// AI 認為現階段句子已正確,不打擾使用者。
+        case noHint
+        /// 有值得提示的修正建議(與原文不同)。
+        case hint(String)
+    }
+
+    /// 依 L2 結果與目前組字區,決定要不要跳低調提示。
+    /// 目前規則:結果與原文相同 → 不提示;不同 → 提示該建議文字。
+    static func suggestionOutcome(result: String, composingBuffer: String) -> SuggestionOutcome {
+        guard result != composingBuffer else { return .noHint }
+        return .hint(result)
+    }
 }

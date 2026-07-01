@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+### 變更
+
+- **L2 句末自動校正改走低調隱形提示**：修正建議改為掛在 `InputState.Inputting` 已預留的 `pendingAISuggestion` / `aiTooltipMessage` 欄位（顯示的單一真相來源），提示文字收斂為低調的「建議 …（Tab）」；採用（Tab）仍由 Coordinator 持有的真相來源決定，行為維持非破壞性、實驗開關預設不變。
+
+### 文件
+
+- 新增 `docs/engine-node-override.md`：引擎節點覆寫（真正「邊打邊隱形修正」）的風險評估與分階段設計；不動碼，先定地基與決策點（UOM 汙染、跨層邊界、使用者自主權為最尖銳風險）。
+- 新增 `docs/l2-autocorrect-verification.md`：L2 句末自動校正 + 低調提示的實機驗證清單。
+- 清除 `CHANGELOG.md` 與程式註解中對已棄用 `~/Documents/` 設計文件的殘留引用，改指向 `AI_HANDOFF_PROMPT.md` 與 `docs/`。
+
 ## [v1.8.0] - 2026-06-26
 
 AI 隱形中文警察重構階段一：把 L1/L2 的狀態與決策集中到單一 Coordinator，並把 L2 句末自動校正改回非破壞性行為。架構重整為主，行為向後相容。
@@ -31,7 +41,7 @@ AI 隱形中文警察重構階段一：把 L1/L2 的狀態與決策集中到單�
 
 - 這是「AI 隱形中文警察」設計報告階段一的重構基礎。L1 仍只重排候選、不生成；行為向後相容。
 - 真正的「邊打邊隱形修正」需走引擎節點覆寫（僅適用讀音不變的同音/近音錯字），待 Coordinator 穩定後另行設計；改讀音的整句校正本質上只能在 commit 邊界套用。
-- 詳細交班與後續提示見 ~/Documents/ 的 handoff 文件。
+- 詳細交班與後續提示見 `AI_HANDOFF_PROMPT.md` 交班日誌;引擎節點覆寫的風險評估見 `docs/engine-node-override.md`。
 
 ## [v1.7.5] - 2026-06-26
 

@@ -184,6 +184,8 @@
 
 /* Used in the candidate window tooltip when L1 AI suggests a better composing buffer. */
 "AI Suggestion: %@ (Tab)" = "AI Suggestion: %@ (Tab)";
+/* Low-key inline hint shown near the cursor when L2 auto-correction has a suggestion. */
+"Suggest: %@ (Tab)" = "Suggest: %@ (Tab)";
 "AI Candidate Suggestions" = "AI Candidate Suggestions";
 "AI Auto-Correction (Experimental)" = "AI Auto-Correction (Experimental)";
 

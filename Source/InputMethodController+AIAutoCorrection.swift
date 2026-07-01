@@ -60,29 +60,40 @@ extension McBopomofoInputMethodController {
             return
         }
 
-        // AI 認為整句已正確:不打擾使用者,清掉任何殘留建議。
-        guard text != composingBuffer else {
+        switch AIAutoCorrector.suggestionOutcome(result: text, composingBuffer: composingBuffer) {
+        case .noHint:
+            // AI 認為整句已正確:不打擾使用者,清掉任何殘留建議與提示欄位。
             coordinator.aiAutoCorrectionSuggestion = nil
-            return
+            inputting.pendingAISuggestion = nil
+            inputting.aiTooltipMessage = nil
+        case let .hint(suggestion):
+            // 非破壞性:只儲存建議 + 顯示低調提示,使用者按 Tab 才真正套用。
+            //
+            // 刻意不在這裡直接改 composingBuffer。注音引擎是讀音驅動的,從 Swift 端
+            // 用 setMarkedText 塞自由文字並不會更新 keyHandler 的引擎狀態,會在下一個
+            // 按鍵或送出時被引擎以原文蓋掉(假修正),也違反「只在引擎狀態裡操作」原則。
+            // 真正的隱形修正應走「在引擎讀音格子上覆寫節點」的路徑,待 Coordinator
+            // 穩定後再設計(見 docs/engine-node-override.md 的風險評估)。
+            let suggestionRecord = AICandidateSuggestion(
+                originalComposingBuffer: composingBuffer, suggestion: suggestion)
+            // Coordinator 持有「採用」的真相來源(Tab 會問它);state 欄位持有「顯示」
+            // 的真相來源(渲染 Inputting 時會讀 aiTooltipMessage)。兩者一致。
+            coordinator.aiAutoCorrectionSuggestion = suggestionRecord
+            inputting.pendingAISuggestion = suggestionRecord
+            inputting.aiTooltipMessage = Self.aiAutoCorrectionHintText(for: suggestion)
+            showAIAutoCorrectionTooltip(for: inputting, client: client)
         }
+    }
 
-        // 非破壞性:只儲存建議 + 顯示低調提示,使用者按 Tab 才真正套用。
-        //
-        // 刻意不在這裡直接改 composingBuffer。注音引擎是讀音驅動的,從 Swift 端
-        // 用 setMarkedText 塞自由文字並不會更新 keyHandler 的引擎狀態,會在下一個
-        // 按鍵或送出時被引擎以原文蓋掉(假修正),也違反「只在引擎狀態裡操作」原則。
-        // 真正的隱形修正應走「在引擎讀音格子上覆寫節點」的路徑,待 Coordinator
-        // 穩定後再設計(見 ~/Documents 的隱形警察交班與設計報告)。
-        coordinator.aiAutoCorrectionSuggestion = AICandidateSuggestion(
-            originalComposingBuffer: composingBuffer, suggestion: text)
-        showAIAutoCorrectionTooltip(text, for: inputting, client: client)
+    /// 低調隱形提示文字。刻意收斂成短句(建議 + Tab 採用),不喧賓奪主。
+    static func aiAutoCorrectionHintText(for suggestion: String) -> String {
+        String(format: NSLocalizedString("Suggest: %@ (Tab)", comment: ""), suggestion)
     }
 
     private func showAIAutoCorrectionTooltip(
-        _ suggestion: String, for state: InputState.Inputting, client: Any?
+        for state: InputState.Inputting, client: Any?
     ) {
-        let tip = String(
-            format: NSLocalizedString("AI Suggestion: %@ (Tab)", comment: ""), suggestion)
+        guard let tip = state.aiTooltipMessage, !tip.isEmpty else { return }
         show(
             tooltip: tip, composingBuffer: state.composingBuffer,
             cursorIndex: state.cursorIndex, client: client)

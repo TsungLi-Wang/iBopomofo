@@ -102,4 +102,30 @@ struct AIAutoCorrectorTests {
             AIAutoCorrector.isCorrectableSentence(
                 composingBuffer: buffer, cursorIndex: buffer.count))
     }
+
+    // MARK: - suggestionOutcome（低調隱形提示的顯示決策）
+
+    @Test("結果與原文不同:回傳 hint 帶修正後文字")
+    func suggestionOutcomeHintsWhenDifferent() {
+        #expect(
+            AIAutoCorrector.suggestionOutcome(
+                result: "我知道了。", composingBuffer: "我資道了。")
+                == .hint("我知道了。"))
+    }
+
+    @Test("結果與原文相同:不提示(noHint)")
+    func suggestionOutcomeNoHintWhenSame() {
+        #expect(
+            AIAutoCorrector.suggestionOutcome(
+                result: "我知道了。", composingBuffer: "我知道了。")
+                == .noHint)
+    }
+
+    @Test("空字串結果與非空原文:仍視為不同,回傳 hint")
+    func suggestionOutcomeHintsForEmptyResult() {
+        #expect(
+            AIAutoCorrector.suggestionOutcome(
+                result: "", composingBuffer: "你好嗎。")
+                == .hint(""))
+    }
 }
