@@ -20,7 +20,7 @@
 - L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
 - L3 語音輸入：**已隨 v1.7 ~ v1.7.4 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。v1.7.4 加「辨識來源」三選一(Apple / Apple+L2 / OpenAI Whisper 雲端)。
 
-**目前發佈狀態:已發到 v1.7.5**(GitHub Release,Latest)。v1.7.5 = L1 即時候選重排改成本機 n-gram scorer + eval/training harness;尚未內建外部語料模型。v1.7.4 = 語音「辨識來源」三選一(Apple 原生 / Apple+L2 修正 / OpenAI Whisper 雲端,使用者自備 OpenAI key);⚠️ Whisper 錄音上傳路徑尚待更廣泛實機驗證。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 122 tests / 10 suites 全綠。
+**目前發佈狀態:已發到 v1.8.0**(GitHub Release,Latest;build 2277,版本真實來源 = `Source/McBopomofo-Info.plist` 字面值)。v1.8.0 = AI 隱形中文警察重構階段一(L1/L2 狀態與決策集中到 `AIAssistCoordinator`,L2 句末自動校正改回非破壞性)。**master 目前另有未發版變更**:L2 低調隱形提示改走 `InputState` 預留欄位(見最新交班日誌)。以下為歷史版本摘要。v1.7.5 = L1 即時候選重排改成本機 n-gram scorer + eval/training harness;尚未內建外部語料模型。v1.7.4 = 語音「辨識來源」三選一(Apple 原生 / Apple+L2 修正 / OpenAI Whisper 雲端,使用者自備 OpenAI key);⚠️ Whisper 錄音上傳路徑尚待更廣泛實機驗證。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 122 tests / 10 suites 全綠。
 
 Phase 狀態：
 
@@ -421,43 +421,36 @@ Johnny 提出改用外部 AI 產生「在/再」合成語料,先跑小型實驗,
 3. **本機 `~/Library/Input Methods/McBopomofo.app` 已是 v1.8.0**（先 killall + 就地 ditto 覆蓋，不 rm -rf；再跑 `McBopomofo install` 註冊）。
 4. 雜項：`.gitignore` 加 `*.profraw`（覆蓋率殘留檔，會誤入 commit）；移除 `AI_HANDOFF_PROMPT.md` 對兩份已棄用 `~/Documents/` 設計/交班文件的殘留引用（那兩份早已不存在，設計哲學已融進本檔與 CHANGELOG）。
 
-**未完成 / 卡住的一步（重要，給下一棒）**：
+**功能完整性已驗**：master = origin/master；v1.8.0 = 歷來所有功能（L0 打字 / L1 候選重排 / L2 整句+句末校正 / L3 語音三來源）+ 隱形警察 Coordinator 重構，沒有遺漏。
 
-- **輸入源尚未「啟用進輸入選單」**。症狀：`defaults read com.apple.HIToolbox AppleEnabledInputSources` 找不到 McBopomofo，選單列選不到、不能打字。
-- **根因（已查證，不要再重踩）**：從**非 GUI session 的 CLI**（本 agent 的 Bash）跑 `McBopomofo install` / `install --all`，`InputSourceHelper.enable()`（即 `TISEnableInputSource`）會**回報成功但不會真的寫進 AppleEnabledInputSources / 不會進選單**。`exit=0`、log 印 "All input sources enabled" 都是假象。`McBopomofoInstaller` 的 AppDelegate（`installInputMethod`）在 macOS 12+ 是**無條件呼叫 `enable()`，但它跑在 Aqua GUI session 裡**，所以才生效——這就是「別人重裝都沒事」的原因（他們用 GUI 安裝器，不是 CLI）。
-- **macOS 硬限制**：把輸入法「開進選單」一定要 GUI session 的動作，沒有純 CLI / 純背景的零接觸做法。可行路徑只有三條，**都需要使用者點一下或授權一次**：(a) 開 `McBopomofoInstaller.app` 點「同意並安裝」一顆鈕（最乾淨，會自動 kill+裝+enable+開設定+自動關閉）；(b) 系統設定 ▸ 鍵盤 ▸ 輸入來源 ▸ 編輯 ▸ + ▸ 中文 ▸ 老王注音；(c) computer-use 代點，但需先授予「螢幕錄製」權限給控制端 app（通常還要重啟），反而更麻煩。
-- 本 session 已把安裝器視窗開在使用者螢幕上，等他點「同意並安裝」即完成。**下一棒若使用者回報仍沒進選單，先別重跑 CLI install（無效），直接走 GUI 安裝器或 System Settings。**
+### 2026-07-01T17:23:14+08:00 隱形提示落地 + 引擎覆寫風險評估 + L2 驗證清單
 
-**驗證指令**（使用者點完安裝器後，下一棒可一鍵確認）：
+把上一棒留的三個「下一步」全做掉，並把交班日誌收乾淨（已解決的舊題不再帶）。
 
-```bash
-defaults read com.apple.HIToolbox AppleEnabledInputSources | grep -ci bopomofo   # >0 = 已啟用
-/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' ~/Library/Input\ Methods/McBopomofo.app/Contents/Info.plist  # 應為 1.8.0
-pgrep -lf 'Input Methods/McBopomofo.app' # 程序在跑
-```
+**現在進度（master、未發版，版本仍 1.8.0 / build 2277）**：
 
-**功能完整性已驗**：master = origin/master（ahead 0 / behind 0）；v1.0~v1.7.5 全部 17 個 release tag 都是 master 祖先；master 比 v1.7.5 多 9 個 commit（隱形警察那批）。故 v1.8.0 = 歷來所有功能（L0 打字 / L1 候選重排 / L2 整句+句末校正 / L3 語音三來源）+ 隱形警察 Coordinator 重構，沒有遺漏。
+- **①低調隱形提示 — 已落地、已測**。L2 句末自動校正的建議改走 `InputState.Inputting.pendingAISuggestion` / `aiTooltipMessage`（這兩欄先前只在 `InputMethodController.swift` 被讀、從沒被寫——正是要補的洞）。顯示的單一真相來源在 state 欄位，採用（Tab）的真相來源在 `AIAssistCoordinator`，兩者一致。提示文字收斂為低調版 `"Suggest: %@ (Tab)"`（zh：`建議 %@（Tab）`），三語同步。新增純決策 `AIAutoCorrector.suggestionOutcome(result:composingBuffer:)`（`.noHint` / `.hint`）＋ 3 個 Swift Testing 測試。非破壞性、實驗開關預設不變。
+- **②引擎節點覆寫 — 已寫風險評估文件，未動碼**。`docs/engine-node-override.md`。關鍵：引擎**早有** `overrideCandidate` 原語、候選選字本來就走它（`reading_grid.h` + `KeyHandler.mm:fixNodeWithReading`），機制風險低；它只能在既有 unigram 裡改選 → **引擎級保證「只重排不生成」、只能修同讀音錯字（在/再、的/得/地…）、改不了讀音**。最尖銳兩個風險：**R1 UOM 汙染**（`fixNodeWithReading` 會 `observe`，隱形修正若複用＝偷偷訓練覆寫模型 → 需 override-without-observe 路徑）、**R6 靜默改字的使用者自主權**。分 Phase A→D。
+- **③L2 實機驗證 — 已交清單，待使用者跑**。`docs/l2-autocorrect-verification.md`（8 步驗證表 + 排障）。這件本質要人在鍵盤前打字，無頭環境（CLI）按不了鍵、不能自動驗；別假裝驗過。
+- 雜項：CHANGELOG `[Unreleased]` 已記本批；清掉對已棄用 `~/Documents/` 文件的殘留引用。
 
-**下一步（設計方向不變）**：①低調隱形提示（用 InputState 已預留 `pendingAISuggestion` / `aiTooltipMessage`）②引擎節點覆寫小設計（不動碼，先寫風險評估）③L2 句末自動校正實機驗證（實驗開關，預設關）。
+**驗證慣例（踩過的雷，照做省事）**：
 
-### 2026-07-01T17:23:14+08:00 隱形提示落地 + 引擎覆寫風險評估 + L2 驗證清單（上一棒的三下一步）
+- 跑 `xcodebuild test` **別接 `| tail`**——管線的 exit code 是 `tail` 的、不是 xcodebuild 的，會誤判成功/失敗；要判讀就抓 `** TEST SUCCEEDED **` / `Executed N tests, with M failures`。
+- **別對同一個 DerivedData 併發跑兩個 xcodebuild**，會把 PCH 快取搞髒（`.modulemap` mtime 比 `.pch.gch` 新 → clang fatal，看起來像測試爆掉）。真爆了就 `rm -rf` 該專案 DerivedData（可再生快取，非已裝 .app，不受「別 rm -rf」規則約束）重跑。
+- 本批乾淨全綠：`** TEST SUCCEEDED **`，125 XCTest + Swift Testing 全部 0 fail。
 
-接手先做狀態確認，發現兩件要更正的事，再把上一棒留的三個「下一步」全做掉。
+**下一棒優先做**：
 
-**狀態確認的更正**：
+1. **收 ③ 的實機結果**：請使用者照 `docs/l2-autocorrect-verification.md` 跑一輪，確認低調提示真的出現在游標旁、Tab 採用、繼續打字忽略。這是唯一「已寫好但還沒被真人驗」的一環。
+2. **要真做「邊打邊隱形修正」就起手 ② 的 Phase A**：照 `docs/engine-node-override.md`，先在 `KeyHandler.mm` 加 override-without-observe bridge、用 `Candidate{reading,value}` 版本算對 loc、Coordinator serial+buffer 守門、從 walk 重建 Inputting；藏在新實驗偏好（預設關）。**先有 C++ gtest + eval 數字再談對使用者開**。
 
-- 「輸入源沒進選單（`AppleEnabledInputSources` bopomofo=0）」這步：使用者回報**已自行解決**，不要再碰、也別再假設它卡著（我一開始誤判、該先問）。
-- 交班宣稱「129 tests 全綠」的**驗證方式有誤導**：`xcodebuild ... | tail -5` 的 exit code 是 `tail` 的、不是 `xcodebuild` 的；且我先後對**同一個 DerivedData** 併發跑兩次 test，把 PCH 快取搞髒（`InputSourceHelper.modulemap` mtime 比 `.pch.gch` 新 → clang fatal），誤報失敗。**正解**：清掉該專案 DerivedData（可再生快取，非已裝 .app，不受「別 rm -rf」規則約束）重跑 → `** TEST SUCCEEDED **`，125 XCTest + Swift Testing 全綠。**教訓**：驗測試別 `| tail`（吃掉真 exit code）；別對同一 DerivedData 併發跑 xcodebuild。
+**未來可再改進（給下一棒/之後排優先序參考，非急件）**：
 
-**三個下一步全做**：
-
-1. **①低調隱形提示（已落地、已測）**：L2 句末自動校正的建議改走 `InputState.Inputting.pendingAISuggestion` / `aiTooltipMessage`（先前這兩欄只在 `InputMethodController.swift:978` 被讀、從沒被寫——正是要補的洞）。新增純決策 `AIAutoCorrector.suggestionOutcome(result:composingBuffer:)`（`.noHint` / `.hint`）＋ 3 個 Swift Testing 測試。提示文字收斂為低調版新字串 `"Suggest: %@ (Tab)"`（zh：`建議 %@（Tab）`），三語同步。採用（Tab）真相來源仍在 Coordinator，顯示真相來源在 state 欄位，兩者一致。非破壞性、實驗開關預設不變。**已驗**：clean `xcodebuild test` 全綠。**未做**：實機打字觀感（見 ③）。
-2. **②引擎節點覆寫小設計（只寫文件、不動碼）**：`docs/engine-node-override.md`。關鍵發現——引擎**早有** `overrideCandidate` 原語且候選選字本來就走它（`reading_grid.h` + `KeyHandler.mm:fixNodeWithReading`），機制風險低；它只能在既有 unigram 裡改選 → **引擎級保證「只重排不生成」、只能修同讀音錯字（在/再、的/得/地…）、改不了讀音**。最尖銳兩個風險：**R1 UOM 汙染**（`fixNodeWithReading` 會 `observe`，隱形修正若複用等於偷偷訓練覆寫模型 → 需 override-without-observe 路徑）、**R6 靜默改字的使用者自主權**。分 Phase A→D，白名單、可回退、要 C++ gtest + eval 數字才算數。
-3. **③L2 實機驗證（我按不了鍵，交清單給使用者）**：`docs/l2-autocorrect-verification.md`。8 步驗證表（觸發/不觸發/Tab 採用/繼續打字忽略/AI 認為正確不打擾），含新低調提示的驗證重點與排障。**這件本質要人在鍵盤前**，無頭環境做不了，我不假裝驗過。
-
-**雜項清理**：清掉 `CHANGELOG.md:34` 與 `InputMethodController+AIAutoCorrection.swift` 註解對已棄用 `~/Documents/` 文件的殘留引用（改指 `AI_HANDOFF_PROMPT.md` / `docs/`）。CHANGELOG `[Unreleased]` 已記本批變更。
-
-**未發版**（release 一律先問）。版本仍 1.8.0 / build 2277，master。
-
-**下一棒**：跑 `docs/l2-autocorrect-verification.md` 收實機結果；若要真做「邊打邊隱形修正」，照 `docs/engine-node-override.md` 的 Phase A 起手（先 C++ gtest + eval，別急著對使用者開實驗開關）。
+- **L1/L2 打分器升級**：目前 L1 是進程內 char n-gram，硬同音（在/再）翻不動；zaizai synthetic 實驗證明方向有訊號但有同源偏差。缺口是**真實測資**——跟使用者收 20~50 筆他真會打、常選錯的句子做固定 eval，再找更貼近日常台灣繁中的開放語料訓 trigram。沒有 real eval 的 before/after 提升，不要把模型包進 app。
+- **符號/emoji 防護**：eval 曾看到引擎合法候選含 `📁`/`📱` 等符號；L1 雖不生成，也不該把符號/emoji 從低順位推到第一。加「除非原 top-1 就是符號否則不選」防護 + 測試。
+- **Coordinator 收尾**：把 `+AIRerank` / `+AIAutoCorrection` 殘留邏輯更徹底搬進 `AIAssistCoordinator`，讓 Controller 更瘦（階段一原目標）。
+- **低調提示打磨**：目前用共用 `TooltipController`（黃底小字，與 Marking 共用）。若要更「隱形」可做專屬更淡樣式或短暫自動消失——**但別動共用元件樣式**，另做一條。
+- **L3 語音收尾**：Whisper 雲端路徑仍未實機驗；on-device 準度/標點/口語斷句可調；連續聆聽模式（目前只 push-to-talk）。
+- **測試脫離 IMK host**（非必要）：把純邏輯測試抽成獨立 logic test target，讓單元測試不必起 app host。
 
