@@ -804,7 +804,21 @@ class McBopomofoInputMethodController: IMKInputController {
     }
 
     @objc func showAbout(_ sender: Any?) {
-        NSApp.orderFrontStandardAboutPanel(sender)
+        // 顯示版本 + build + git 短碼,讓使用者/維護者能精確辨識「正在跑哪一份碼」。
+        // git 短碼由 build phase「Stamp Git Revision」寫進 Info.plist 的 GitRevision;
+        // 開發中未經該 phase 產出的建置為預留值 "dev"。
+        let info = Bundle.main.infoDictionary
+        let shortVersion = info?["CFBundleShortVersionString"] as? String ?? ""
+        let build = info?["CFBundleVersion"] as? String ?? ""
+        let revision = info?["GitRevision"] as? String ?? ""
+        var buildLabel = build
+        if !revision.isEmpty, revision != "dev" {
+            buildLabel = "\(build) · \(revision)"
+        }
+        NSApp.orderFrontStandardAboutPanel(options: [
+            NSApplication.AboutPanelOptionKey.applicationVersion: shortVersion,
+            NSApplication.AboutPanelOptionKey.version: buildLabel,
+        ])
         NSApp.activate(ignoringOtherApps: true)
     }
 

@@ -621,6 +621,7 @@
 				6A0D4E9F15FC0D2D00ABF4B3 /* Frameworks */,
 				6A0D4EA015FC0D2D00ABF4B3 /* Resources */,
 				FACE0005FACE0005FACE0005 /* Copy Llama Runtime */,
+				FACE0090FACE0090FACE0090 /* Stamp Git Revision */,
 			);
 			buildRules = (
 			);
@@ -830,6 +831,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "set -e\nSRC=\"${SRCROOT}/llama-runtime\"\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/llama\"\nmkdir -p \"$DEST/bin\"\n/usr/bin/ditto \"$SRC/bin\" \"$DEST/bin\"\n# 模型不再內嵌(發佈包才能 <100MB 上 GitHub Release):首次使用時由 app 從 HuggingFace\n# 下載到 ~/Library/Application Support/McBopomofo/AIModel/(見 LlamaServerManager)。\n# 清掉舊版可能殘留在 bundle 內的模型,避免發佈包變肥。\nrm -rf \"$DEST/models\"\n# adhoc 簽章內嵌執行檔/動態庫,確保本機可執行(Phase2 改 Developer ID + 移到合規位置)\nfor f in \"$DEST\"/bin/*.dylib \"$DEST\"/bin/llama-server; do /usr/bin/codesign --force -s - \"$f\" || true; done\n";
+		};
+		FACE0090FACE0090FACE0090 /* Stamp Git Revision */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Stamp Git Revision";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nREV=$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null || echo unknown)\nif ! git -C \"${SRCROOT}\" diff --quiet HEAD 2>/dev/null; then REV=\"${REV}+\"; fi\n/usr/libexec/PlistBuddy -c \"Set :GitRevision ${REV}\" \"${PLIST}\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :GitRevision string ${REV}\" \"${PLIST}\"\n";
 		};
 		6A225A2023679F5F00F685C6 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;

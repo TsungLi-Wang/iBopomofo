@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [v1.8.1] - 2026-07-01
+
+### 新增
+
+- **關於視窗顯示 git 版本碼**：「關於老王注音」現在顯示 `版本 (build · git 短碼)`，讓使用者與維護者能精確辨識目前執行的是哪一份原始碼，即使版本號未變也不會混淆。git 短碼由 build phase「Stamp Git Revision」在建置時寫入。
+
 ### 變更
 
 - **L2 句末自動校正改走低調隱形提示**：修正建議改為掛在 `InputState.Inputting` 已預留的 `pendingAISuggestion` / `aiTooltipMessage` 欄位（顯示的單一真相來源），提示文字收斂為低調的「建議 …（Tab）」；採用（Tab）仍由 Coordinator 持有的真相來源決定，行為維持非破壞性、實驗開關預設不變。
@@ -301,6 +307,7 @@ AI 架構重構與 README 產品化。
 - 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
 - 建立自架 DMG 打包流程。
 
+[v1.8.1]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.8.1
 [v1.8.0]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.8.0
 [v1.5.3]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.3
 [v1.5.2]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.5.2
