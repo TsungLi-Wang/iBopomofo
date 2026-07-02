@@ -7,18 +7,17 @@ ENGINE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DATA="$ENGINE_DIR/../Data/data.txt"
 CASES="${1:-$ENGINE_DIR/eval/cases.tsv}"
 MODEL="${2:-}"
+CONFUSION_TABLE="${3:-}"
 BIN="${TMPDIR:-/tmp}/rerank_eval"
 
 clang++ -std=c++17 -O2 -I"$ENGINE_DIR" -I"$ENGINE_DIR/gramambular2" \
   "$ENGINE_DIR/eval/rerank_eval.cpp" \
   "$ENGINE_DIR/gramambular2/reading_grid.cpp" \
+  "$ENGINE_DIR/ConfusionPairDisambiguator.cpp" \
+  "$ENGINE_DIR/UTF8Helper.cpp" \
   "$ENGINE_DIR/ParselessLM.cpp" \
   "$ENGINE_DIR/ParselessPhraseDB.cpp" \
   "$ENGINE_DIR/MemoryMappedFile.cpp" \
   -o "$BIN"
 
-if [[ -n "$MODEL" ]]; then
-  "$BIN" "$DATA" "$CASES" "$MODEL"
-else
-  "$BIN" "$DATA" "$CASES"
-fi
+"$BIN" "$DATA" "$CASES" "$MODEL" "$CONFUSION_TABLE"

@@ -15,10 +15,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include "ConfusionPairDisambiguator.h"
 #include "ParselessLM.h"
 #include "gramambular2/reading_grid.h"
 
 using Formosa::Gramambular2::ReadingGrid;
+using McBopomofo::ConfusionPairDisambiguator;
 using McBopomofo::ParselessLM;
 
 namespace {
@@ -323,11 +325,26 @@ std::string rescoredTop1(ParselessLM* lm, const CharNgramModel& ng,
   return out;
 }
 
+// disambiguated:引擎 walk top-1,再套 ConfusionPairDisambiguator(正式出貨
+// 路徑,只在同讀音單字節點內軟覆寫,不動切詞)。
+std::string disambiguatedTop1(ParselessLM* lm, ConfusionPairDisambiguator& d,
+                              const std::string& readings) {
+  ReadingGrid grid = makeGrid(lm);
+  if (!feed(grid, readings)) return "<insert-failed>";
+  ReadingGrid::WalkResult walk = grid.walk();
+  d.reset();
+  d.rescoreWalk(walk);
+  std::string out;
+  for (const auto& v : walk.valuesAsStrings()) out += v;
+  return out;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
   if (argc < 3) {
-    std::cerr << "用法: rerank_eval <path/to/data.txt> <path/to/cases.tsv>\n";
+    std::cerr << "用法: rerank_eval <data.txt> <cases.tsv> [ngram-model.tsv]"
+                 " [confusion-table.tsv]\n";
     return 2;
   }
   ParselessLM lm;
@@ -336,11 +353,18 @@ int main(int argc, char** argv) {
     return 1;
   }
   CharNgramModel ng;
-  if (argc >= 4 && ng.loadExternal(argv[3])) {
+  if (argc >= 4 && argv[3][0] != '\0' && ng.loadExternal(argv[3])) {
     std::cout << "外部字元 trigram 已載入(vocab=" << ng.vocab << ")\n";
   } else {
     ng.buildFallbackFromData(argv[1]);
     std::cout << "詞庫 fallback 字元 n-gram 已建(vocab=" << ng.vocab << ")\n";
+  }
+
+  ConfusionPairDisambiguator disambiguator;
+  bool hasConfusionTable =
+      argc >= 5 && argv[4][0] != '\0' && disambiguator.load(argv[4]);
+  if (hasConfusionTable) {
+    std::cout << "混淆對 log-odds 表已載入:" << argv[4] << "\n";
   }
 
   std::vector<Case> cases = loadCases(argv[2]);
@@ -349,8 +373,10 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  int baseOK = 0, reOK = 0;
-  std::cout << "=== baseline(unigram) vs rescored(字元 n-gram) ===\n";
+  int baseOK = 0, reOK = 0, disOK = 0;
+  std::cout << "=== baseline(unigram) vs rescored(字元 n-gram)"
+            << (hasConfusionTable ? " vs disambiguated(混淆對查表)" : "")
+            << " ===\n";
   for (const auto& c : cases) {
     std::string b = baselineTop1(&lm, c.readings);
     std::string r = rescoredTop1(&lm, ng, c.readings);
@@ -358,8 +384,14 @@ int main(int argc, char** argv) {
     baseOK += bo;
     reOK += ro;
     std::cout << (bo ? "B-OK " : "B-MISS") << " " << b << "   "
-              << (ro ? "R-OK " : "R-MISS") << " " << r << "   want=" << c.expected
-              << "\n";
+              << (ro ? "R-OK " : "R-MISS") << " " << r;
+    if (hasConfusionTable) {
+      std::string d = disambiguatedTop1(&lm, disambiguator, c.readings);
+      bool dok = (d == c.expected);
+      disOK += dok;
+      std::cout << "   " << (dok ? "D-OK " : "D-MISS") << " " << d;
+    }
+    std::cout << "   want=" << c.expected << "\n";
   }
   size_t n = cases.size();
   std::cout << "----\n";
@@ -367,5 +399,9 @@ int main(int argc, char** argv) {
             << (100.0 * baseOK / n) << "%)\n";
   std::cout << "rescored top-1: " << reOK << "/" << n << "  ("
             << (100.0 * reOK / n) << "%)\n";
+  if (hasConfusionTable) {
+    std::cout << "disambiguated top-1: " << disOK << "/" << n << "  ("
+              << (100.0 * disOK / n) << "%)\n";
+  }
   return 0;
 }

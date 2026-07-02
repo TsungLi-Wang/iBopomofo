@@ -188,6 +188,7 @@
 "Suggest: %@ (Tab)" = "Suggest: %@ (Tab)";
 "AI Candidate Suggestions" = "AI Candidate Suggestions";
 "AI Auto-Correction (Experimental)" = "AI Auto-Correction (Experimental)";
+"Homophone Disambiguation (Experimental)" = "Homophone Disambiguation (Experimental)";
 
 /* Used in the notification when L1 AI needs the local server to finish starting. */
 "Local AI candidate suggestions are loading" = "Local AI candidate suggestions are loading";

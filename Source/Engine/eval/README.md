@@ -116,3 +116,53 @@ Observed on 2026-06-26:
 Do not commit `~/Documents/zaizai/`, `Source/Engine/eval/generated/`, or the
 generated TSV model. Treat this as promising but biased synthetic evidence until
 Johnny's real typo cases are added.
+
+## Confusion-Pair Log-Odds Table (在/再)
+
+`ConfusionPairDisambiguator` (the shipping path, hooked into `KeyHandler`'s
+`_walk`) uses a character-level log-odds table instead of the generic n-gram
+model. Build one from a corpus (plain text or `sentence<TAB>label` TSV; the
+first tab field is used):
+
+```bash
+python3 Source/Engine/eval/build_confusion_pair_table.py \
+  --corpus path/to/train.txt \
+  --output Source/Engine/eval/generated/zai-logodds.tsv \
+  --threshold 0.5
+```
+
+It prints the top alt-leaning entries for manual review plus coverage stats.
+Evaluate the table alone with the masked test (hide each 在/再, predict from
+neighbors) including a threshold sweep:
+
+```bash
+python3 Source/Engine/eval/masked_eval_confusion_pair.py \
+  --table Source/Engine/eval/generated/zai-logodds.tsv \
+  --eval path/to/eval.tsv
+```
+
+Evaluate the actual engine path (walk + disambiguator, exactly what ships) by
+passing the table as the third argument of the harness; the n-gram model slot
+can be an empty string:
+
+```bash
+bash Source/Engine/eval/build-and-run.sh \
+  Source/Engine/eval/generated/zaizai_eval_cases.tsv \
+  "" \
+  Source/Engine/eval/generated/zai-logodds.tsv
+```
+
+Observed on 2026-07-02 with a smoke table trained on `zaizai_train.txt`
+(200 sentences, threshold 0.5) — same-source bias applies, numbers are for
+pipeline validation only:
+
+- Masked eval on `zaizai_eval.tsv`: baseline (always 在) 50/100, table 95/100.
+- Engine harness on `zaizai_eval_cases.tsv`: baseline 40/99, disambiguated
+  75/99, zero regressions (no B-OK case turned D-MISS). Remaining misses are
+  mostly non-在/再 errors (e.g. 意/一) outside this module's scope.
+- Seed `cases.tsv`: 7/8 -> 7/8 (the miss is the 意/一 part of a sentence
+  whose 在/再 part is now correct).
+
+The app loads `confusion-pairs.tsv` from the bundle if present (see
+`KeyHandler.mm`); the resource is not bundled until a table trained on real,
+non-synthetic corpus shows a before/after improvement on real eval cases.

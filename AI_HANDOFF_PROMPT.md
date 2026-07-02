@@ -20,7 +20,7 @@
 - L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
 - L3 語音輸入：**已隨 v1.7 ~ v1.7.4 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。v1.7.4 加「辨識來源」三選一(Apple / Apple+L2 / OpenAI Whisper 雲端)。
 
-**目前發佈狀態:已發到 v1.8.0**(GitHub Release,Latest;build 2277,版本真實來源 = `Source/McBopomofo-Info.plist` 字面值)。v1.8.0 = AI 隱形中文警察重構階段一(L1/L2 狀態與決策集中到 `AIAssistCoordinator`,L2 句末自動校正改回非破壞性)。**master 目前另有未發版變更**:L2 低調隱形提示改走 `InputState` 預留欄位(見最新交班日誌)。以下為歷史版本摘要。v1.7.5 = L1 即時候選重排改成本機 n-gram scorer + eval/training harness;尚未內建外部語料模型。v1.7.4 = 語音「辨識來源」三選一(Apple 原生 / Apple+L2 修正 / OpenAI Whisper 雲端,使用者自備 OpenAI key);⚠️ Whisper 錄音上傳路徑尚待更廣泛實機驗證。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 122 tests / 10 suites 全綠。
+**目前發佈狀態:已發到 v1.8.1**(GitHub Release,Latest;build 2278,版本真實來源 = `Source/McBopomofo-Info.plist` 字面值)。v1.8.1 = 關於視窗顯示 git 短碼 + L2 低調隱形提示走 `InputState` 預留欄位。v1.8.0 = AI 隱形中文警察重構階段一(L1/L2 狀態與決策集中到 `AIAssistCoordinator`,L2 句末自動校正改回非破壞性)。**master 目前另有未發版變更**:「在/再」智慧消歧模組(引擎覆寫 Phase A,見最新交班日誌)。以下為歷史版本摘要。v1.7.5 = L1 即時候選重排改成本機 n-gram scorer + eval/training harness;尚未內建外部語料模型。v1.7.4 = 語音「辨識來源」三選一(Apple 原生 / Apple+L2 修正 / OpenAI Whisper 雲端,使用者自備 OpenAI key);⚠️ Whisper 錄音上傳路徑尚待更廣泛實機驗證。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 122 tests / 10 suites 全綠。
 
 Phase 狀態：
 
@@ -453,4 +453,30 @@ Johnny 提出改用外部 AI 產生「在/再」合成語料,先跑小型實驗,
 - **低調提示打磨**：目前用共用 `TooltipController`（黃底小字，與 Marking 共用）。若要更「隱形」可做專屬更淡樣式或短暫自動消失——**但別動共用元件樣式**，另做一條。
 - **L3 語音收尾**：Whisper 雲端路徑仍未實機驗；on-device 準度/標點/口語斷句可調；連續聆聽模式（目前只 push-to-talk）。
 - **測試脫離 IMK host**（非必要）：把純邏輯測試抽成獨立 logic test target，讓單元測試不必起 app host。
+
+### 2026-07-02T17:35:00+08:00 「在/再」智慧消歧模組落地（引擎覆寫 Phase A，未發版）
+
+Johnny 給了完整規格（log-odds 查表法消歧「在/再」），本棒把整條做完：Python 建表/驗證工具 + C++ 消歧器 + KeyHandler 接點 + 測試 + 文件。**master 未發版**（版本仍 1.8.1 / build 2278，本批未動版本號）。
+
+**架構關鍵發現（讀懂這段再動手）**：
+
+1. **「在/再」不是兩條路徑，是同一節點內的兩個 unigram**。`walk()`（`reading_grid.cpp`）鬆弛時每節點只用 `node->score()`＝目前選中 unigram 的分數，「再」根本不參與競爭。所以「把 log-odds 加進路徑分數」在 walk 內沒有掛點；正確做法是 **walk 之後、節點內改選**（soft override `kOverrideValueWithScoreFromTopUnigram`：節點分數維持 top unigram 分數 → 路徑結構不變、不需 re-walk）。
+2. **詞典有孿生詞**：`ㄨㄛˇ-ㄗㄞˋ` 同時有「我在(-4.25)/我再(-4.98)」，walk 永遠選高頻那個——混淆不只在單字節點。消歧器已一般化：節點內存在「只差該位置一字」的孿生 unigram 就用同一套 L/R 查表改選（我再說一次 就是這樣修對的）。原規格「多字詞不需處理」在這類功能詞組合不成立。
+3. 這正是 `docs/engine-node-override.md` 的 Phase A「override-without-observe」：不走 `fixNodeWithReading`（避 R1 UOM 汙染）、不從 Swift 碰 C++、尊重使用者覆寫與 UOM（`isOverridden() && !mine` → skip）、自己翻過的節點每次 walk 重評可自我撤回（registry 用 `Node*`+`weak_ptr` 防位址重用）。R1 間接汙染（AI 翻過的字進到使用者後續手動選字的 observe 上下文）已拍板接受不隔離，記在該文件。
+
+**新增/修改檔案**：
+
+- `Source/Engine/ConfusionPairDisambiguator.{h,cpp}`：核心。表格式 `PAIR/PRIOR/THRESHOLD/L/R` TSV，多混淆對開放（reading → pair）。context token 正規化**必須與 Python 端同步**（CJK 保留、CJK 標點保留、數字 `#D`、英文 `#A`、其他 `#O`、界外 `^`/`$`）。
+- `Source/Engine/ConfusionPairDisambiguatorTest.cpp`：10 gtest（含孿生節點、使用者覆寫讓位、撤回、soft override 分數不變）。已掛進 `CMakeLists.txt`。
+- `Source/KeyHandler.mm`：`_walk` 尾端接消歧器（per-KeyHandler 實例，init 時從 bundle 找 `confusion-pairs.tsv`，沒有就整個惰性）；`clear` 時 `reset()`。pbxproj 新檔用 `FACE0100~0102`。
+- `Source/Preferences.swift` + `InputMethodController.swift` + 三語 strings：實驗偏好 `EnableConfusionPairDisambiguation`（預設關）、選單「同音字智慧消歧（實驗）」。
+- `Source/Engine/eval/build_confusion_pair_table.py`（建表 + top-50 review 清單 + coverage）、`masked_eval_confusion_pair.py`（遮蔽測試 + threshold sweep）、`rerank_eval.cpp`/`build-and-run.sh` 加第三條 disambiguated 線（第三參數傳表，n-gram 槽可傳 `""`）。重跑指令見 `eval/README.md` 新節。
+
+**數字（舊 zaizai 合成語料 smoke，同源偏差，只證管線）**：遮蔽測試 50%→95%（th=0.5）；引擎級整句 baseline 40/99 → disambiguated 75/99、**零退步**；seed cases 7/8→7/8（剩的 miss 是 意/一，不在本 pair 範圍）。驗證：gtest 94 全過、完整 `xcodebuild test` 125/0 fail `** TEST SUCCEEDED **`。
+
+**下一棒優先**：
+
+1. **等 Johnny 給新語料批次**（生成提示詞在 `~/Documents/在:再消歧語料生成提示詞.md`，12 類 A1~C3；他說語料會放「老地方」=`~/Documents`，2026-07-02 尚未落地）→ 用 `build_confusion_pair_table.py` 重訓、masked eval 挑 threshold、train/eval 分開、跑三組 A/B（seed / zaizai / 新批次留出集）。
+2. 數字確認後把表存成 `confusion-pairs.tsv` 加進 bundle（pbxproj Resources，新 ID 從 FACE0103+），實機驗證選單開關 + 打「我(ㄗㄞˋ)說一次」會出「再」。
+3. 之後才考慮擴其他 pair（的/得/地 是三元，表格式要先擴）。
 

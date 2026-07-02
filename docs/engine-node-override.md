@@ -1,7 +1,10 @@
-# 引擎節點覆寫：風險評估與分階段設計（不動碼）
+# 引擎節點覆寫：風險評估與分階段設計
 
-- 最後更新：2026-07-01T17:30:00+08:00
-- 狀態：**設計/風險評估**。本文刻意不改任何程式碼，先把地基與決策點定清楚。
+- 最後更新：2026-07-02T18:30:00+08:00
+- 狀態：**Phase A 已由 `ConfusionPairDisambiguator` 落地**（在/再 log-odds 查表消歧，
+  `Source/Engine/ConfusionPairDisambiguator.{h,cpp}`，掛在 `KeyHandler.mm` 的
+  `_walk` 尾端，實驗偏好 `EnableConfusionPairDisambiguation` 預設關）。
+  本文其餘部分保留原風險評估內容。
 - 相關約束：見 `AGENTS.md`（不繞 `KeyHandler` / `InputState`、Swift 不直碰 C++、L1 只重排不生成）與 `AI_HANDOFF_PROMPT.md` 交班日誌「AI 隱形中文警察」。
 
 ## 1. 為什麼需要這條路
@@ -49,6 +52,12 @@
 
 - **對策**：新增一條 **不呼叫 `observe` 的覆寫路徑**（override-without-observe）。隱形修正走這條；只有使用者「明確確認」某次修正時才餵 UOM。
 - **決策點**：預設「隱形修正不進 UOM」。是否提供「我接受這次修正 → 才學習」留待 Phase C。
+- **已知殘留（間接汙染，2026-07-02 拍板接受不隔離）**：`ConfusionPairDisambiguator`
+  本身不呼叫 `observe`，但若它翻過的字出現在使用者「後續手動選字」的上下文裡，
+  `fixNodeWithReading` 的 `observe(prevWalk, latestWalk, ...)` 學到的語境會含 AI
+  翻過的字——UOM 間接記到被 AI 修飾過的上下文。發生機率低（需 AI 翻字 + 使用者
+  緊接著在附近手動選字）、影響小（UOM 有 halflife 衰減）。Johnny 已拍板：
+  第一版接受、不做隔離；若日後觀察到 UOM 行為漂移再回頭處理。
 
 ### R2 跨層邊界 —— 必須經 KeyHandler，不可 Swift 直碰 C++
 

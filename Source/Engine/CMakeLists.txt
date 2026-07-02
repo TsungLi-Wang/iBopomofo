@@ -12,6 +12,8 @@ add_library(McBopomofoLMLib
         AssociatedPhrasesV2.cpp
         ByteBlockBackedDictionary.h
         ByteBlockBackedDictionary.cpp
+        ConfusionPairDisambiguator.h
+        ConfusionPairDisambiguator.cpp
         McBopomofoLM.cpp
         McBopomofoLM.h
         MemoryMappedFile.h
@@ -86,6 +88,7 @@ if (ENABLE_TEST)
         add_executable(McBopomofoLMLibTest
                 AssociatedPhrasesV2Test.cpp
                 ByteBlockBackedDictionaryTest.cpp
+                ConfusionPairDisambiguatorTest.cpp
                 McBopomofoLMTest.cpp
                 MemoryMappedFileTest.cpp
                 ParselessLMTest.cpp

@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **「在/再」智慧消歧模組（引擎節點覆寫 Phase A，實驗，預設關）**：新增 `ConfusionPairDisambiguator`（C++，`Source/Engine/`），在每次 lattice walk 之後，對讀音含 ㄗㄞˋ 的節點用「左右鄰字 log-odds 查表」重新在**節點內既有 unigram** 裡挑字——覆蓋單字節點（在/再）與詞典孿生詞節點（我在/我再），採 soft override（`kOverrideValueWithScoreFromTopUnigram`），不改切詞、不生成新字、不進使用者覆寫模型（override-without-observe，見 `docs/engine-node-override.md`）；使用者手動選字與 UOM 建議永遠優先。掛點在 `KeyHandler.mm` 的 `_walk`，由實驗偏好「同音字智慧消歧（實驗）」控制（預設關），且需 bundle 內存在 `confusion-pairs.tsv` 查表檔才生效（本版未附表，等真實語料訓練並通過 real eval 才會內建）。查表框架對其他混淆對（的/得/地、做/作…）開放。
+- **建表與驗證工具**：`Source/Engine/eval/build_confusion_pair_table.py`（從語料統計左右鄰字 log-odds，含人工 review 清單與 coverage）、`masked_eval_confusion_pair.py`（遮蔽測試 + threshold sweep）；`rerank_eval` harness 新增第三條「disambiguated」線，直接量正式出貨路徑。合成語料 smoke 數字：遮蔽測試 baseline 50% → 查表 95%；引擎級整句 40/99 → 75/99、零退步。
+- C++ gtest 新增 `ConfusionPairDisambiguatorTest`（10 tests：翻轉、孿生詞節點、尊重使用者覆寫、上下文變更撤回、soft override 不影響路徑分數等）。
+
 ## [v1.8.1] - 2026-07-01
 
 ### 新增

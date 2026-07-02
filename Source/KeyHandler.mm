@@ -21,6 +21,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
+#import "ConfusionPairDisambiguator.h"
 #import "KeyHandler.h"
 #import "LanguageModelManager+Privates.h"
 #import "Mandarin.h"
@@ -62,6 +63,11 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     Formosa::Gramambular2::ReadingGrid *_grid;
     Formosa::Gramambular2::ReadingGrid::WalkResult _latestWalk;
+
+    // Homophone confusion-pair disambiguation (e.g. 在/再) on the walked
+    // path. Per-KeyHandler so its applied-override bookkeeping never crosses
+    // client sessions. Inert unless the table resource exists in the bundle.
+    McBopomofo::ConfusionPairDisambiguator *_confusionPairDisambiguator;
 
     NSString *_inputMode;
 }
@@ -116,6 +122,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 {
     delete _bpmfReadingBuffer;
     delete _grid;
+    delete _confusionPairDisambiguator;
 }
 
 - (instancetype)init
@@ -133,6 +140,12 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         std::shared_ptr<Formosa::Gramambular2::LanguageModel> lm(_emptySharedPtr, _languageModel);
         _grid = new Formosa::Gramambular2::ReadingGrid(lm);
         _grid->setReadingSeparator("-");
+
+        _confusionPairDisambiguator = new McBopomofo::ConfusionPairDisambiguator();
+        NSString *confusionTablePath = [[NSBundle bundleForClass:[self class]] pathForResource:@"confusion-pairs" ofType:@"tsv"];
+        if (confusionTablePath != nil) {
+            _confusionPairDisambiguator->load(confusionTablePath.UTF8String);
+        }
 
         _inputMode = InputModeBopomofo;
     }
@@ -294,6 +307,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _bpmfReadingBuffer->clear();
     _grid->clear();
     _latestWalk = Formosa::Gramambular2::ReadingGrid::WalkResult {};
+    _confusionPairDisambiguator->reset();
 }
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback
@@ -2485,6 +2499,19 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 - (void)_walk
 {
     _latestWalk = _grid->walk();
+
+    // Confusion-pair disambiguation (e.g. 在/再): re-picks among the unigrams
+    // that already exist in a single-reading node via a soft override, using
+    // the neighboring characters of the walked path. Segmentation and node
+    // scores are unaffected, so no re-walk is needed. It never touches nodes
+    // overridden by the user or the user override model, and it never feeds
+    // the user override model (override-without-observe; see
+    // docs/engine-node-override.md).
+    if (Preferences.enableConfusionPairDisambiguation
+        && _inputMode != InputModePlainBopomofo
+        && _confusionPairDisambiguator->isLoaded()) {
+        _confusionPairDisambiguator->rescoreWalk(_latestWalk);
+    }
 }
 
 - (InputStateChoosingCandidate *)_buildCandidateStateFromInputtingState:(InputStateInputting *)inputting useVerticalMode:(BOOL)useVerticalMode

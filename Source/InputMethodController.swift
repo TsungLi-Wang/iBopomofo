@@ -112,6 +112,11 @@ class McBopomofoInputMethodController: IMKInputController {
             action: #selector(toggleAIAutoCorrectionEnabled(_:)), keyEquivalent: "")
         aiAutoCorrectionItem.state = Preferences.enableAIAutoCorrection.state
 
+        let confusionPairItem = menu.addItem(
+            withTitle: NSLocalizedString("Homophone Disambiguation (Experimental)", comment: ""),
+            action: #selector(toggleConfusionPairDisambiguationEnabled(_:)), keyEquivalent: "")
+        confusionPairItem.state = Preferences.enableConfusionPairDisambiguation.state
+
         let voiceInputTitle =
             McBopomofoInputMethodController.isAnyVoiceRecording
             ? NSLocalizedString("Stop Voice Input", comment: "")
@@ -439,6 +444,10 @@ class McBopomofoInputMethodController: IMKInputController {
         if !enabled {
             aiAssistCoordinator.reset()
         }
+    }
+
+    @objc func toggleConfusionPairDisambiguationEnabled(_ sender: Any?) {
+        _ = Preferences.toggleConfusionPairDisambiguationEnabled()
     }
 
     /// Phase 3 push-to-talk:偵測「連按兩下乾淨的右 Shift」(keyCode 60)。乾淨 = 兩次

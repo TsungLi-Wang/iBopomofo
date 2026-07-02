@@ -58,6 +58,7 @@ private let kUseCustomUserPhraseLocation = "UseCustomUserPhraseLocation"
 private let kCustomUserPhraseLocation = "CustomUserPhraseLocation"
 private let kEnableAICandidateRerankKey = "EnableAICandidateRerank"
 private let kEnableAIAutoCorrectionKey = "EnableAIAutoCorrection"
+private let kEnableConfusionPairDisambiguationKey = "EnableConfusionPairDisambiguation"
 
 private let kDefaultCandidateListTextSize: CGFloat = 16
 private let kMinCandidateListTextSize: CGFloat = 12
@@ -239,6 +240,7 @@ class Preferences: NSObject {
             kCustomUserPhraseLocation,
             kEnableAICandidateRerankKey,
             kEnableAIAutoCorrectionKey,
+            kEnableConfusionPairDisambiguationKey,
         ]
     }
 
@@ -272,6 +274,8 @@ class Preferences: NSObject {
             Preferences.allowMovingCursorWhenChoosingCandidates
         Preferences.enableAICandidateRerank = Preferences.enableAICandidateRerank
         Preferences.enableAIAutoCorrection = Preferences.enableAIAutoCorrection
+        Preferences.enableConfusionPairDisambiguation =
+            Preferences.enableConfusionPairDisambiguation
     }
 
     @EnumUserDefault(key: kKeyboardLayoutPreferenceKey, defaultValue: KeyboardLayout.standard)
@@ -476,6 +480,16 @@ extension Preferences {
     @objc static func toggleAIAutoCorrectionEnabled() -> Bool {
         enableAIAutoCorrection = !enableAIAutoCorrection
         return enableAIAutoCorrection
+    }
+
+    // 引擎層同音混淆對消歧(在/再 log-odds 查表)。實驗功能,預設關閉;
+    // 需 bundle 內有 confusion-pairs.tsv 才會生效。
+    @UserDefault(key: kEnableConfusionPairDisambiguationKey, defaultValue: false)
+    @objc static var enableConfusionPairDisambiguation: Bool
+
+    @objc static func toggleConfusionPairDisambiguationEnabled() -> Bool {
+        enableConfusionPairDisambiguation = !enableConfusionPairDisambiguation
+        return enableConfusionPairDisambiguation
     }
 }
 
@@ -694,6 +708,9 @@ extension Preferences {
         )
         lines.append(
             "  - AI Auto-Correction: \(Preferences.enableAIAutoCorrection ? "Enabled" : "Disabled")"
+        )
+        lines.append(
+            "  - Homophone Disambiguation: \(Preferences.enableConfusionPairDisambiguation ? "Enabled" : "Disabled")"
         )
         return lines.joined(separator: "\n")
     }
