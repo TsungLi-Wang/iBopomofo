@@ -12,6 +12,10 @@
 - **建表與驗證工具**：`Source/Engine/eval/build_confusion_pair_table.py`（從語料統計左右鄰字 log-odds，含人工 review 清單與 coverage）、`masked_eval_confusion_pair.py`（遮蔽測試 + threshold sweep）；`rerank_eval` harness 新增第三條「disambiguated」線，直接量正式出貨路徑。合成語料 smoke 數字：遮蔽測試 baseline 50% → 查表 95%；引擎級整句 40/99 → 75/99、零退步。
 - C++ gtest 新增 `ConfusionPairDisambiguatorTest`（10 tests：翻轉、孿生詞節點、尊重使用者覆寫、上下文變更撤回、soft override 不影響路徑分數等）。
 
+### 變更
+
+- **建表腳本方法修正 + v2 語料訓練完成**：`build_confusion_pair_table.py` 的 L/R 證據改為類別條件似然比（合成語料的在/再配比不再滲入證據），prior 改可從引擎詞典推導（`--prior-from-data`，在/再為 -0.912，天然偏「在」）。以 v2 合成語料（600 句、12 類含陷阱類）+ 舊語料共 680 句訓出正式表（threshold 0.5、524 條、8.2KB）：留出集翻「再」精確率 90.3%、舊 eval 零誤翻；引擎級「在/再字位」56/120 → 70/120（修對 15、改壞 1）。表尚未進 bundle，待真實錯選句 eval 或使用者拍板。數字與重跑指令見 `Source/Engine/eval/README.md`。
+
 ## [v1.8.1] - 2026-07-01
 
 ### 新增

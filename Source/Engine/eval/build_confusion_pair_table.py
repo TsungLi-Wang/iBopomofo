@@ -3,10 +3,18 @@
 
 Method: for every occurrence of the pair characters in the corpus, count the
 left neighbor L and right neighbor R. The table stores, per neighbor token,
+the class-conditional likelihood ratio
 
-    left(L)  = log((C(L, alt) + alpha) / (C(L, default) + alpha))
-    right(R) = log((C(alt, R) + alpha) / (C(default, R) + alpha))
-    prior    = log((C(alt) + alpha) / (C(default) + alpha))
+    left(L)  = log((C(L, alt) + a) / (C(alt) + aV)) -
+               log((C(L, def) + a) / (C(def) + aV))
+    right(R) = analogous with the right neighbor
+
+which is deliberately independent of the corpus class balance: a synthetic
+corpus is built per category, so its 在:再 ratio is an artifact and must not
+leak into the evidence. The prior carries the real-world class ratio instead;
+by default it is derived from the engine dictionary's own unigram scores
+(--prior-from-data path/to/data.txt gives prior = score(alt) - score(def),
+naturally favoring the frequent default), or it can be set with --prior.
 
 At inference time, score(alt) = left(L) + right(R) + prior; if the score
 exceeds the threshold the alternative character wins, otherwise the default
@@ -79,6 +87,13 @@ def main() -> int:
                         help="character that needs contextual evidence")
     parser.add_argument("--alpha", type=float, default=0.5,
                         help="add-alpha smoothing constant")
+    parser.add_argument("--prior", type=float, default=None,
+                        help="prior log-odds written into the table; "
+                             "overrides --prior-from-data")
+    parser.add_argument("--prior-from-data", metavar="DATA_TXT",
+                        help="derive the prior from the engine dictionary: "
+                             "score(alt) - score(default) for the pair "
+                             "reading in data.txt")
     parser.add_argument("--threshold", type=float, default=0.0,
                         help="decision threshold written into the table")
     parser.add_argument("--min-count", type=int, default=2,
@@ -116,23 +131,53 @@ def main() -> int:
         return 1
 
     alpha = args.alpha
-    prior = math.log((totals[alt_char] + alpha) / (totals[default_char] + alpha))
 
-    def build_rows(counts):
+    if args.prior is not None:
+        prior = args.prior
+        prior_source = "--prior"
+    elif args.prior_from_data:
+        scores = {}
+        with open(args.prior_from_data, encoding="utf-8") as f:
+            for line in f:
+                parts = line.split()
+                if (len(parts) == 3 and parts[0] == args.reading
+                        and parts[1] in targets):
+                    scores[parts[1]] = float(parts[2])
+        if default_char not in scores or alt_char not in scores:
+            print(f"{args.prior_from_data} 裡找不到 {args.reading} 的 "
+                  f"{default_char}/{alt_char} unigram。", file=sys.stderr)
+            return 1
+        prior = scores[alt_char] - scores[default_char]
+        prior_source = f"engine data.txt ({scores})"
+    else:
+        # Corpus ratio as a last resort; for per-category synthetic corpora
+        # this ratio is an artifact of the category design, prefer
+        # --prior-from-data.
+        prior = math.log((totals[alt_char] + alpha) /
+                         (totals[default_char] + alpha))
+        prior_source = "corpus ratio (beware: synthetic corpora distort this)"
+
+    def build_rows(counts, vocab_size):
         rows = {}
         for token, by_char in counts.items():
             c_default = by_char[default_char]
             c_alt = by_char[alt_char]
             if c_default + c_alt < args.min_count:
                 continue
-            logodds = math.log((c_alt + alpha) / (c_default + alpha))
+            # Class-conditional likelihood ratio: independent of the corpus
+            # 在:再 balance, which for synthetic corpora is meaningless.
+            logodds = (
+                math.log((c_alt + alpha) /
+                         (totals[alt_char] + alpha * vocab_size))
+                - math.log((c_default + alpha) /
+                           (totals[default_char] + alpha * vocab_size)))
             if abs(logodds) < args.min_abs_logodds:
                 continue
             rows[token] = (logodds, c_default, c_alt)
         return rows
 
-    left_rows = build_rows(left_counts)
-    right_rows = build_rows(right_counts)
+    left_rows = build_rows(left_counts, len(left_counts))
+    right_rows = build_rows(right_counts, len(right_counts))
 
     now = datetime.now(timezone(timedelta(hours=8))).isoformat(timespec="seconds")
     with open(args.output, "w", encoding="utf-8") as out:
@@ -153,7 +198,8 @@ def main() -> int:
     print(f"句數 {sentences}、目標字出現 {occurrences} 次 "
           f"({default_char}={totals[default_char]}, {alt_char}={totals[alt_char]})")
     print(f"表已寫入 {args.output}：left {len(left_rows)} 條、"
-          f"right {len(right_rows)} 條（共 {kept}），prior={prior:.3f}")
+          f"right {len(right_rows)} 條（共 {kept}）")
+    print(f"prior={prior:.3f}（來源：{prior_source}）")
 
     def coverage(counts, rows):
         seen = sum(sum(by_char.values()) for by_char in counts.values())

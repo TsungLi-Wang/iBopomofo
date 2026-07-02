@@ -152,17 +152,57 @@ bash Source/Engine/eval/build-and-run.sh \
   Source/Engine/eval/generated/zai-logodds.tsv
 ```
 
-Observed on 2026-07-02 with a smoke table trained on `zaizai_train.txt`
-(200 sentences, threshold 0.5) — same-source bias applies, numbers are for
-pipeline validation only:
+### v2 corpus and the recommended training recipe (2026-07-02)
 
-- Masked eval on `zaizai_eval.tsv`: baseline (always 在) 50/100, table 95/100.
-- Engine harness on `zaizai_eval_cases.tsv`: baseline 40/99, disambiguated
-  75/99, zero regressions (no B-OK case turned D-MISS). Remaining misses are
-  mostly non-在/再 errors (e.g. 意/一) outside this module's scope.
+A second synthetic corpus was generated from
+`~/Documents/在:再消歧語料生成提示詞.md` (12 categories x 50 sentences,
+including trap categories): `~/Documents/zaizai/zaizai_v2_full.tsv`, split
+stratified into `zaizai_v2_train.txt` (480) and `zaizai_v2_heldout.tsv` (120,
+sentence-disjoint). Two hard-won lessons are baked into the script:
+
+- **Never take the prior from a synthetic corpus.** Its 在:再 ratio is an
+  artifact of the category design. Use `--prior-from-data Source/Data/data.txt`
+  (prior = engine unigram score difference, -0.912 for 在/再).
+- The L/R evidence is a class-conditional likelihood ratio, so the corpus
+  class balance cannot leak into it. Use `--min-count 1` for these small,
+  deliberately diverse corpora — `--min-count 2` prunes most of the signal.
+
+Recommended build (threshold 0.5 favors precision; every false flip is a new
+error, and on real text 在 dominates):
+
+```bash
+python3 Source/Engine/eval/build_confusion_pair_table.py \
+  --corpus "$HOME/Documents/zaizai/zaizai_v2_train.txt" \
+           "$HOME/Documents/zaizai/zaizai_train.txt" \
+  --output Source/Engine/eval/generated/zai-logodds-v2c.tsv \
+  --min-count 1 --prior-from-data Source/Data/data.txt --threshold 0.5
+```
+
+Observed on 2026-07-02 with that table (680 train sentences, 524 entries,
+8.2 KB; all corpora are AI-generated — same-source bias applies until real
+typo cases exist):
+
+- Masked eval, v2 heldout (120, trap-heavy): baseline always-在 41.7%;
+  at threshold 0.5 the table flips 28/70 再 correctly with 3 false flips
+  (90.3% flip precision).
+- Masked eval, old `zaizai_eval.tsv` (100, older generation session):
+  36/50 再 recall with **zero** false flips at threshold 0.5.
+- Engine harness (the shipping path), v2 heldout cases, 在/再 slot accuracy:
+  baseline 56/120 -> disambiguated 70/120; 15 fixed, 1 "broken" (the one
+  break is a cascade: the engine mispicks 客服 as 克服 first, after which
+  再處理 is linguistically the better continuation).
+- Engine harness, old `zaizai_eval_cases.tsv`: whole-sentence 40/99 -> 65/99.
 - Seed `cases.tsv`: 7/8 -> 7/8 (the miss is the 意/一 part of a sentence
   whose 在/再 part is now correct).
 
-The app loads `confusion-pairs.tsv` from the bundle if present (see
-`KeyHandler.mm`); the resource is not bundled until a table trained on real,
-non-synthetic corpus shows a before/after improvement on real eval cases.
+Note for engine cases: strip punctuation from sentences before running them
+through `convert_eval_tsv_to_cases.py` — readings drop punctuation, so the
+expected text must not contain it or nothing ever matches.
+
+A ready-to-bundle copy of the table lives at
+`~/Documents/zaizai/confusion-pairs-v2c.tsv`. The app loads
+`confusion-pairs.tsv` from the bundle if present (see `KeyHandler.mm`); it is
+not bundled yet — per the standing guardrail, ship only after real (not
+synthetic) eval cases show a before/after improvement, or after Johnny
+explicitly decides the synthetic evidence plus the default-off experimental
+gate is enough for a real-machine trial.

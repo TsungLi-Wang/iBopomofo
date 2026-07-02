@@ -476,7 +476,32 @@ Johnny 給了完整規格（log-odds 查表法消歧「在/再」），本棒把
 
 **下一棒優先**：
 
-1. **等 Johnny 給新語料批次**（生成提示詞在 `~/Documents/在:再消歧語料生成提示詞.md`，12 類 A1~C3；他說語料會放「老地方」=`~/Documents`，2026-07-02 尚未落地）→ 用 `build_confusion_pair_table.py` 重訓、masked eval 挑 threshold、train/eval 分開、跑三組 A/B（seed / zaizai / 新批次留出集）。
+1. ~~等 Johnny 給新語料批次~~ → **已完成**（見下一條日誌：本棒自己生成 v2 語料 600 句、重訓、三組 eval，正式表已產出）。
 2. 數字確認後把表存成 `confusion-pairs.tsv` 加進 bundle（pbxproj Resources，新 ID 從 FACE0103+），實機驗證選單開關 + 打「我(ㄗㄞˋ)說一次」會出「再」。
 3. 之後才考慮擴其他 pair（的/得/地 是三元，表格式要先擴）。
+
+### 2026-07-02T18:20:00+08:00 v2 語料生成 + 正式表訓練完成（消歧模組資料側收斂）
+
+Johnny 授權本棒直接用 `~/Documents/在:再消歧語料生成提示詞.md` 自行生成語料並測試。**master 未發版**（仍 1.8.1/2278）。
+
+**已完成**：
+
+- **v2 語料 600 句**（12 類 × 50，含 C1/C2/C3 陷阱類），程式驗證全過（每句恰一目標字、標籤相符）。檔案在 `~/Documents/zaizai/`：`zaizai_v2_full.tsv`（全量，3 欄含類別）、`zaizai_v2_train.txt`（480）、`zaizai_v2_heldout.tsv`（120，句子不重疊、分層抽樣 seed=42）。已知偏差：長句（21字+）為 0、句尾位置偏少。
+- **建表腳本兩個關鍵修正**（`build_confusion_pair_table.py`，這是本日誌最重要的教訓）：
+  1. **prior 絕不能取自合成語料**——類別配比（280:200 偏再）是設計產物，會把所有未知語境推去「再」。改用 `--prior-from-data Source/Data/data.txt`（= 引擎 unigram 分差，在/再為 **-0.912**，天然偏「在」）。
+  2. **L/R 證據改成類別條件似然比**，讓語料配比不滲入證據項。小而多樣的語料要用 `--min-count 1`（min-count 2 會把大半訊號剪掉）。
+- **正式表**：合併 v2 train（480）+ 舊 zaizai_train（200）共 680 句，`--threshold 0.5`（保守：誤翻是新增錯誤，真實文本「在」佔壓倒多數）。524 條 / 8.2KB。**可直接進 bundle 的副本在 `~/Documents/zaizai/confusion-pairs-v2c.tsv`**。
+- **數字**（全部 AI 生成語料，同源偏差仍在，但 train/heldout 句子不重疊）：
+  - 遮蔽測試 v2 留出集（陷阱多、最難）：翻「再」精確率 90.3%（28/70 召回、3 誤翻）。
+  - 遮蔽測試 舊 zaizai_eval（不同批次生成）：**零誤翻**、36/50 召回。
+  - 引擎級（正式出貨路徑）v2 留出集「在/再字位」準確率：56/120 → 70/120（**修對 15、改壞 1**；那 1 筆是引擎先把「客服」選錯成「克服」的連鎖，克服後接「再處理」語感反而合理，非本模組的鍋）。
+  - 引擎級 舊 zaizai_eval 整句：40/99 → 65/99；seed cases 7/8 → 7/8 無退步。
+- 重跑指令與完整數字都在 `Source/Engine/eval/README.md` 的「v2 corpus」節。
+- **引擎 cases 轉換陷阱**：句子帶標點時要先剝掉再過 `convert_eval_tsv_to_cases.py`（readings 會丟標點、expected 不丟 → 整句永不相等）。
+
+**下一棒優先（依序）**：
+
+1. **請 Johnny 拍板是否把表進 bundle**：guardrail 原話是「real eval 有提升才包」，目前證據全是合成語料（但 train/eval 已分離、精確率高、有實驗開關預設關保護）。若 Johnny 點頭：把 `~/Documents/zaizai/confusion-pairs-v2c.tsv` 複製成 repo 內資源命名 **`confusion-pairs.tsv`**、掛進 pbxproj 的 McBopomofo target **Resources** phase（新 ID 從 **FACE0103+**，0100~0102 已用），跑完整 `xcodebuild test`，重裝實機驗證：開選單「同音字智慧消歧（實驗）」→ 打「我(ㄗㄞˋ)說一次」應出「再」、打「我(ㄗㄞˋ)家等你」應保持「在」。
+2. **收 Johnny 真實錯選句**（20~50 筆）做 real eval——這才是 guardrail 真正要的證據，也用來校 threshold。
+3. 視真實表現決定發版（v1.9）與擴其他混淆對（的/得/地 是三元，表格式 PAIR 行要先擴）。
 
