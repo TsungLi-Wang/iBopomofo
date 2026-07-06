@@ -23,6 +23,9 @@
 
 #include "ConfusionPairDisambiguator.h"
 
+#include <cerrno>
+#include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <vector>
 
@@ -95,6 +98,23 @@ double Lookup(const std::unordered_map<std::string, double>& table,
   return it == table.end() ? 0.0 : it->second;
 }
 
+// std::stod throws on malformed input, and load() runs during KeyHandler
+// init, so a single corrupt line in the table must not take down the IME.
+// Requires the whole field to parse as a finite double.
+bool ParseDouble(const std::string& s, double* out) {
+  if (s.empty()) {
+    return false;
+  }
+  errno = 0;
+  char* end = nullptr;
+  double value = strtod(s.c_str(), &end);
+  if (end != s.c_str() + s.size() || errno == ERANGE || !std::isfinite(value)) {
+    return false;
+  }
+  *out = value;
+  return true;
+}
+
 }  // namespace
 
 // Must stay in sync with normalize_token() in build_confusion_pair_table.py.
@@ -158,14 +178,19 @@ bool ConfusionPairDisambiguator::load(std::istream& input) {
     if (current == nullptr) {
       continue;
     }
-    if (kind == "PRIOR" && fields.size() == 2) {
-      current->prior = std::stod(fields[1]);
-    } else if (kind == "THRESHOLD" && fields.size() == 2) {
-      current->threshold = std::stod(fields[1]);
-    } else if (kind == "L" && fields.size() == 3) {
-      current->left[fields[1]] = std::stod(fields[2]);
-    } else if (kind == "R" && fields.size() == 3) {
-      current->right[fields[1]] = std::stod(fields[2]);
+    double value = 0;
+    if (kind == "PRIOR" && fields.size() == 2 &&
+        ParseDouble(fields[1], &value)) {
+      current->prior = value;
+    } else if (kind == "THRESHOLD" && fields.size() == 2 &&
+               ParseDouble(fields[1], &value)) {
+      current->threshold = value;
+    } else if (kind == "L" && fields.size() == 3 &&
+               ParseDouble(fields[2], &value)) {
+      current->left[fields[1]] = value;
+    } else if (kind == "R" && fields.size() == 3 &&
+               ParseDouble(fields[2], &value)) {
+      current->right[fields[1]] = value;
     }
   }
   return isLoaded();

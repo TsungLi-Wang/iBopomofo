@@ -542,3 +542,15 @@ Johnny 用修正後的驗證句實測：「我(ㄗㄞˋ)問一次」→「我**�
 3. 擴其他混淆對（的/得/地 是三元，表格式 PAIR 行要先擴）。
 4. 舊掛件：`docs/l2-autocorrect-verification.md` 的 L2 實機驗證仍未跑。
 
+### 2026-07-06T14:00:00+08:00 消歧表載入防呆（讀新酷音 Rust 重寫回顧文的產出）
+
+Johnny 分享陳侃如〈回顧用 Rust 重寫新酷音的經驗〉（2024，kanru.info），要求分析對本專案的價值並修最實際的一項。
+
+**已修（master，未發版）**：`ConfusionPairDisambiguator::load` 原用 `std::stod`，malformed 數值欄會丟 exception；load 發生在 KeyHandler init → 表檔一行毀損＝輸入法啟動即崩。改為 `ParseDouble`（strtod + 整欄消耗 + ERANGE + isfinite 檢查），壞行略過不炸。補 2 個壞表 gtest（`ConfusionPairDisambiguatorLoadTest`）。C++ 96 ran/94 passed/2 skipped（skip 是上游既有）、xcodebuild `** TEST SUCCEEDED **`。不影響正常表行為，滾進下一版發佈即可，未單獨發版。
+
+**該文其餘可挖的（建議清單，未動工）**：
+- **genkeystroke 式無頭按鍵測試工具**：TSV「按鍵序列→預期組字區」直接驅動 KeyHandler，解「L2 驗證要真人打字」的老痛點；他的經驗是「現有測試只帶你到 80%」。中等工程量、高工作流回報。
+- **Fuzz 引擎狀態機**：AFL++/libFuzzer 餵隨機按鍵/表檔，找游標邊界、選字翻頁類 bug；他靠這個抓到一堆手寫測試漏的。技巧：難重現 bug 把不變量檢查塞進 fuzzer 讓它找重現。
+- **Yen's Algorithm（K Shortest Path）**：libchewing 0.8.0 有現成實作，哪天 rescorer 要從「節點內改選」升級成「N-best 路徑重排」，這是參考答案（我們引擎 walk 只回 top-1 是已知限制）。
+- **明確不做**：Rust 重寫引擎（他花三年、需完整測試網當前提；對使用者零新價值，違反「不動 L0」guardrail）。
+

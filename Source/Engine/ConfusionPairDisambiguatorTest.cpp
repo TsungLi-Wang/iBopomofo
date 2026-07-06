@@ -256,6 +256,36 @@ TEST_F(ConfusionPairDisambiguatorTest, NotLoadedDoesNothing) {
   EXPECT_FALSE(empty.rescoreWalk(result));
 }
 
+// load() runs during KeyHandler init; a corrupt table must never throw and
+// take down the IME. Malformed numeric fields are skipped, valid lines kept.
+TEST(ConfusionPairDisambiguatorLoadTest, SurvivesMalformedTable) {
+  ConfusionPairDisambiguator disambiguator;
+  std::istringstream table(
+      "PAIR\tㄗㄞˋ\t在\t再\n"
+      "PRIOR\tnot-a-number\n"
+      "THRESHOLD\t\n"
+      "THRESHOLD\t0.5\n"
+      "L\t我\t1.2e999999\n"
+      "L\t你\tnan\n"
+      "L\t^\t0.75\n"
+      "R\t說\t0.25trailing\n"
+      "R\t$\t-0.5\n"
+      "GARBAGE-KIND\tfoo\tbar\n");
+  EXPECT_TRUE(disambiguator.load(table));
+  EXPECT_TRUE(disambiguator.isLoaded());
+}
+
+TEST(ConfusionPairDisambiguatorLoadTest, MalformedNumbersAreDroppedNotFatal) {
+  ConfusionPairDisambiguator disambiguator;
+  std::istringstream table(
+      "PAIR\tㄗㄞˋ\t在\t再\n"
+      "PRIOR\tabc\n"
+      "L\t我\txyz\n");
+  // The pair line itself is valid, so the table still counts as loaded;
+  // the malformed numeric lines are simply dropped.
+  EXPECT_TRUE(disambiguator.load(table));
+}
+
 TEST(ConfusionPairDisambiguatorTokenTest, NormalizeContextToken) {
   EXPECT_EQ(ConfusionPairDisambiguator::NormalizeContextToken("好"), "好");
   EXPECT_EQ(ConfusionPairDisambiguator::NormalizeContextToken("，"), "，");
