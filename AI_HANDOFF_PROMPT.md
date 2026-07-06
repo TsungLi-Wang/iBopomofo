@@ -501,7 +501,25 @@ Johnny 授權本棒直接用 `~/Documents/在:再消歧語料生成提示詞.md`
 
 **下一棒優先（依序）**：
 
-1. **請 Johnny 拍板是否把表進 bundle**：guardrail 原話是「real eval 有提升才包」，目前證據全是合成語料（但 train/eval 已分離、精確率高、有實驗開關預設關保護）。若 Johnny 點頭：把 `~/Documents/zaizai/confusion-pairs-v2c.tsv` 複製成 repo 內資源命名 **`confusion-pairs.tsv`**、掛進 pbxproj 的 McBopomofo target **Resources** phase（新 ID 從 **FACE0103+**，0100~0102 已用），跑完整 `xcodebuild test`，重裝實機驗證：開選單「同音字智慧消歧（實驗）」→ 打「我(ㄗㄞˋ)說一次」應出「再」、打「我(ㄗㄞˋ)家等你」應保持「在」。
+1. ~~請 Johnny 拍板是否把表進 bundle~~ → **已完成**（見下一條日誌：Johnny 說「你看著辦」授權，表已進 bundle、已重裝實機，待他打字驗證）。
 2. **收 Johnny 真實錯選句**（20~50 筆）做 real eval——這才是 guardrail 真正要的證據，也用來校 threshold。
 3. 視真實表現決定發版（v1.9）與擴其他混淆對（的/得/地 是三元，表格式 PAIR 行要先擴）。
+
+### 2026-07-06T12:00:00+08:00 在/再查表進 bundle + 實機安裝（等 Johnny 打字驗證）
+
+Johnny 對上一條日誌的「下一步 1」說「你看著辦」，本棒判斷風險可控（實驗開關預設關、train/eval 分離、留出集精確率 90.3%、舊 eval 零誤翻）直接執行：
+
+- **表已進 repo**：`~/Documents/zaizai/confusion-pairs-v2c.tsv` → `Source/Data/confusion-pairs.tsv`（530 行；header 的本機絕對路徑已匿名化，別把 `/Users/johnny…` 路徑寫進會進 bundle 的檔案）。已確認 `ConfusionPairDisambiguator::load` 會跳過 `#` 註解行。
+- **pbxproj**：新 ID 用 `FACE0103`（BuildFile）/`FACE0104`（FileReference），掛進 Data group + McBopomofo target Resources phase。下一棒新檔從 **FACE0105+** 起。
+- **測試**：完整 `xcodebuild test` `** TEST SUCCEEDED **`，125 tests / 0 failures；build log 確認 tsv 有被複製進 test host bundle。
+- **TCC 陷阱（新，記下）**：本 session 的 shell 讀不了 `~/Documents`（連 `cp` 檔案內容都 EPERM，能 stat 不能 open）。解法=用 AppleScript 叫 **Finder** 代為複製（Finder 有完整磁碟權限）：`osascript -e 'tell application "Finder" to duplicate (POSIX file "…" as alias) to (POSIX file "…" as alias)'`。找檔用 `mdfind`。
+- **repo git 署名已改筆名**：發現 repo-local config 還是本名，已 `git config user.name "老王 LaoWang"` + noreply 信箱設進 repo-local，之後 commit 不會再滑回本名。
+- **實機**：Release build 後 killall + ditto 就地覆蓋 `~/Library/Input Methods/McBopomofo.app`（不 rm -rf）。版本仍 1.8.1/2278，About 的 git 短碼可辨識是否新碼在跑。
+
+**Johnny 驗證清單（親自打字，一分鐘）**：
+1. 輸入法選單開「**同音字智慧消歧（實驗）**」。
+2. 打「我(ㄗㄞˋ)說一次」→ 應出「我**再**說一次」。
+3. 打「我(ㄗㄞˋ)家等你」→ 應保持「我**在**家等你」。
+4. 手動選字選「在」後，消歧器應讓位不再翻（使用者覆寫優先）。
+若 2/3 不對，先確認 About 視窗 git 短碼是新 commit（「沒生效先驗證新碼在跑」原則），再回報現象。
 

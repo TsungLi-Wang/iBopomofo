@@ -14,6 +14,7 @@
 
 ### 變更
 
+- **「在/再」查表已內建（`Source/Data/confusion-pairs.tsv`）**：v2 正式表（680 句訓練、threshold 0.5、524 條）已加入 McBopomofo target Resources，安裝後開啟實驗偏好「同音字智慧消歧（實驗）」即可實機試用；預設仍關閉，不影響既有行為。真實錯選句 real eval 仍待收集，發版前以實機表現把關。
 - **建表腳本方法修正 + v2 語料訓練完成**：`build_confusion_pair_table.py` 的 L/R 證據改為類別條件似然比（合成語料的在/再配比不再滲入證據），prior 改可從引擎詞典推導（`--prior-from-data`，在/再為 -0.912，天然偏「在」）。以 v2 合成語料（600 句、12 類含陷阱類）+ 舊語料共 680 句訓出正式表（threshold 0.5、524 條、8.2KB）：留出集翻「再」精確率 90.3%、舊 eval 零誤翻；引擎級「在/再字位」56/120 → 70/120（修對 15、改壞 1）。表尚未進 bundle，待真實錯選句 eval 或使用者拍板。數字與重跑指令見 `Source/Engine/eval/README.md`。
 
 ## [v1.8.1] - 2026-07-01
