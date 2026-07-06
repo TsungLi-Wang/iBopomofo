@@ -4,7 +4,7 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
-## [Unreleased]
+## [v1.9.1] - 2026-07-06
 
 ### 修正
 
@@ -326,6 +326,7 @@ AI 架構重構與 README 產品化。
 - 導入 Qwen3-4B-Instruct-2507 Q5_K_M 作為本機預設模型。
 - 建立自架 DMG 打包流程。
 
+[v1.9.1]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.9.1
 [v1.9.0]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.9.0
 [v1.8.1]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.8.1
 [v1.8.0]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.8.0

@@ -548,6 +548,8 @@ Johnny 分享陳侃如〈回顧用 Rust 重寫新酷音的經驗〉（2024，kan
 
 **已修（master，未發版）**：`ConfusionPairDisambiguator::load` 原用 `std::stod`，malformed 數值欄會丟 exception；load 發生在 KeyHandler init → 表檔一行毀損＝輸入法啟動即崩。改為 `ParseDouble`（strtod + 整欄消耗 + ERANGE + isfinite 檢查），壞行略過不炸。補 2 個壞表 gtest（`ConfusionPairDisambiguatorLoadTest`）。C++ 96 ran/94 passed/2 skipped（skip 是上游既有）、xcodebuild `** TEST SUCCEEDED **`。不影響正常表行為，滾進下一版發佈即可，未單獨發版。
 
+**已發佈 v1.9.1（2026-07-06，build 2280）**：上述防呆修正即本版全部內容（Johnny 拍板當日直接上版）。版本 1.9.0→1.9.1、build 2279→2280（兩個 plist 都 bump）；流程照舊 test → package-dmg → commit → push → tag → gh release（Latest）→ 本機就地覆蓋。**目前 master = v1.9.1，無未發版變更**。
+
 **該文其餘可挖的（建議清單，未動工）**：
 - **genkeystroke 式無頭按鍵測試工具**：TSV「按鍵序列→預期組字區」直接驅動 KeyHandler，解「L2 驗證要真人打字」的老痛點；他的經驗是「現有測試只帶你到 80%」。中等工程量、高工作流回報。
 - **Fuzz 引擎狀態機**：AFL++/libFuzzer 餵隨機按鍵/表檔，找游標邊界、選字翻頁類 bug；他靠這個抓到一堆手寫測試漏的。技巧：難重現 bug 把不變量檢查塞進 fuzzer 讓它找重現。
