@@ -289,6 +289,47 @@ final class LlamaServerManager: NSObject {
         return nil
     }
 
+    /// L1 神經重排用:對整句取 logprob 總和。POST /completion(n_predict=0 + logprobs +
+    /// cache_prompt,同 PoC harness 的 score_full_sentence_logprob)。
+    /// server 未就緒、HTTP 失敗、completion_probabilities 缺失或含非有限值一律回 nil——
+    /// 呼叫端據此退回 n-gram;絕不能用 -1e9 之類假分數,argmax 會靜默退化成「選第一個」。
+    /// 不呼叫 ensureReady(會同步等暖機):L1 是打字當下的路徑,server 沒就緒就直接放棄。
+    func scoreLogprob(text: String) async -> Double? {
+        guard isReady, let base = baseURL, let url = URL(string: base + "/completion") else {
+            return nil
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 2
+        let payload: [String: Any] = [
+            "prompt": text,
+            "n_predict": 0,
+            "temperature": 0,
+            "logprobs": true,
+            "n_probs": 1,
+            "cache_prompt": true,
+        ]
+        guard let body = try? JSONSerialization.data(withJSONObject: payload) else { return nil }
+        request.httpBody = body
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+            (response as? HTTPURLResponse)?.statusCode == 200,
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let probabilities = object["completion_probabilities"] as? [[String: Any]],
+            !probabilities.isEmpty
+        else {
+            return nil
+        }
+
+        var total = 0.0
+        for entry in probabilities {
+            guard let logprob = entry["logprob"] as? Double, logprob.isFinite else { return nil }
+            total += logprob
+        }
+        return total
+    }
+
     // MARK: 工具
 
     /// 用 bind(port 0) 讓系統配一個空閒 TCP port,讀回後關掉。

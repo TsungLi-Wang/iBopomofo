@@ -798,3 +798,25 @@ Johnny 指示方向轉為「準備接進真實 L1」，要求：整合方案分�
 3. 未追蹤檔案待決：`Source/Engine/eval/zhuyin_neural_rerank_poc_cases.jsonl` 與 `example_llm_cases.jsonl` 在工作區但未 commit（前棒日誌說 50 筆「不要 commit 除非 Johnny 同意」，但 CHANGELOG Unreleased 已把它記為新增——兩者矛盾）。請 Johnny 拍板：進 repo 或留 Documents；拍板前 harness 重跑請用工作區現有副本。
 4. 舊掛件：收 Johnny 語音（whisper.cpp）實機驗收；`docs/l2-autocorrect-verification.md` 的 L2 實機驗證仍未跑。
 
+### 2026-07-07T18:40:00+08:00 L1 神經重排 Swift skeleton 落地（未發版，等實機驗證）
+
+Johnny 拍板加速：接受風險、跳過 harness 右文截斷/亂序 eval，直接實作 skeleton。本棒照 `docs/l1-neural-rerank-integration.md` 第 3 節做完整條。**master 未發版**（仍 v2.0.0 / build 2281；照 v1.9.0 前例，等實機驗證通過再隨版發）。
+
+**已落地（`xcodebuild test` 全綠 `** TEST SUCCEEDED **`，125 tests / 0 failures，含新增 9 個）**：
+
+- **新檔 `Source/AINeuralCandidateRescorer.swift`**（pbxproj `FACE0108/0109`）：實作 `CandidateRescorer`。核心 = 對候選窗每個候選用既有 `AICandidateNGramScorer.contextText(replacingWith:in:)` 代入組整句 → `LlamaServerManager.scoreLogprob` 打分 → 嚴格大於 argmax（同分引擎原順序勝出）。不用 beam search / logit_bias / tokenize（設計文件第 1 節的簡化）。符號閘門沿用、相同值去重省呼叫、循序打分（llama-server 單 slot + KV 前綴共享）、`withTimeout` 用 TaskGroup race 實作且逾時會 cancel（URLSession async 跟著取消，不留廢請求排隊卡 L2）。
+- **Fallback 鐵則（全部退 `NgramCandidateRescorer`）**：偏好關 / server 未就緒（不等暖機）/ 過閘門後相異候選 <2 / 任一候選打分失敗或非有限值（部分分數會偏排序，寧可全退）/ 超過總預算 300ms。
+- **`LlamaServerManager.scoreLogprob(text:) async -> Double?`**：POST `/completion`（`n_predict=0`、`logprobs`+`n_probs`、`cache_prompt`、timeout 2s），回 `completion_probabilities` logprob 總和；任何缺欄/非有限值回 **nil**（絕不回 -1e9 假分數——argmax 會靜默退化成選第一個，R2 教訓）。
+- **注入**：`AIAssistCoordinator.init` 預設 rescorer 換成 `NeuralCandidateRescorer()`（一行）。Coordinator/controller 邏輯零改動；debounce 150ms、serial、buffer 過期丟棄全沿用。偏好關閉時行為與改動前完全相同（第一步就 fallback）。
+- **偏好與選單**：`Preferences.enableGlobalNeuralRerank`（`EnableGlobalNeuralRerank`，預設 false）+ 選單「AI 神經候選重排（實驗）」/「Neural Candidate Rerank (Experimental)」三語同步。
+- **server 生命週期 = 選項 A（任一需要者持有）**：開啟偏好 → `startIfNeeded()`（模型未裝則 `ensureModelDownloaded()`，會觸發 2.9GB 首次下載通知）；關閉偏好 → 僅當修正後端≠本機才 `stop()`。`setAIBackend` 切走本機時神經重排開著就不停 server；`startLocalServerIfNeeded`（AppDelegate 啟動暖機）條件擴成 `aiBackend == 3 || enableGlobalNeuralRerank`。
+- **測試 `McBopomofoTests/AINeuralCandidateRescorerTests.swift`**（pbxproj `FACE0110/0111`，**下一棒新檔從 FACE0112+**）：9 個純邏輯測試——閘門（相異候選數、符號閘門）、argmax、同分引擎序勝出、nil/非有限分數 fallback、預算逾時 fallback、neural 不可用時走 n-gram 且不打 server（mock scorer 驗證）。
+
+**下一棒優先（依序）**：
+
+1. **Johnny 實機驗收**：開選單「AI 神經候選重排（實驗）」（會暖 server；模型沒裝會先跳 2.9GB 下載）＋「AI 候選建議」需同時開著（觸發閘門在它後面）。打會開候選窗的同音句觀察排序與延遲。⚠️ 給驗證句前**必先用 harness 對出貨模型跑過**（2026-07-06 勘誤鐵則）；且注意實機是「候選窗路徑」，與 harness 整句路徑不完全同構。
+2. **驗收過就發版**（建議 v2.1.0；兩個 plist 都 bump、package-dmg、tag、gh release、就地覆蓋重裝）。
+3. **補設計文件第 7 節欠的兩個 harness eval 變體**（右文截斷、allowed 亂序）——Johnny 接受風險先上 skeleton，但 R1（右文不足）還是最大準確率風險，實機若出現怪排序先想這個。
+4. 未追蹤檔案待決（同前條日誌）：兩個 eval jsonl 是否進 repo 等 Johnny 拍板。
+5. 舊掛件：語音實機驗收、L2 實機驗證清單。
+

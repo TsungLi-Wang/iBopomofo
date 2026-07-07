@@ -59,6 +59,7 @@ private let kCustomUserPhraseLocation = "CustomUserPhraseLocation"
 private let kEnableAICandidateRerankKey = "EnableAICandidateRerank"
 private let kEnableAIAutoCorrectionKey = "EnableAIAutoCorrection"
 private let kEnableConfusionPairDisambiguationKey = "EnableConfusionPairDisambiguation"
+private let kEnableGlobalNeuralRerankKey = "EnableGlobalNeuralRerank"
 
 private let kDefaultCandidateListTextSize: CGFloat = 16
 private let kMinCandidateListTextSize: CGFloat = 12
@@ -241,6 +242,7 @@ class Preferences: NSObject {
             kEnableAICandidateRerankKey,
             kEnableAIAutoCorrectionKey,
             kEnableConfusionPairDisambiguationKey,
+            kEnableGlobalNeuralRerankKey,
         ]
     }
 
@@ -490,6 +492,16 @@ extension Preferences {
     @objc static func toggleConfusionPairDisambiguationEnabled() -> Bool {
         enableConfusionPairDisambiguation = !enableConfusionPairDisambiguation
         return enableConfusionPairDisambiguation
+    }
+
+    // L1 神經候選重排(llama-server 整句 logprob 打分)。實驗功能,預設關閉;
+    // 依賴本機 llama-server,未就緒時自動退回 n-gram。見 docs/l1-neural-rerank-integration.md。
+    @UserDefault(key: kEnableGlobalNeuralRerankKey, defaultValue: false)
+    @objc static var enableGlobalNeuralRerank: Bool
+
+    @objc static func toggleGlobalNeuralRerankEnabled() -> Bool {
+        enableGlobalNeuralRerank = !enableGlobalNeuralRerank
+        return enableGlobalNeuralRerank
     }
 }
 

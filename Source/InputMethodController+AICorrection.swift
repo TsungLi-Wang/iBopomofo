@@ -64,7 +64,8 @@ extension McBopomofoInputMethodController {
     }
 
     static func startLocalServerIfNeeded() {
-        guard aiBackend == 3 else { return }
+        // 後端=本機 或 L1 神經重排開啟,任一需要就在啟動時暖 server。
+        guard aiBackend == 3 || Preferences.enableGlobalNeuralRerank else { return }
         DispatchQueue.global(qos: .utility).async {
             if LocalServerAICorrector.isModelInstalled {
                 LocalServerAICorrector.startIfNeeded()

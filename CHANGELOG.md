@@ -7,6 +7,8 @@
 ## [Unreleased] - L1 Neural Rerank PoC
 
 ### 新增
+
+- **L1 神經候選重排 skeleton（實驗，預設關）**：新增 `Source/AINeuralCandidateRescorer.swift`，把 PoC 的「focus 逐候選代入 → 整句 logprob → argmax」接進真實 L1。經 `CandidateRescorer` 協議注入 `AIAssistCoordinator`（debounce/serial/buffer 過期丟棄全沿用）；`LlamaServerManager` 新增 `scoreLogprob(text:)`（`/completion` + `n_predict=0` + `cache_prompt`）。強制 fallback：偏好關閉、server 未就緒、相異候選不足、任一打分失敗、超過總預算 300ms，一律退回既有 n-gram。新偏好 `EnableGlobalNeuralRerank` + 選單「AI 神經候選重排（實驗）」（三語）。llama-server 生命週期改為「任一需要者持有」：神經重排開啟時切走本機修正後端不再停 server。新增 9 個純邏輯測試（mock scorer，不起 server）。
 - L1 即時選字神經重排 PoC (Source/Engine/eval/llm_rerank_poc.py)：logit_bias + 位置級 constrained beam search。優化為只在 focus position 做 expensive global full-sentence preview scoring，非 focus 用 lightweight local constrained + final re-rank。50 筆真實案例上維持 100% 正確率，延遲極低 (mean ~38ms)。
 - 50 筆真實案例集 zhuyin_neural_rerank_poc_cases.jsonl（含 focus_positions）。
 - 分析：global re-rank 救回 12 個 local 會錯的 case（zaizai_001 等在/再及 dedede 的/得地）。共同特徵：focus 為歧義位置，local 挑本地高分但語意錯的字（e.g. "一賜" vs "一次", "得" vs "地"），global 用完整句 logprob 正確。

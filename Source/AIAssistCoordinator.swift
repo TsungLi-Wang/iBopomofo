@@ -61,7 +61,7 @@ final class AIAssistCoordinator {
     init(
         controller: McBopomofoInputMethodController?,
         delegate: AIAssistControllerDelegate? = nil,
-        rescorer: CandidateRescorer = NgramCandidateRescorer(),
+        rescorer: CandidateRescorer = NeuralCandidateRescorer(),
         sentenceCorrector: SentenceCorrector = LocalServerSentenceCorrector()
     ) {
         self.controller = controller

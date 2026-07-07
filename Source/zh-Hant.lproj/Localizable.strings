@@ -187,6 +187,7 @@
 "AI Candidate Suggestions" = "AI 候選建議";
 "AI Auto-Correction (Experimental)" = "AI 句末自動校正（實驗）";
 "Homophone Disambiguation (Experimental)" = "同音字智慧消歧（實驗）";
+"Neural Candidate Rerank (Experimental)" = "AI 神經候選重排（實驗）";
 
 /* Used in the notification when L1 AI needs the local server to finish starting. */
 /* Used in the notification when L2 auto-correction needs the local server to finish starting. */

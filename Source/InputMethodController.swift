@@ -116,6 +116,11 @@ class McBopomofoInputMethodController: IMKInputController {
             action: #selector(toggleConfusionPairDisambiguationEnabled(_:)), keyEquivalent: "")
         confusionPairItem.state = Preferences.enableConfusionPairDisambiguation.state
 
+        let neuralRerankItem = menu.addItem(
+            withTitle: NSLocalizedString("Neural Candidate Rerank (Experimental)", comment: ""),
+            action: #selector(toggleGlobalNeuralRerankEnabled(_:)), keyEquivalent: "")
+        neuralRerankItem.state = Preferences.enableGlobalNeuralRerank.state
+
         let voiceInputTitle =
             WhisperVoiceInputManager.shared.isRecording
             ? NSLocalizedString("Stop Voice Input", comment: "")
@@ -424,6 +429,21 @@ class McBopomofoInputMethodController: IMKInputController {
         _ = Preferences.toggleConfusionPairDisambiguationEnabled()
     }
 
+    // L1 神經重排與「本機 AI 修正後端」共用同一顆 llama-server;server 由「任一需要者」持有:
+    // 開啟時暖 server(模型不在就觸發首次下載),關閉時只有後端也不是本機才 stop 釋放記憶體。
+    @objc func toggleGlobalNeuralRerankEnabled(_ sender: Any?) {
+        let enabled = Preferences.toggleGlobalNeuralRerankEnabled()
+        if enabled {
+            if LlamaServerManager.shared.isModelInstalled {
+                LlamaServerManager.shared.startIfNeeded()
+            } else {
+                LlamaServerManager.shared.ensureModelDownloaded()
+            }
+        } else if McBopomofoInputMethodController.aiBackend != 3 {
+            LlamaServerManager.shared.stop()
+        }
+    }
+
     /// Phase 3 push-to-talk:偵測「連按兩下乾淨的右 Shift」(keyCode 60)。乾淨 = 兩次
     /// 單擊之間不夾其他按鍵、也不同時按其他修飾鍵。改用右 Shift 而非 Control,是為了
     /// 永久避開 macOS 內建聽寫常綁的「連按兩下 Control」,使用者不必改任何系統設定。
@@ -607,14 +627,15 @@ class McBopomofoInputMethodController: IMKInputController {
     private func setAIBackend(_ index: Int) {
         McBopomofoInputMethodController.aiBackend = index
         UserDefaults.standard.synchronize()
-        // 切到本機後端:模型在就暖 server;不在就觸發首次下載(會跳通知)。切走就收掉 server 釋放 ~2GB 記憶體。
+        // 切到本機後端:模型在就暖 server;不在就觸發首次下載(會跳通知)。切走就收掉 server
+        // 釋放 ~2GB 記憶體——但 L1 神經重排也持有這顆 server,它開著就不停。
         if index == 3 {
             if LlamaServerManager.shared.isModelInstalled {
                 LlamaServerManager.shared.startIfNeeded()
             } else {
                 LlamaServerManager.shared.ensureModelDownloaded()
             }
-        } else {
+        } else if !Preferences.enableGlobalNeuralRerank {
             LlamaServerManager.shared.stop()
         }
         let name = index == 2 ? "Claude Opus" : "本機 AI"
