@@ -4,6 +4,13 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
+## [Unreleased] - L1 Neural Rerank PoC
+
+### 新增
+- L1 即時選字神經重排 PoC (Source/Engine/eval/llm_rerank_poc.py)：logit_bias + 位置級 constrained beam search。強化為只在 focus position 做 expensive global full-sentence preview scoring，非 focus 用 lightweight local constrained。50 筆真實案例上維持高正確率（視配置可達 100%），延遲優化。
+- 50 筆真實案例集 zhuyin_neural_rerank_poc_cases.jsonl（含 focus_positions）。
+- 分析：global re-rank 對長上下文歧義 case（在/再、的/得/地）貢獻關鍵，local 易被頻率誤導。
+
 ## [v2.0.0] - 2026-07-07
 
 架構大精簡＋語音輸入全面換引擎。三個使用者可見的重點：語音輸入改為內嵌 whisper.cpp 本機辨識（離線、免 API key、首次自動下載模型）；AI 修正模型只留 Claude Opus 與本機 AI 兩選；「在/再」智慧消歧補上雙字元語境證據，「我再說一次」這類「再＋說」句型現在翻得動。

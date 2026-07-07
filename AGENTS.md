@@ -124,6 +124,7 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 | `Source/Data/AGENTS.md` | Comprehensive dictionary data documentation |
 | `algorithm.md` | Detailed algorithm explanation (Chinese) |
 | `McBopomofoTests/PreferencesTests.swift` | Example Swift Testing suite patterns |
+| `Source/Engine/eval/llm_rerank_poc.py` | PoC harness for logit_bias + constrained beam search L1 neural rerank (global full-sentence on focus) |
 
 ## Development Guidelines
 

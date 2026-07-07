@@ -283,3 +283,141 @@ not bundled yet — per the standing guardrail, ship only after real (not
 synthetic) eval cases show a before/after improvement, or after Johnny
 explicitly decides the synthetic evidence plus the default-off experimental
 gate is enough for a real-machine trial.
+
+## LLM Constrained Rerank PoC (Route A, logit_bias + beam)
+
+`llm_rerank_poc.py` is a standalone Python harness for experimenting with
+neural scoring of real-time selection using the existing llama-server.
+
+**Current implementation (correct direction)**: logit_bias to strictly constrain
+tokens to allowed homophones per position + position-level constrained beam
+search + KV cache_prompt + post full-sentence logprob re-rank for global semantics.
+
+It takes explicit per-position allowed character sets and reports accuracy vs
+baseline + latency.
+
+New real cases (50 筆): Source/Engine/eval/zhuyin_neural_rerank_poc_cases.jsonl
+(also at ~/Documents/zhuyin_neural_rerank_poc_cases.jsonl). Format supports
+"focus_positions". Harness load_cases updated for compatibility.
+
+See AI_HANDOFF_PROMPT.md for latest analysis and results.
+
+### Prerequisites
+
+1. The local model must be downloaded (the same 2.9 GB Q5_K_M used by the app).
+2. Start the server outside the input method (example):
+
+   ```bash
+   cd laowang-zhuyin
+   ../llama-runtime/bin/llama-server \
+     -m ~/Library/Application\ Support/McBopomofo/AIModel/model.gguf \
+     --host 127.0.0.1 --port 8080 -c 2048
+   ```
+
+   Wait until `/health` returns 200 (model fully loaded).
+
+3. (Optional but recommended) `pip install requests`
+
+### Running the harness
+
+```bash
+python3 Source/Engine/eval/llm_rerank_poc.py \
+  --cases Source/Engine/eval/example_llm_cases.jsonl \
+  --server-url http://127.0.0.1:8080 \
+  --mode both \
+  --beam-size 3 \
+  --verbose
+```
+
+Key flags:
+
+- `--mode constrained|beam|both` — try full-sentence constrained generation and/or position-by-position beam search.
+- `--beam-size` — controls exploration in beam mode (start with 2 or 3 for latency experiments).
+- Cases must be JSONL (see `example_llm_cases.jsonl` for the schema). Each case must provide the full `allowed` lattice.
+
+### What the harness currently implements (skeleton)
+
+- Baseline: always take `allowed[i][0]` (simulates "engine top-1" when you put the current engine choice first).
+- `constrained_full_generation`: one chat call that tells the model the allowed sets for every position and asks for the best legal sentence.
+- `beam_search_rerank`: left-to-right beam expansion. At each position it scores appending each allowed char using `approx_next_char_logprob` (chat + logprobs + rough token-to-char matching).
+- Metrics: sentence exact-match accuracy, focus-position accuracy, full latency distribution (mean/p50/p95/max), regression count.
+
+### Next things you will almost certainly want to improve
+
+- Better token-to-character mapping inside `approx_next_char_logprob` (inspect real top_logprobs for your Qwen build and build a reverse map).
+- Length-normalized scoring or more sophisticated full-text logprob extraction.
+- True constrained decoding (if you add grammar / json-schema support or a custom sampling loop).
+- Caching of preceding context KV (the current calls are independent).
+- Integration with the existing C++ grid so you can auto-derive `allowed` lists from real `data.txt` + readings (future helper script).
+
+Treat the first runs as calibration of prompt quality and latency baseline.
+
+## Expanding evaluation data (real-zai-eval.tsv and LLM cases)
+
+### 1. real-zai-eval.tsv (在/再 專用，給 ConfusionPairDisambiguator 與 engine harness)
+
+這個檔案目前只有 1 筆（已知 miss）。它使用 3 欄 TSV 格式，會經過 `convert_eval_tsv_to_cases.py` 轉成 readings + expected 給 `build-and-run.sh`。
+
+**擴充原則（務必遵守）**:
+- 句子 = 你實際打字時「引擎選錯、你手動改成正確」的完整句子。
+- **不要**包含標點、英數、空格（readings 會丟掉這些，導致比對失敗）。
+- 目標字必須是「在」或「再」。
+- 備註欄盡量記錄當時的情境（例如「跟『說一次』一起出現」、「句首」、「有前文『吃完飯』」）。
+- 同時收集「正確是『再』但引擎選『在』」和「正確是『在』、不要被誤翻成『再』」兩種（後者是 guardrail）。
+
+**建議增加的類型**（優先序）:
+- 「我再說一次」家族：我再問一次、我再來一次、請你再說一次、讓我再試一次。
+- 「再說/再講/再聊」類：吃完再說、改天再聊、不要再提了。
+- 「再 + 動詞」長距離依賴：做完再處理、想清楚再決定、等他回來再處理。
+- 進行式對照（不要翻）：我正在說話、外面在下雨、客服在處理。
+- 句中多個混淆點：我再去買東西的時候在等你（測試是否只翻正確的那一個）。
+- 邊界情況：句首「再」、句尾「再」、輕聲或複合詞附近。
+
+目標：先補到 15~20 筆真實案例，再開始用它們 sweep threshold 與驗證新 LLM 方法。
+
+跑法（更新後）:
+```bash
+python3 Source/Engine/eval/convert_eval_tsv_to_cases.py \
+  --input Source/Engine/eval/real-zai-eval.tsv \
+  --output Source/Engine/eval/generated/real-zai-cases.tsv \
+  --skipped Source/Engine/eval/generated/real-zai-skipped.tsv
+
+bash Source/Engine/eval/build-and-run.sh \
+  Source/Engine/eval/generated/real-zai-cases.tsv \
+  "" \
+  Source/Data/confusion-pairs.tsv
+```
+
+### 2. LLM PoC 專用資料（推薦新檔案）
+
+`real-zai-eval.tsv` 太窄（只看一個 pair）。Route A 的 constrained beam search 需要覆蓋更多現象。
+
+**建議建立新檔案**：`Source/Engine/eval/real_llm_cases.jsonl`（或直接擴充 example 後改名）。
+
+優點：可以直接塞完整的 `allowed` 列表（由你手動從候選視窗抄或之後寫小工具 dump），不需要依賴轉換器。
+
+**強烈建議收集的類別**（每類 5~10 句真實或高品質合成）:
+- 在/再（從 real-zai 轉過來也行）
+- 的/得/地（動詞後程度、修飾語後動作、名詞後所屬）
+- 平翹舌/捲舌系列：知道/資道、老師/老蘇、支持/支撐、什麼/甚麼
+- 其他高頻同音：作/做、會/回、裡/裏、台/臺（注意轉換）、他/她/它
+- 需要較長上下文的語意消歧（本地 n-gram 或單一 neighbor 看不出來的）
+- 同時出現兩個以上歧義點的句子（壓力測試）
+- 不要退步的乾淨句子（正確的常見用法，LLM 不能亂翻）
+
+**JSONL 欄位建議**:
+- `id`, `preceding`, `readings`, `allowed`, `expected`, `focus`（最關心的位置索引陣列）, `note`
+- 另外可加 `engine_current_top`（目前引擎 walk 出的 top 字串），用來計算真實 baseline 提升。
+
+**如何取得 allowed sets（目前手動，之後自動化）**:
+- 打該讀音序列，打開候選視窗，把每個位置（或目前游標位置）的候選字抄下來。
+- 或寫一個小 C++ 工具列出 reading_grid 中每個 node 的 unigrams（未來）。
+
+**guardrail 原則（同專案一貫要求）**:
+- 新增的 real 案例必須同時有「引擎錯、LLM 要修對」和「引擎對、LLM 不能改壞」。
+- 任何改動都要在 frozen held-out set 上無退步。
+- 只有 real（不是純 AI 生成）資料有明顯提升時，才考慮把 LLM 路徑接進正式 L1。
+
+先把 `example_llm_cases.jsonl` 複製一份當起點，逐步把真實錯選句填進去。PoC 跑出穩定數字後再決定是否值得動 bridge 讓 allowed 自動從引擎流出來。
+
+
