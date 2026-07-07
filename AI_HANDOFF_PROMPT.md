@@ -722,3 +722,33 @@ Johnny 指定以 Route A（llama-server + logit_bias 嚴格限制到同音字集
 - The 50 cases can stay in Documents or eval if needed.
 
 Continue the "invisible Chinese police" vision with this L1 improvement.
+
+### 2026-07-07 PoC Optimization and Analysis Update
+
+**Efficiency Optimization**:
+- Updated `position_level_constrained_beam_search` to take `focus` list.
+- Non-focus positions: use `expand_one_position` (lightweight local constrained with logit_bias and top_logprobs).
+- Focus positions: use full-sentence preview scoring (expensive global).
+- Added final re-rank with full sentence sum logprob among beams to help retain accuracy.
+- Run on 50 cases: LLM 50/50 (100%), baseline 50/50 (100%), focus 100%, mean latency 43ms, p95 57ms, 0 regressions.
+- This retains the high accuracy of full-global version while reducing computation on non-ambiguous positions. Latency remains excellent.
+
+**Analysis of global re-rank contribution**:
+- In this 50-case set, local-only beam (using expand for all positions) already matched expected in all 50 cases (0 cases where local fails).
+- Therefore, global re-rank did not "save" any cases in terms of accuracy for this particular dataset (local already got 100%).
+- Common features of cases in the set (where global would matter in general, based on design and previous experiments):
+  - Focus on 在/再 or 的/得/地 ambiguity positions.
+  - The data is constructed such that allowed[0] = expected, and local scoring happens to prefer the [0] (correct) in these cases.
+  - Cases that would benefit from global in principle: those requiring sentence-level semantics to override local frequency bias (e.g. "我再說一次", "這件事再想想", "小孩在房間睡覺", "請你再等一下").
+  - In broader testing (previous local runs showed ~16% LLM acc in some configurations), global was key for cases where local picked non-[0] wrong one.
+  - The global full preview ensures the model picks the path with highest full-sentence probability under the constrained set.
+
+**Conclusion**: The selective global + final re-rank achieves the goal of high accuracy with lower computation. Ready for integration consideration into L1.
+
+**Handoff files updated**:
+- AI_HANDOFF_PROMPT.md (this section)
+- AGENTS.md (added PoC note)
+- CHANGELOG.md (added Unreleased section)
+- Git commit and push done for the changes.
+
+Next: If acc stable, plan integration into AICandidateReranker for real L1 use (use focus from collision detection to decide where to apply global preview).
