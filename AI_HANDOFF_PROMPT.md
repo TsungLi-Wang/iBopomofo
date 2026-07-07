@@ -779,3 +779,22 @@ Next: If acc stable, plan integration into AICandidateReranker for real L1 use (
 
 This confirms the approach: local for speed on clear positions, global only where needed (focus from collision detection in real L1).
 
+### 2026-07-07T18:16:00+08:00 L1 神經重排整合設計完成（docs/l1-neural-rerank-integration.md，未動程式碼）
+
+Johnny 指示方向轉為「準備接進真實 L1」，要求：整合方案分析、最小 skeleton 設計、風險整理。本棒產出設計文件 `docs/l1-neural-rerank-integration.md`，**刻意不寫整合程式碼**（Johnny 明說先給架構、之後再決定動工）。**master 未發版**（仍 v2.0.0 / build 2281，本批 docs-only）。
+
+**設計核心結論（讀文件前先知道這三點）**：
+
+1. **真實 L1 不需要 harness 的 beam search / logit_bias / tokenize**。那一半只為「無引擎環境自己填非 focus 位置」而存在；app 裡 composingBuffer 就是引擎 walk 的整句（= baseline_rest），focus span = 候選窗正在選的 reading span，`contextText(replacingWith:in:)` 已會代入組句。整合只剩「focus 逐候選代入 → `/completion` 整句 logprob（n_predict:0 + cache_prompt）→ argmax」，同時排除 PoC 三大不穩來源（char→token map、logit_bias 對 top_logprobs 無效、beam 剪枝）。
+2. **Coordinator 與 controller 零改動**：`CandidateRescorer` 協議與 `AIAssistCoordinator.init` 注入點現成。新增 `Preferences.enableGlobalNeuralRerank`（預設關）＋新檔 `AINeuralCandidateRescorer.swift`（內含 n-gram fallback：偏好關 / server 未就緒 / 逾時 / logprobs 失敗一律退 n-gram）＋ `LlamaServerManager.scoreLogprob(text:)`。觸發閘門完全沿用現有 collision 偵測；debounce 150ms、serial、buffer 過期丟棄全沿用。
+3. **一個要 Johnny 拍板的點**：llama-server 現在只在 AI 修正後端=本機時運行（切 Opus 會 stop 省 ~2GB RAM，`InputMethodController.setAIBackend`）。neural L1 依賴同一顆 server → 選項 A（建議）＝開啟 neural 偏好也 startIfNeeded（RAM 常駐代價）；選項 B＝只在後端=本機時生效（功能耦合）。
+
+**風險清單**（詳見文件第 6 節）：R1 右文不足＝最大準確率風險（harness 全是完整句；實機候選窗常在句中/句首開，focus 後面沒 baseline rest → 退化成 seed-4 的 local left-context 敗因）；R2 logprobs 回報不穩（completion_probabilities 有時空、欄位名隨 server 版本漂，Swift 端失敗必須回 nil + fallback，不可用 -1e9 假裝是分數）；R3 延遲變異（38ms 是 warm-cache harness 數字，實機 p99 可能數百 ms，timeout 300ms + fallback 是硬需求）；R4 資料集偏差（50 筆 allowed[0]=expected，100% 只證不退步；「救 12 筆」是 local-only 模擬）；R5 與消歧表交互歸因；R6 重排撞使用者操作；R7 RAM。
+
+**下一棒優先（依序）**：
+
+1. **先補 harness 兩個 eval 變體再寫 Swift**（文件第 7 節）：右文截斷變體（量 R1，focus 後 0/1/2 字右文）、allowed 亂序/引擎真實順序變體（量 R4 regression 風險）。數字不掉才動 app。
+2. Johnny 拍板 server 生命週期選項 A/B 後，照文件第 3 節 skeleton 實作（新檔 pbxproj ID 從 **FACE0108+**，FACE0105~0107 已被 whisper 那批用掉）＋純邏輯測試。
+3. 未追蹤檔案待決：`Source/Engine/eval/zhuyin_neural_rerank_poc_cases.jsonl` 與 `example_llm_cases.jsonl` 在工作區但未 commit（前棒日誌說 50 筆「不要 commit 除非 Johnny 同意」，但 CHANGELOG Unreleased 已把它記為新增——兩者矛盾）。請 Johnny 拍板：進 repo 或留 Documents；拍板前 harness 重跑請用工作區現有副本。
+4. 舊掛件：收 Johnny 語音（whisper.cpp）實機驗收；`docs/l2-autocorrect-verification.md` 的 L2 實機驗證仍未跑。
+

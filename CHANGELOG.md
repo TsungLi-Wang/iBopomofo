@@ -11,6 +11,10 @@
 - 50 筆真實案例集 zhuyin_neural_rerank_poc_cases.jsonl（含 focus_positions）。
 - 分析：global re-rank 救回 12 個 local 會錯的 case（zaizai_001 等在/再及 dedede 的/得地）。共同特徵：focus 為歧義位置，local 挑本地高分但語意錯的字（e.g. "一賜" vs "一次", "得" vs "地"），global 用完整句 logprob 正確。
 
+### 文件
+
+- 新增 `docs/l1-neural-rerank-integration.md`：PoC 接進真實 L1（`AICandidateReranker`）的整合設計。關鍵簡化：真實 L1 不需要 beam search 與 logit_bias（引擎 walk 已提供整句 baseline），只保留 focus 逐候選代入＋整句 logprob 打分；經 `CandidateRescorer` 協議注入，Coordinator 零改動；含觸發分層（confusion table / L1 / L2）、延遲控制（timeout + n-gram fallback）、server 生命週期決策點與七項風險（右文不足、logprobs 不穩、資料集偏差等）。尚未動程式碼。
+
 ## [v2.0.0] - 2026-07-07
 
 架構大精簡＋語音輸入全面換引擎。三個使用者可見的重點：語音輸入改為內嵌 whisper.cpp 本機辨識（離線、免 API key、首次自動下載模型）；AI 修正模型只留 Claude Opus 與本機 AI 兩選；「在/再」智慧消歧補上雙字元語境證據，「我再說一次」這類「再＋說」句型現在翻得動。
