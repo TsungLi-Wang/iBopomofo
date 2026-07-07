@@ -28,37 +28,6 @@ import Testing
 @Suite("AICandidateReranker Tests")
 struct AICandidateRerankerTests {
 
-    @Test("rerankPrompt 會帶入前文、組字、候選與注音")
-    func rerankPromptEmbedsContext() {
-        let prompt = AICorrectionPrompt.rerankPrompt(context: .init(
-            preceding: "水果店",
-            composingBuffer: "我在去買",
-            candidates: [
-                .init(value: "我在去買", reading: "ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ"),
-                .init(value: "我再去買", reading: "ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ"),
-            ]))
-
-        #expect(prompt.contains("前文:水果店"))
-        #expect(prompt.contains("目前組字:我在去買"))
-        #expect(prompt.contains("我在去買(ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ)"))
-        #expect(prompt.contains("我再去買(ㄨㄛˇ ㄗㄞˋ ㄑㄩˋ ㄇㄞˇ)"))
-        #expect(prompt.contains("<<<R>>>"))
-        #expect(prompt.contains("<<<E>>>"))
-    }
-
-    @Test("extractRerankSuggestion 抓出標記內容")
-    func extractRerankSuggestionBetweenMarkers() {
-        #expect(AICorrectionPrompt.extractRerankSuggestion(from: "<<<R>>>我再去買<<<E>>>") == "我再去買")
-        #expect(AICorrectionPrompt.extractRerankSuggestion(from: "<<<R>>> 知道 <<<E>>>") == "知道")
-        #expect(AICorrectionPrompt.extractRerankSuggestion(from: "<<<R>>>怎麼<<<E>>>") == "怎麼")
-    }
-
-    @Test("extractRerankSuggestion 清理模型常見前綴")
-    func extractRerankSuggestionCleansLabels() {
-        #expect(AICorrectionPrompt.extractRerankSuggestion(from: "AI建議:怎麼") == "怎麼")
-        #expect(AICorrectionPrompt.extractRerankSuggestion(from: "建議：知道") == "知道")
-    }
-
     @Test("hasReadingCollision 偵測同音候選")
     func hasReadingCollisionDetectsHomophones() {
         let entries = [

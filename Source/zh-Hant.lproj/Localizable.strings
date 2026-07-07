@@ -189,9 +189,7 @@
 "Homophone Disambiguation (Experimental)" = "同音字智慧消歧（實驗）";
 
 /* Used in the notification when L1 AI needs the local server to finish starting. */
-"Local AI candidate suggestions are loading" = "本機 AI 候選建議載入中";
 /* Used in the notification when L2 auto-correction needs the local server to finish starting. */
-"Local AI auto-correction is loading" = "本機 AI 自動校正載入中";
 
 /* Phase 3 voice input. */
 "Voice Input" = "語音輸入";

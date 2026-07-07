@@ -50,17 +50,13 @@ final class AIAssistCoordinator {
     // 保留與舊程式碼相容的命名，方便逐步遷移。
     var aiCandidateSuggestion: AICandidateSuggestion?
     var aiCandidateRequestSerial: UInt = 0
-    var aiCandidateDidNotifyLocalServerLoading = false
     var aiCandidateRerankedValue: String?
     var aiCandidateRerankWorkItem: DispatchWorkItem?
-    var aiCandidateServerRetryWorkItem: DispatchWorkItem?
 
     // Phase 2 L2
     var aiAutoCorrectionSuggestion: AICandidateSuggestion?
     var aiAutoCorrectionRequestSerial: UInt = 0
-    var aiAutoCorrectionDidNotifyLocalServerLoading = false
     var aiAutoCorrectionWorkItem: DispatchWorkItem?
-    var aiAutoCorrectionServerRetryWorkItem: DispatchWorkItem?
 
     init(
         controller: McBopomofoInputMethodController?,
@@ -95,7 +91,6 @@ final class AIAssistCoordinator {
         }
 
         aiCandidateRerankWorkItem?.cancel()
-        aiCandidateServerRetryWorkItem?.cancel()
 
         aiCandidateRequestSerial += 1
         let serial = aiCandidateRequestSerial
@@ -138,7 +133,6 @@ final class AIAssistCoordinator {
         }
 
         aiAutoCorrectionWorkItem?.cancel()
-        aiAutoCorrectionServerRetryWorkItem?.cancel()
 
         aiAutoCorrectionRequestSerial += 1
         let serial = aiAutoCorrectionRequestSerial
@@ -208,23 +202,17 @@ final class AIAssistCoordinator {
         cancelAll()
         aiCandidateSuggestion = nil
         aiAutoCorrectionSuggestion = nil
-        aiCandidateDidNotifyLocalServerLoading = false
-        aiAutoCorrectionDidNotifyLocalServerLoading = false
         aiCandidateRerankedValue = nil
     }
 
     func cancelPendingRerank() {
         aiCandidateRerankWorkItem?.cancel()
         aiCandidateRerankWorkItem = nil
-        aiCandidateServerRetryWorkItem?.cancel()
-        aiCandidateServerRetryWorkItem = nil
     }
 
     func cancelPendingAutoCorrection() {
         aiAutoCorrectionWorkItem?.cancel()
         aiAutoCorrectionWorkItem = nil
-        aiAutoCorrectionServerRetryWorkItem?.cancel()
-        aiAutoCorrectionServerRetryWorkItem = nil
     }
 
     private func cancelAll() {
