@@ -152,6 +152,34 @@ bash Source/Engine/eval/build-and-run.sh \
   Source/Engine/eval/generated/zai-logodds.tsv
 ```
 
+### Real eval (Johnny's actual mis-selections)
+
+`real-zai-eval.tsv` (committed, next to this README) collects Johnny's real
+在/再 mis-selections, target 20-50 rows. Format is the same
+`expected_text<TAB>target_char<TAB>note` as the synthetic eval files; header
+comments in the file explain the rules (no punctuation, no ASCII). The first
+known miss 我再說一次 is pre-seeded.
+
+Convert and run against the shipping table:
+
+```bash
+python3 Source/Engine/eval/convert_eval_tsv_to_cases.py \
+  --input Source/Engine/eval/real-zai-eval.tsv \
+  --output Source/Engine/eval/generated/real-zai-cases.tsv \
+  --skipped Source/Engine/eval/generated/real-zai-skipped.tsv
+
+bash Source/Engine/eval/build-and-run.sh \
+  Source/Engine/eval/generated/real-zai-cases.tsv \
+  "" \
+  Source/Data/confusion-pairs.tsv
+```
+
+Baseline recorded 2026-07-07 with the shipped v2c table (1 seeded case):
+baseline 0/1, disambiguated 0/1 — the known miss, as expected. Once 20+ real
+rows exist, use this set (together with the frozen synthetic sets, which must
+not regress) to re-sweep the threshold and patch corpus gaps such as the
+diluted 再說 context evidence.
+
 ### v2 corpus and the recommended training recipe (2026-07-02)
 
 A second synthetic corpus was generated from

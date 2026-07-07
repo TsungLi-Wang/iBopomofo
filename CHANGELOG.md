@@ -4,6 +4,12 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
+## [Unreleased]
+
+### 文件
+
+- **在/再 real eval 收集管線就緒**：新增 `Source/Engine/eval/real-zai-eval.tsv`（真實錯選句收集檔，格式與填寫規則在檔頭註解，已預放首筆已知 miss「我再說一次」），`eval/README.md` 新增 Real eval 節記錄轉換與跑分指令；已用出貨的 `Source/Data/confusion-pairs.tsv` 驗證整條管線（首筆 baseline/disambiguated 皆 0/1，與已知行為一致）。
+
 ## [v1.9.1] - 2026-07-06
 
 ### 修正

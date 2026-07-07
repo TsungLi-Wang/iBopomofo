@@ -556,3 +556,23 @@ Johnny 分享陳侃如〈回顧用 Rust 重寫新酷音的經驗〉（2024，kan
 - **Yen's Algorithm（K Shortest Path）**：libchewing 0.8.0 有現成實作，哪天 rescorer 要從「節點內改選」升級成「N-best 路徑重排」，這是參考答案（我們引擎 walk 只回 top-1 是已知限制）。
 - **明確不做**：Rust 重寫引擎（他花三年、需完整測試網當前提；對使用者零新價值，違反「不動 L0」guardrail）。
 
+### 2026-07-07T10:12:00+08:00 real eval 收集管線就緒（等 Johnny 填句子）
+
+主線「收 20~50 筆真實錯選句」只有 Johnny 能供料；本棒先把收集與跑分的整條管線建好驗通，讓句子一到就能直接出數字。**master 未發版**（仍 v1.9.1 / build 2280，本批只有 eval 收集檔與文件，無 app 變更、不需發版）。
+
+**已完成**：
+
+- 新增 **`Source/Engine/eval/real-zai-eval.tsv`**（committed）：真實錯選句收集檔，格式 `正確句<TAB>目標字<TAB>備註`，填寫規則寫在檔頭註解（勿含標點與英數；標點會讓 readings/expected 永不相等，ASCII 行會被 converter 跳過）。已預放首筆已知 miss「我再說一次」。
+- `eval/README.md` 新增 **Real eval** 節：轉換（`convert_eval_tsv_to_cases.py` → `generated/real-zai-cases.tsv`）與跑分（`build-and-run.sh <cases> "" Source/Data/confusion-pairs.tsv`，即出貨路徑）指令。
+- **管線已用出貨表跑通**：首筆 baseline 0/1、rescored 0/1、disambiguated 0/1——與 2026-07-06 勘誤一致（v2c 表對「我再說一次」證據不足不翻），確認 harness、轉換、出貨表三者行為與實機一致。
+- CHANGELOG `[Unreleased]` 已記本批。
+
+**下一棒優先（依序，同上一條，只是 1 的工具面已就緒）**：
+
+1. **等 Johnny 填 `real-zai-eval.tsv`**（或用任何形式把錯選句給你，你代填）。收到 20+ 筆後：轉換 → 用出貨表跑 real eval 出 baseline 數字 → `masked_eval_confusion_pair.py` 做 threshold sweep → 視缺口補語料重訓（記得 `--prior-from-data`、`--min-count 1`，凍結的合成 eval 集不得退步）。
+2. 視 real eval 結果決定是否預設開啟消歧（目前實驗預設關）。
+3. 擴其他混淆對（的/得/地 是三元，表格式 PAIR 行要先擴）。
+4. 舊掛件：`docs/l2-autocorrect-verification.md` 的 L2 實機驗證仍未跑。
+
+**提醒下一棒**：給 Johnny 任何實機驗證句之前，必先用出貨那張表跑 harness 確認預期行為（2026-07-06 勘誤的教訓）。pbxproj 新檔 ID 從 FACE0105+ 起。
+
