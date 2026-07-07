@@ -27,12 +27,15 @@ import NotifierUI
 
 extension McBopomofoInputMethodController {
 
-    // 目前選的後端,存 UserDefaults。0=Codex 1=Claude Haiku 2=Claude Opus 3=本機 AI(內建)
+    // 目前選的後端,存 UserDefaults。2=Claude Opus 3=本機 AI(內建)。
+    // 歷史值 0(Codex)/1(Claude Haiku)已於架構精簡時移除,讀到一律視為本機 AI,
+    // 編號保留 2/3 不重排,避免既有使用者的設定值換意義。
     static var aiBackend: Int {
         // 未設定過時預設「本機 AI(3)」:離線、免 API key、免裝 Ollama。
         get {
             guard UserDefaults.standard.object(forKey: "AICorrectionBackend") != nil else { return 3 }
-            return UserDefaults.standard.integer(forKey: "AICorrectionBackend")
+            let value = UserDefaults.standard.integer(forKey: "AICorrectionBackend")
+            return value == 2 ? 2 : 3
         }
         set { UserDefaults.standard.set(newValue, forKey: "AICorrectionBackend") }
     }
@@ -73,16 +76,11 @@ extension McBopomofoInputMethodController {
         -> Result<String, AICorrectionError>
     {
         switch backend {
-        case 1:
-            return ClaudeAICorrector.correct(
-                guess: guess, preceding: preceding, model: AICorrectionConfig.claudeHaikuModel)
         case 2:
             return ClaudeAICorrector.correct(
                 guess: guess, preceding: preceding, model: AICorrectionConfig.claudeOpusModel)
-        case 3:
-            return LocalServerAICorrector.correct(guess: guess, preceding: preceding)
         default:
-            return CodexAICorrector.correct(guess: guess, preceding: preceding)
+            return LocalServerAICorrector.correct(guess: guess, preceding: preceding)
         }
     }
 

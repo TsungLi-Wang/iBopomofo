@@ -12,7 +12,7 @@
 - AI 整句修正：組字中按 **Command + Return** 觸發。
 - 語音輸入（實驗）：**連按兩下右 Shift** 開始、再連按兩下結束出字，用 Apple 內建語音辨識（繁中、優先離線）。用法與前置設定見下方「語音輸入（實驗）」一節。
 - 本機 AI 預設開啟：內建 `llama-server`，模型首次使用自動下載到使用者資料夾。
-- 雲端後端可切換：支援 Claude Haiku、Claude Opus 與 Codex CLI。
+- 雲端後端可切換：支援 Claude Opus。
 - 前文輔助判斷：修正時會讀取游標前方文字作為語意參考。
 - 發佈包輕量：DMG 不內含 2.9GB 模型，目前約 19MB。
 
@@ -62,23 +62,19 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/laowang-zhuyin/master/
 | 後端 | 預設 | 說明 |
 |---|---:|---|
 | 本機 AI(內建・離線) | 是 | 使用內嵌 `llama-server` 與 Qwen3-4B-Instruct-2507 Q5_K_M。免 API key，首次下載模型後可離線。 |
-| Claude Haiku | 否 | 需要 Anthropic API key。速度快，語意判斷通常比本機小模型穩。 |
 | Claude Opus | 否 | 需要 Anthropic API key。準確度優先。 |
-| Codex CLI | 否 | 透過本機 `codex` 執行檔呼叫，延遲較高，主要保留作為備援與實驗路徑。 |
 
 從輸入法選單的「AI 修正模型」可以切換後端。
 
 ## 設定
 
-本機 AI 不需要設定。Claude 與 Codex 相關設定在輸入法選單的「AI 修正設定...」中調整。
+本機 AI 不需要設定。Claude 相關設定在輸入法選單的「AI 修正設定...」中調整。
 
 | 項目 | 預設值 | 說明 |
 |---|---|---|
 | Claude API key | 無 | 存入 macOS Keychain，不寫入 repo 或設定檔明文 |
 | Claude 端點 | `https://api.anthropic.com/v1/messages` | 可改成代理或相容端點 |
-| Claude Haiku 模型 | `claude-haiku-4-5` | 速度優先 |
 | Claude Opus 模型 | `claude-opus-4-8` | 準確度優先 |
-| Codex 執行檔路徑 | `/opt/homebrew/bin/codex` | Homebrew Apple Silicon 預設路徑 |
 
 ## 語音輸入（實驗）
 
@@ -191,7 +187,7 @@ dist/LaoWangZhuyin.dmg
 - README、issue template、安裝器文字產品化。
 - GitHub Release + DMG 作為正式發佈入口。
 - 停止讓更新檢查導向 OpenVanilla 發佈通道。
-- 拆分 AI 校正程式碼:prompt、Claude、Codex、本機 server 與 controller 流程已分檔。
+- 拆分 AI 校正程式碼:prompt、Claude、本機 server 與 controller 流程已分檔。
 - AI 後端改用結構化錯誤（`AICorrectionError`），失敗時顯示具體原因與處置建議。
 - `McBopomofoInstaller` target 確認保留作為開發與正式 DMG 安裝流程（自動 kill/restart 輸入法）；正式發佈走 `package-dmg.sh` 打包「安裝老王注音.app」。
 - app 顯示版本由上游遺留的 3.0 對齊為 1.x 產品版本。

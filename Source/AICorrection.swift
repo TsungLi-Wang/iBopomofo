@@ -36,20 +36,12 @@ import Security
 enum AICorrectionConfig {
 
     // MARK: UserDefaults keys
-    private static let kCodexPath = "AICorrectionCodexPath"
-    private static let kCodexModel = "AICorrectionCodexModel"
     private static let kClaudeEndpoint = "AICorrectionClaudeEndpoint"
-    private static let kClaudeHaikuModel = "AICorrectionClaudeHaikuModel"
     private static let kClaudeOpusModel = "AICorrectionClaudeOpusModel"
     private static let kOpenAITranscribeModel = "AIVoiceOpenAITranscribeModel"
 
     // MARK: 預設值(= 原本寫死的值)
-    static let defaultCodexPath = "/opt/homebrew/bin/codex"
-    // 實測:預設 gpt-5.5 約 5.7s;改 mini + 低推理約 4s。codex CLI 本身約 3s 固定開銷拿不掉,
-    // mini 是 codex 路徑能擠出的最快設定(minimal 推理會與強掛的 web_search 工具衝突,不可用)。
-    static let defaultCodexModel = "gpt-5.4-mini"
     static let defaultClaudeEndpoint = "https://api.anthropic.com/v1/messages"
-    static let defaultClaudeHaikuModel = "claude-haiku-4-5"
     static let defaultClaudeOpusModel = "claude-opus-4-8"
     // OpenAI 語音辨識模型。預設 whisper-1(任何 OpenAI key 都能用);想換 gpt-4o-transcribe
     // 等更新的模型,從「AI 修正設定…」填即可,不必改程式。
@@ -62,12 +54,7 @@ enum AICorrectionConfig {
         return v.isEmpty ? def : v
     }
 
-    static var codexPath: String { value(kCodexPath, default: defaultCodexPath) }
-    static var codexModel: String { value(kCodexModel, default: defaultCodexModel) }
     static var claudeEndpoint: String { value(kClaudeEndpoint, default: defaultClaudeEndpoint) }
-    static var claudeHaikuModel: String {
-        value(kClaudeHaikuModel, default: defaultClaudeHaikuModel)
-    }
     static var claudeOpusModel: String { value(kClaudeOpusModel, default: defaultClaudeOpusModel) }
     static var openAITranscribeModel: String {
         value(kOpenAITranscribeModel, default: defaultOpenAITranscribeModel)
@@ -75,17 +62,14 @@ enum AICorrectionConfig {
 
     /// 設定視窗存檔時呼叫:空字串代表「用預設」,所以把 key 移除而不是寫空字串進去。
     static func save(
-        codexPath: String, claudeEndpoint: String, claudeHaikuModel: String,
-        claudeOpusModel: String, openAITranscribeModel: String
+        claudeEndpoint: String, claudeOpusModel: String, openAITranscribeModel: String
     ) {
         let d = UserDefaults.standard
         func set(_ key: String, _ raw: String) {
             let v = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             if v.isEmpty { d.removeObject(forKey: key) } else { d.set(v, forKey: key) }
         }
-        set(kCodexPath, codexPath)
         set(kClaudeEndpoint, claudeEndpoint)
-        set(kClaudeHaikuModel, claudeHaikuModel)
         set(kClaudeOpusModel, claudeOpusModel)
         set(kOpenAITranscribeModel, openAITranscribeModel)
         d.synchronize()
@@ -166,9 +150,7 @@ final class AISettingsWindowController: NSWindowController {
 
     private let apiKeyField = NSSecureTextField()
     private let claudeEndpointField = NSTextField()
-    private let claudeHaikuField = NSTextField()
     private let claudeOpusField = NSTextField()
-    private let codexPathField = NSTextField()
     private let openAIKeyField = NSSecureTextField()
     private let openAIModelField = NSTextField()
 
@@ -202,9 +184,7 @@ final class AISettingsWindowController: NSWindowController {
         let grid = NSGridView(views: [
             row("Claude API key:", apiKeyField, placeholder: "sk-ant-…(存進 Keychain,留空=不用 Claude)"),
             row("Claude 端點:", claudeEndpointField, placeholder: AICorrectionConfig.defaultClaudeEndpoint),
-            row("Claude Haiku 模型:", claudeHaikuField, placeholder: AICorrectionConfig.defaultClaudeHaikuModel),
             row("Claude Opus 模型:", claudeOpusField, placeholder: AICorrectionConfig.defaultClaudeOpusModel),
-            row("Codex 執行檔路徑:", codexPathField, placeholder: AICorrectionConfig.defaultCodexPath),
             row("OpenAI 語音 API key:", openAIKeyField, placeholder: "sk-…(語音來源選 OpenAI Whisper 時用,存 Keychain)"),
             row("OpenAI 語音模型:", openAIModelField, placeholder: AICorrectionConfig.defaultOpenAITranscribeModel),
         ])
@@ -250,9 +230,7 @@ final class AISettingsWindowController: NSWindowController {
     @objc func showSettings() {
         apiKeyField.stringValue = AICorrectionConfig.claudeAPIKey ?? ""
         claudeEndpointField.stringValue = AICorrectionConfig.claudeEndpoint
-        claudeHaikuField.stringValue = AICorrectionConfig.claudeHaikuModel
         claudeOpusField.stringValue = AICorrectionConfig.claudeOpusModel
-        codexPathField.stringValue = AICorrectionConfig.codexPath
         openAIKeyField.stringValue = AICorrectionConfig.openAIAPIKey ?? ""
         openAIModelField.stringValue = AICorrectionConfig.openAITranscribeModel
         window?.center()
@@ -265,9 +243,7 @@ final class AISettingsWindowController: NSWindowController {
         AICorrectionConfig.setClaudeAPIKey(apiKeyField.stringValue)
         AICorrectionConfig.setOpenAIAPIKey(openAIKeyField.stringValue)
         AICorrectionConfig.save(
-            codexPath: codexPathField.stringValue,
             claudeEndpoint: claudeEndpointField.stringValue,
-            claudeHaikuModel: claudeHaikuField.stringValue,
             claudeOpusModel: claudeOpusField.stringValue,
             openAITranscribeModel: openAIModelField.stringValue)
         window?.performClose(nil)

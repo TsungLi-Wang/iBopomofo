@@ -26,7 +26,6 @@ import Foundation
 /// AI 修正後端的顯示名稱,集中管理避免散落各檔。
 enum AICorrectionBackendName {
     static let claude = "Claude"
-    static let codex = "Codex"
     static let local = "本機 AI"
     static let openAIVoice = "OpenAI 語音"
 }
@@ -53,10 +52,8 @@ enum AICorrectionError: Error {
     case httpError(backend: String, status: Int)
     /// 回應格式無法解析。
     case malformedResponse(backend: String)
-    /// 後端尚未就緒或不可用(本機 server 未啟動、codex 未登入等)。
+    /// 後端尚未就緒或不可用(本機 server 未啟動等)。
     case unavailable(backend: String, detail: String)
-    /// 無法啟動外部程序(codex 執行檔不存在等)。
-    case launchFailed(backend: String, detail: String)
     /// 後端有回應但取不到可用的修正結果。
     case emptyResult(backend: String)
 
@@ -81,8 +78,6 @@ enum AICorrectionError: Error {
             return "\(backend):回應格式無法解析,請稍後再試"
         case let .unavailable(backend, detail):
             return "\(backend):\(detail)"
-        case let .launchFailed(backend, detail):
-            return "\(backend):無法啟動(\(detail)),請確認「AI 修正設定…」的執行檔路徑"
         case let .emptyResult(backend):
             return "\(backend):未取得修正結果,請稍後再試"
         }

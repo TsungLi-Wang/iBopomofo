@@ -146,34 +146,28 @@ class McBopomofoInputMethodController: IMKInputController {
 
         // AI 整句修正模型切換器(⌘↵ 觸發時使用;可隨時切換)
         menu.addItem(NSMenuItem.separator())
-        let aiNames = [
-            "Codex(較慢)", "Claude Haiku(快)", "Claude Opus(最準)",
-            "本機 AI(內建・離線)",
+        // 後端編號沿用 UserDefaults 既有值:2=Claude Opus、3=本機 AI(0/1 已移除,不重排)。
+        let aiBackends: [(tag: Int, name: String, selector: Selector)] = [
+            (2, "Claude Opus(雲端・最準)", #selector(selectAIBackendOpus(_:))),
+            (3, "本機 AI(內建・離線)", #selector(selectAIBackendLocal(_:))),
         ]
         let currentBackend = McBopomofoInputMethodController.aiBackend
         let currentName =
-            (currentBackend >= 0 && currentBackend < aiNames.count)
-            ? aiNames[currentBackend] : "?"
+            aiBackends.first(where: { $0.tag == currentBackend })?.name ?? "?"
         // 標題直接顯示目前選的模型,不靠勾勾(輸入法選單的勾勾渲染不一定可靠)。
         let aiHeader = menu.addItem(
             withTitle: "AI 修正模型:目前【\(currentName)】", action: nil, keyEquivalent: "")
         aiHeader.isEnabled = false
         // 每個後端用各自的 selector,不靠 sender.tag。輸入法選單跨 process 代管,
         // 回傳的 sender 不是我們建立的 NSMenuItem,讀 tag 會失敗(這也是勾勾/圖示不可靠的同一個原因)。
-        let aiSelectors: [Selector] = [
-            #selector(selectAIBackendCodex(_:)),
-            #selector(selectAIBackendHaiku(_:)),
-            #selector(selectAIBackendOpus(_:)),
-            #selector(selectAIBackendLocal(_:)),
-        ]
-        for (tag, name) in aiNames.enumerated() {
+        for backend in aiBackends {
             // 用標準勾勾(.state)標示目前選用的後端。選單項是我們自己在開選單時建的
             // NSMenuItem,直接設 .state 渲染正常(先前不可靠的是「讀回 sender 的狀態」,非設定本身)。
             let item = menu.addItem(
-                withTitle: name, action: aiSelectors[tag],
+                withTitle: backend.name, action: backend.selector,
                 keyEquivalent: "")
-            item.state = (currentBackend == tag) ? .on : .off
-            item.tag = tag
+            item.state = (currentBackend == backend.tag) ? .on : .off
+            item.tag = backend.tag
         }
         // 開啟 AI 修正設定視窗(填 API key / 端點 / 模型;任何 clone 下來的人自行設定)。
         menu.addItem(
@@ -702,8 +696,6 @@ class McBopomofoInputMethodController: IMKInputController {
 
     // AI 修正模型切換:定義在主 class 本體(與其他能用的選單 action 同層),
     // 不放 extension —— IMK 選單 action 派送對 extension 裡的 @objc 不一定找得到。
-    @objc func selectAIBackendCodex(_ sender: Any?) { setAIBackend(0) }
-    @objc func selectAIBackendHaiku(_ sender: Any?) { setAIBackend(1) }
     @objc func selectAIBackendOpus(_ sender: Any?) { setAIBackend(2) }
     @objc func selectAIBackendLocal(_ sender: Any?) { setAIBackend(3) }
 
@@ -749,8 +741,7 @@ class McBopomofoInputMethodController: IMKInputController {
         } else {
             LlamaServerManager.shared.stop()
         }
-        let names = ["Codex", "Claude Haiku", "Claude Opus", "本機 AI"]
-        let name = (index >= 0 && index < names.count) ? names[index] : "?"
+        let name = index == 2 ? "Claude Opus" : "本機 AI"
         NotifierController.notify(message: "已切換 AI 修正模型:" + name)
     }
 
