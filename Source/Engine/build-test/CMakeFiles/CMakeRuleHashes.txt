@@ -1,0 +1,4 @@
+# Hashes of file build rules.
+c237e38209e08b8369ab2afa92b5c20f CMakeFiles/runMcBopomofoLMLibTest
+a64eb54933fc38f370f148cc2a3b28b6 Mandarin/CMakeFiles/runMandarinTest
+e2a6d1ddc33355b5f62d632a41e3964b gramambular2/CMakeFiles/runGramambular2Test

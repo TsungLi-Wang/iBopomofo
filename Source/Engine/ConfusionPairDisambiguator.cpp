@@ -80,18 +80,6 @@ std::vector<std::string> SplitTabs(const std::string& s) {
   return out;
 }
 
-std::string FirstCodePoint(const std::string& s) {
-  return s.empty() ? "" : GetCodePoint(s, 0);
-}
-
-std::string LastCodePoint(const std::string& s) {
-  if (s.empty()) {
-    return "";
-  }
-  std::vector<std::string> chars = Split(s);
-  return chars.empty() ? "" : chars.back();
-}
-
 double Lookup(const std::unordered_map<std::string, double>& table,
               const std::string& token) {
   auto it = table.find(token);
@@ -191,6 +179,12 @@ bool ConfusionPairDisambiguator::load(std::istream& input) {
     } else if (kind == "R" && fields.size() == 3 &&
                ParseDouble(fields[2], &value)) {
       current->right[fields[1]] = value;
+    } else if (kind == "LB" && fields.size() == 3 &&
+               ParseDouble(fields[2], &value)) {
+      current->leftBigram[fields[1]] = value;
+    } else if (kind == "RB" && fields.size() == 3 &&
+               ParseDouble(fields[2], &value)) {
+      current->rightBigram[fields[1]] = value;
     }
   }
   return isLoaded();
@@ -252,6 +246,18 @@ bool ConfusionPairDisambiguator::rescoreWalk(
 
   bool changed = false;
   const std::vector<ReadingGrid::NodePtr>& nodes = walkResult.nodes;
+
+  // Flat character sequence of the whole walked path, so context (including
+  // bigrams) can cross node boundaries. flat[nodeOffset[i] + k] is character
+  // k of node i; kept in sync when a flip changes a node's value.
+  std::vector<std::string> flat;
+  std::vector<size_t> nodeOffset(nodes.size(), 0);
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    nodeOffset[i] = flat.size();
+    std::vector<std::string> nodeChars = Split(nodes[i]->value());
+    flat.insert(flat.end(), nodeChars.begin(), nodeChars.end());
+  }
+
   for (size_t i = 0; i < nodes.size(); ++i) {
     const ReadingGrid::NodePtr& node = nodes[i];
 
@@ -286,26 +292,39 @@ bool ConfusionPairDisambiguator::rescoreWalk(
         continue;
       }
 
-      std::string leftToken;
-      if (k > 0) {
-        leftToken = NormalizeContextToken(chars[k - 1]);
-      } else if (i > 0) {
-        leftToken = NormalizeContextToken(LastCodePoint(nodes[i - 1]->value()));
-      } else {
-        leftToken = kBeginToken;
+      // Context from the flat path sequence. Bigrams may include one
+      // boundary token and exist only when there is at least one real
+      // neighbor character on that side; must stay in sync with
+      // context_tokens() in build_confusion_pair_table.py.
+      const size_t p = nodeOffset[i] + k;
+      std::string leftToken =
+          p > 0 ? NormalizeContextToken(flat[p - 1]) : kBeginToken;
+      std::string rightToken = p + 1 < flat.size()
+                                   ? NormalizeContextToken(flat[p + 1])
+                                   : kEndToken;
+
+      // Bigram evidence first, single-character backoff otherwise.
+      double leftTerm = Lookup(pair.left, leftToken);
+      if (p >= 1) {
+        std::string left2 =
+            p >= 2 ? NormalizeContextToken(flat[p - 2]) : kBeginToken;
+        auto it = pair.leftBigram.find(left2 + leftToken);
+        if (it != pair.leftBigram.end()) {
+          leftTerm = it->second;
+        }
       }
-      std::string rightToken;
-      if (k + 1 < chars.size()) {
-        rightToken = NormalizeContextToken(chars[k + 1]);
-      } else if (i + 1 < nodes.size()) {
-        rightToken =
-            NormalizeContextToken(FirstCodePoint(nodes[i + 1]->value()));
-      } else {
-        rightToken = kEndToken;
+      double rightTerm = Lookup(pair.right, rightToken);
+      if (p + 1 < flat.size()) {
+        std::string right2 = p + 2 < flat.size()
+                                 ? NormalizeContextToken(flat[p + 2])
+                                 : kEndToken;
+        auto it = pair.rightBigram.find(rightToken + right2);
+        if (it != pair.rightBigram.end()) {
+          rightTerm = it->second;
+        }
       }
 
-      double score = Lookup(pair.left, leftToken) +
-                     Lookup(pair.right, rightToken) + pair.prior;
+      double score = leftTerm + rightTerm + pair.prior;
       const std::string& targetChar =
           score > pair.threshold ? pair.altValue : pair.defaultValue;
       if (targetChar == currentChar) {
@@ -324,6 +343,7 @@ bool ConfusionPairDisambiguator::rescoreWalk(
         applied_.erase(node.get());
         appliedByUs = false;
         changed = true;
+        flat[p] = Split(node->value())[k];
         continue;
       }
 
@@ -337,6 +357,7 @@ bool ConfusionPairDisambiguator::rescoreWalk(
         applied_[node.get()] = node;
         appliedByUs = true;
         changed = true;
+        flat[p] = targetChar;
       }
     }
   }

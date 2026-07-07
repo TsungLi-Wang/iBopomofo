@@ -38,10 +38,13 @@ namespace McBopomofo {
 // (在); this class supplies the missing character-bigram signal via a
 // corpus-derived log-odds table over the neighboring characters:
 //
-//   score(alt) = left(L) + right(R) + prior
+//   score(alt) = left + right + prior
 //
-// where L/R are the characters adjacent to the pair character, taken from
-// inside the node and from the neighboring nodes of the walk. This covers
+// where the left/right terms first try two-character bigram evidence
+// (LB/RB rows; a single neighbor cannot separate 我在說話 from 我再說一遍 —
+// the signal sits one character further out) and back off to the
+// single-character rows (L/R). Context characters are taken from the flat
+// character sequence of the walked path, crossing node boundaries. This covers
 // both a span-1 ㄗㄞˋ node and a multi-syllable dictionary node with a
 // "twin" unigram differing only at the pair character (the dictionary
 // contains both 我在 and 我再; the unigram walk always favors the frequent
@@ -93,6 +96,8 @@ class ConfusionPairDisambiguator {
     double threshold = 0.0;
     std::unordered_map<std::string, double> left;
     std::unordered_map<std::string, double> right;
+    std::unordered_map<std::string, double> leftBigram;
+    std::unordered_map<std::string, double> rightBigram;
   };
 
   bool isAppliedByUs(const Formosa::Gramambular2::ReadingGrid::NodePtr& node);

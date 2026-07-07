@@ -68,6 +68,15 @@ class FakeLM : public LanguageModel {
     if (reading == "ㄕㄨㄛ") {
       return {Unigram("說", -3.5)};
     }
+    if (reading == "ㄧ") {
+      return {Unigram("一", -3.5)};
+    }
+    if (reading == "ㄘˋ") {
+      return {Unigram("次", -3.5)};
+    }
+    if (reading == "ㄏㄨㄚˋ") {
+      return {Unigram("話", -3.5)};
+    }
     if (reading == "ㄐㄧㄢˋ") {
       return {Unigram("見", -4.0)};
     }
@@ -256,6 +265,68 @@ TEST_F(ConfusionPairDisambiguatorTest, NotLoadedDoesNothing) {
   EXPECT_FALSE(empty.rescoreWalk(result));
 }
 
+// Bigram evidence (LB/RB rows) must win over the single-character rows and
+// must be read from the flat path sequence, crossing node boundaries: a
+// single right neighbor cannot separate 我在說話 from 我再說一遍 — the
+// discriminating character sits one further out.
+TEST(ConfusionPairDisambiguatorBigramTest, RightBigramOverridesSingleChar) {
+  constexpr char kBigramTable[] =
+      "PAIR\tㄗㄞˋ\t在\t再\n"
+      "PRIOR\t-0.500000\n"
+      "THRESHOLD\t0.000000\n"
+      "R\t說\t-0.300000\n"    // single neighbor alone leans 在
+      "RB\t說一\t2.500000\n";  // 說+一 two out disambiguates to 再
+
+  ConfusionPairDisambiguator disambiguator;
+  std::istringstream table(kBigramTable);
+  ASSERT_TRUE(disambiguator.load(table));
+
+  // 我(ㄗㄞˋ)說一次: the walk resolves ㄨㄛˇ-ㄗㄞˋ to the twin node 我在;
+  // RB[說一] crosses from that node into the two following span-1 nodes.
+  ReadingGrid grid(std::make_shared<FakeLM>());
+  for (const std::string& reading :
+       {std::string("ㄨㄛˇ"), std::string("ㄗㄞˋ"), std::string("ㄕㄨㄛ"),
+        std::string("ㄧ"), std::string("ㄘˋ")}) {
+    grid.insertReading(reading);
+  }
+  ReadingGrid::WalkResult result = grid.walk();
+  EXPECT_TRUE(disambiguator.rescoreWalk(result));
+  std::string joined;
+  for (const std::string& value : result.valuesAsStrings()) {
+    joined += value;
+  }
+  EXPECT_EQ(joined, "我再說一次");
+}
+
+TEST(ConfusionPairDisambiguatorBigramTest, BacksOffToSingleCharWithoutBigram) {
+  constexpr char kBigramTable[] =
+      "PAIR\tㄗㄞˋ\t在\t再\n"
+      "PRIOR\t-0.500000\n"
+      "THRESHOLD\t0.000000\n"
+      "R\t說\t-0.300000\n"
+      "RB\t說一\t2.500000\n";
+
+  ConfusionPairDisambiguator disambiguator;
+  std::istringstream table(kBigramTable);
+  ASSERT_TRUE(disambiguator.load(table));
+
+  // 我(ㄗㄞˋ)說話: RB[說話] is absent, so the single-character R[說]
+  // (-0.3) applies and the progressive 我在說話 is left alone.
+  ReadingGrid grid(std::make_shared<FakeLM>());
+  for (const std::string& reading :
+       {std::string("ㄨㄛˇ"), std::string("ㄗㄞˋ"), std::string("ㄕㄨㄛ"),
+        std::string("ㄏㄨㄚˋ")}) {
+    grid.insertReading(reading);
+  }
+  ReadingGrid::WalkResult result = grid.walk();
+  disambiguator.rescoreWalk(result);
+  std::string joined;
+  for (const std::string& value : result.valuesAsStrings()) {
+    joined += value;
+  }
+  EXPECT_EQ(joined, "我在說話");
+}
+
 // load() runs during KeyHandler init; a corrupt table must never throw and
 // take down the IME. Malformed numeric fields are skipped, valid lines kept.
 TEST(ConfusionPairDisambiguatorLoadTest, SurvivesMalformedTable) {
@@ -270,6 +341,9 @@ TEST(ConfusionPairDisambiguatorLoadTest, SurvivesMalformedTable) {
       "L\t^\t0.75\n"
       "R\t說\t0.25trailing\n"
       "R\t$\t-0.5\n"
+      "LB\t^我\tbogus\n"
+      "RB\t說一\t\n"
+      "RB\t說一\t1.5\n"
       "GARBAGE-KIND\tfoo\tbar\n");
   EXPECT_TRUE(disambiguator.load(table));
   EXPECT_TRUE(disambiguator.isLoaded());

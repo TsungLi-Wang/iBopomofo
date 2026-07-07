@@ -18,10 +18,8 @@ import argparse
 import sys
 
 from build_confusion_pair_table import (
-    BEGIN_TOKEN,
-    END_TOKEN,
+    context_tokens,
     iter_sentences,
-    normalize_token,
 )
 
 
@@ -31,6 +29,8 @@ def load_table(path):
     threshold = 0.0
     left = {}
     right = {}
+    left_bigram = {}
+    right_bigram = {}
     with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.rstrip("\n")
@@ -48,9 +48,13 @@ def load_table(path):
                 left[fields[1]] = float(fields[2])
             elif kind == "R" and len(fields) == 3:
                 right[fields[1]] = float(fields[2])
+            elif kind == "LB" and len(fields) == 3:
+                left_bigram[fields[1]] = float(fields[2])
+            elif kind == "RB" and len(fields) == 3:
+                right_bigram[fields[1]] = float(fields[2])
     if pair is None:
         raise ValueError(f"表 {path} 缺 PAIR 行")
-    return pair, prior, threshold, left, right
+    return pair, prior, threshold, left, right, left_bigram, right_bigram
 
 
 def main() -> int:
@@ -63,8 +67,8 @@ def main() -> int:
                         help="comma-separated thresholds to sweep")
     args = parser.parse_args()
 
-    (_, default_char, alt_char), prior, threshold, left, right = (
-        load_table(args.table))
+    ((_, default_char, alt_char), prior, threshold, left, right,
+     left_bigram, right_bigram) = load_table(args.table)
     targets = {default_char, alt_char}
 
     cases = []  # (score, truth)
@@ -73,10 +77,15 @@ def main() -> int:
         for i, ch in enumerate(chars):
             if ch not in targets:
                 continue
-            l_tok = normalize_token(chars[i - 1]) if i > 0 else BEGIN_TOKEN
-            r_tok = (normalize_token(chars[i + 1])
-                     if i + 1 < len(chars) else END_TOKEN)
-            score = left.get(l_tok, 0.0) + right.get(r_tok, 0.0) + prior
+            l_tok, r_tok, lb_tok, rb_tok = context_tokens(chars, i)
+            # 雙字元證據優先,查不到才退回單字元(backoff,與 C++ 端同步)。
+            left_term = (left_bigram[lb_tok]
+                         if lb_tok is not None and lb_tok in left_bigram
+                         else left.get(l_tok, 0.0))
+            right_term = (right_bigram[rb_tok]
+                          if rb_tok is not None and rb_tok in right_bigram
+                          else right.get(r_tok, 0.0))
+            score = left_term + right_term + prior
             cases.append((score, ch))
 
     if not cases:

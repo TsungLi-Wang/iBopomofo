@@ -1,0 +1,2 @@
+/usr/bin/ar qc libgramambular2_lib.a CMakeFiles/gramambular2_lib.dir/reading_grid.cpp.o
+/usr/bin/ranlib libgramambular2_lib.a

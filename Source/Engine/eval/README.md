@@ -180,6 +180,55 @@ rows exist, use this set (together with the frozen synthetic sets, which must
 not regress) to re-sweep the threshold and patch corpus gaps such as the
 diluted 再說 context evidence.
 
+Update, same day: Johnny opted out of collecting sentences himself; the miss
+was root-caused and fixed with bigram evidence instead (next section). The
+seeded case now flips (1/1 with the v6 shipped table).
+
+### Bigram evidence with single-character backoff (2026-07-07, v6 table)
+
+Root cause of the 我再說一次 miss: a single neighbor character cannot
+separate 我在說話 (progressive) from 我再說一遍 (again) — both 在說 and
+再說 are legitimate, and the discriminating signal (話/什麼 vs 一次/一遍)
+sits one character further out. This is a model-expressiveness gap, not a
+corpus gap: adding more 說-context sentences moved R[說] around without
+fixing the target (v3/v4 experiments).
+
+Fix: the table format gained `LB`/`RB` rows (two-token bigram evidence,
+may include one boundary token). Scoring tries the bigram first and backs
+off to the single-character `L`/`R` row. Implemented in sync in
+`ConfusionPairDisambiguator.cpp` (context read from the flat walk char
+sequence, crossing node boundaries), `build_confusion_pair_table.py`
+(`context_tokens()`, `--min-bigram-count`, default 2) and
+`masked_eval_confusion_pair.py`.
+
+Training corpus: v2 train (480) + v1 train (200) + the committed
+`zai-corpus-v3-supplement.tsv` (233; targets 說/講/聊/談 contexts both
+ways — round 2 of the supplement patches biases round 1 itself introduced:
+LB[^我]/L[面] drifting 再-ward and R[翻] dilution caused false flips on
+我在等一個包裹/外面在下雨, fixed with progressive counter-evidence).
+
+```bash
+python3 Source/Engine/eval/build_confusion_pair_table.py \
+  --corpus <v2_train> <v1_train> Source/Engine/eval/zai-corpus-v3-supplement.tsv \
+  --output Source/Engine/eval/generated/zai-logodds-v6.tsv \
+  --min-count 1 --min-bigram-count 2 \
+  --prior-from-data Source/Data/data.txt --threshold 0.5
+```
+
+v6 vs shipped v2c (engine harness, whole sentence):
+
+- old `zaizai_eval_cases.tsv`: 65/99 -> 71/99
+- v2 heldout: 42/120 -> 42/120 (identical miss set, verified per-case)
+- seed `cases.tsv`: 7/8 -> 7/8 (remaining miss is 意/一, out of scope)
+- real eval seed 我再說一次: 0/1 -> 1/1
+- live-check (previously device-verified sentences incl. 我再問一次,
+  做完再弄, 請再等一下, plus 我在家等你/我在說話/他在說什麼 no-flip
+  controls): 8/8
+- masked flip precision: heldout 90.3% -> 92.3% (3 -> 2 false flips),
+  old eval stays zero false flips
+
+v6 shipped as `Source/Data/confusion-pairs.tsv` (header records the recipe).
+
 ### v2 corpus and the recommended training recipe (2026-07-02)
 
 A second synthetic corpus was generated from

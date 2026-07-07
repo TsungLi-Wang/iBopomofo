@@ -1,0 +1,5 @@
+if(EXISTS "/Users/johnny.w_macmini/laowang-zhuyin/Source/Engine/build-test/Mandarin/MandarinTest[1]_tests.cmake")
+  include("/Users/johnny.w_macmini/laowang-zhuyin/Source/Engine/build-test/Mandarin/MandarinTest[1]_tests.cmake")
+else()
+  add_test(MandarinTest_NOT_BUILT MandarinTest_NOT_BUILT)
+endif()

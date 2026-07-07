@@ -1,0 +1,52 @@
+{
+  "tests": 8,
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "MandarinTest",
+      "tests": 8,
+      "testsuite": [
+        {
+          "name": "FromComposedString",
+          "file": "\/Users\/johnny.w_macmini\/laowang-zhuyin\/Source\/Engine\/Mandarin\/MandarinTest.cpp",
+          "line": 36
+        },
+        {
+          "name": "SimpleCompositions",
+          "file": "\/Users\/johnny.w_macmini\/laowang-zhuyin\/Source\/Engine\/Mandarin\/MandarinTest.cpp",
+          "line": 48
+        },
+        {
+          "name": "StandardLayout",
+          "file": "\/Users\/johnny.w_macmini\/laowang-zhuyin\/Source\/Engine\/Mandarin\/MandarinTest.cpp",
+          "line": 61
+        },
+        {
+          "name": "StandardLayoutCombination",
+          "file": "\/Users\/johnny.w_macmini\/laowang-zhuyin\/Source\/Engine\/Mandarin\/MandarinTest.cpp",
+          "line": 69
+        },
+        {
+          "name": "ETenLayout",
+          "file": "\/Users\/johnny.w_macmini\/laowang-zhuyin\/Source\/Engine\/Mandarin\/MandarinTest.cpp",
+          "line": 89
+        },
+        {
+          "name": "ETen26Layout",
+          "file": "\/Users\/johnny.w_macmini\/laowang-zhuyin\/Source\/Engine\/Mandarin\/MandarinTest.cpp",
+          "line": 96
+        },
+        {
+          "name": "HsuLayout",
+          "file": "\/Users\/johnny.w_macmini\/laowang-zhuyin\/Source\/Engine\/Mandarin\/MandarinTest.cpp",
+          "line": 104
+        },
+        {
+          "name": "IBMLayout",
+          "file": "\/Users\/johnny.w_macmini\/laowang-zhuyin\/Source\/Engine\/Mandarin\/MandarinTest.cpp",
+          "line": 112
+        }
+      ]
+    }
+  ]
+}

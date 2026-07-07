@@ -1,0 +1,5 @@
+if(EXISTS "/Users/johnny.w_macmini/laowang-zhuyin/Source/Engine/build-test/gramambular2/gramambular2_test[1]_tests.cmake")
+  include("/Users/johnny.w_macmini/laowang-zhuyin/Source/Engine/build-test/gramambular2/gramambular2_test[1]_tests.cmake")
+else()
+  add_test(gramambular2_test_NOT_BUILT gramambular2_test_NOT_BUILT)
+endif()
