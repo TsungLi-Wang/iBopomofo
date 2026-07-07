@@ -4,11 +4,24 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
-## [Unreleased]
+## [v2.0.0] - 2026-07-07
+
+架構大精簡＋語音輸入全面換引擎。三個使用者可見的重點：語音輸入改為內嵌 whisper.cpp 本機辨識（離線、免 API key、首次自動下載模型）；AI 修正模型只留 Claude Opus 與本機 AI 兩選；「在/再」智慧消歧補上雙字元語境證據，「我再說一次」這類「再＋說」句型現在翻得動。
+
+### 變更
+
+- **語音輸入改為內嵌 whisper.cpp 本機辨識（取代原三來源）**：錄完整段後由 app 內嵌的 `whisper-server`（靜態編譯，`whisper-runtime/fetch-runtime.sh` 從固定 tag v1.9.1 原始碼建置）在本機辨識，模型 `large-v3-turbo-q5_0`（約 574MB）首次使用時從 HuggingFace 下載並驗 SHA256，之後永久離線。只需麥克風權限，不再需要系統「聽寫」、Speech 授權或 OpenAI API key。模型以固定 benchmark（`say` 生成 zh-TW 測試音訊）與 `ggml-small` 同條件對比後選定（turbo 錯 1 句 vs small 錯 2 句）；server 以繁體 prompt 偏置輸出，殘餘簡體由 OpenCC 安全網轉換。錄音期間 server 背景暖機，app 結束時回收子程序。
+- **移除語音三來源選單**：Apple 原生（離線）、Apple + AI 修正、OpenAI Whisper（雲端）三條路徑與 `VoiceInputSource` 偏好全數移除；`VoiceInputManager`（Apple Speech）刪除，`NSSpeechRecognitionUsageDescription` 與相關字串一併清除。
+- **AI 修正模型精簡為兩選**：移除 Codex CLI 與 Claude Haiku 後端（`CodexAICorrector` 刪除），只留 Claude Opus（雲端）與本機 AI；歷史偏好值 0/1 一律視為本機 AI，編號 2/3 不重排。設定視窗同步瘦身（拿掉 Codex 路徑、Haiku 模型、OpenAI 語音 key/模型欄位）。
+- **「在/再」消歧表格式擴充：雙字元證據＋單字退避（v6 表隨版內建）**：單一鄰字分不開「我在說話」與「我再說一遍」——鑑別訊號在更外一格（話 vs 一）。表新增 `LB`/`RB` 雙 token 行，打分先查雙字元、查不到退回單字元；C++ 端從整條 walk 的字元序列取語境（跨節點邊界）。配套：建表腳本 `--min-bigram-count`（預設 2）、masked eval 同步、新增 233 句補充語料 `zai-corpus-v3-supplement.tsv`（進 repo）。數字對出貨 v2c 表：舊 eval 65→71/99、v2 留出集 miss 集合完全相同、seed cases 不變、「我再說一次」0→1、既往實機驗證句 8/8、遮蔽翻轉精確率 90.3%→92.3%。
+
+### 移除
+
+- 死碼清理：`AICorrectionPrompt` 的 LLM rerank prompt 三件組（v1.7.5 起 L1 已改進程內 n-gram，殘留未用）、`AIAssistCoordinator` 從未讀取的暖機通知旗標與 retry work item、三語系孤兒字串。
 
 ### 文件
 
-- **在/再 real eval 收集管線就緒**：新增 `Source/Engine/eval/real-zai-eval.tsv`（真實錯選句收集檔，格式與填寫規則在檔頭註解，已預放首筆已知 miss「我再說一次」），`eval/README.md` 新增 Real eval 節記錄轉換與跑分指令；已用出貨的 `Source/Data/confusion-pairs.tsv` 驗證整條管線（首筆 baseline/disambiguated 皆 0/1，與已知行為一致）。
+- **在/再 real eval 收集管線**：新增 `Source/Engine/eval/real-zai-eval.tsv` 與 README「Real eval」節。同日補記：使用者確定不自行收句，首筆 miss 已改以雙字元證據根治（見上），收集檔保留供日後真實錯選句累積。
 
 ## [v1.9.1] - 2026-07-06
 

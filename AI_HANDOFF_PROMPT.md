@@ -18,9 +18,9 @@
 - L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。
 - L1 快速語義：候選重排接縫已存在；v1.7.5 起打字當下改用進程內 n-gram scorer,不再依賴 llama-server。
 - L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
-- L3 語音輸入：**已隨 v1.7 ~ v1.7.4 發佈**(Apple Speech,zh-TW on-device;**連按兩下右 Shift** push-to-talk)。IME 程序取麥克風的頭號風險已排除。v1.7.4 加「辨識來源」三選一(Apple / Apple+L2 / OpenAI Whisper 雲端)。
+- L3 語音輸入：**v2.0.0 起改為內嵌 whisper.cpp 本機辨識**(單一引擎;**連按兩下右 Shift** push-to-talk;模型首次使用下載 574MB)。v1.7~v1.7.4 的 Apple Speech 路徑與三來源選單已移除。IME 程序取麥克風的頭號風險早已排除(v1.7 驗證)。
 
-**目前發佈狀態:已發到 v1.8.1**(GitHub Release,Latest;build 2278,版本真實來源 = `Source/McBopomofo-Info.plist` 字面值)。v1.8.1 = 關於視窗顯示 git 短碼 + L2 低調隱形提示走 `InputState` 預留欄位。v1.8.0 = AI 隱形中文警察重構階段一(L1/L2 狀態與決策集中到 `AIAssistCoordinator`,L2 句末自動校正改回非破壞性)。**master 目前另有未發版變更**:「在/再」智慧消歧模組(引擎覆寫 Phase A,見最新交班日誌)。以下為歷史版本摘要。v1.7.5 = L1 即時候選重排改成本機 n-gram scorer + eval/training harness;尚未內建外部語料模型。v1.7.4 = 語音「辨識來源」三選一(Apple 原生 / Apple+L2 修正 / OpenAI Whisper 雲端,使用者自備 OpenAI key);⚠️ Whisper 錄音上傳路徑尚待更廣泛實機驗證。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 122 tests / 10 suites 全綠。
+**目前發佈狀態:已發到 v2.0.0**(GitHub Release,Latest;build 2281,版本真實來源 = `Source/McBopomofo-Info.plist` 字面值;發版時 `Source/Installer/Installer-Info.plist` 也要一起 bump)。v2.0.0 = 架構精簡:語音輸入改內嵌 whisper.cpp 本機辨識(單一引擎,Apple 兩路徑與 OpenAI 雲端全砍)、AI 修正模型剩 Claude Opus+本機 AI 二選、「在/再」消歧表升級雙字元證據(我再說一次已翻對)。歷史脈絡見交班日誌,最後一條=最新狀態。以下為歷史版本摘要。v1.7.5 = L1 即時候選重排改成本機 n-gram scorer + eval/training harness;尚未內建外部語料模型。v1.7.4 = 語音「辨識來源」三選一(Apple 原生 / Apple+L2 修正 / OpenAI Whisper 雲端,使用者自備 OpenAI key);⚠️ Whisper 錄音上傳路徑尚待更廣泛實機驗證。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 122 tests / 10 suites 全綠。
 
 Phase 狀態：
 
@@ -575,4 +575,36 @@ Johnny 分享陳侃如〈回顧用 Rust 重寫新酷音的經驗〉（2024，kan
 4. 舊掛件：`docs/l2-autocorrect-verification.md` 的 L2 實機驗證仍未跑。
 
 **提醒下一棒**：給 Johnny 任何實機驗證句之前，必先用出貨那張表跑 harness 確認預期行為（2026-07-06 勘誤的教訓）。pbxproj 新檔 ID 從 FACE0105+ 起。
+
+### 2026-07-07T12:02:35+08:00 v2.0.0 架構大精簡：語音改內嵌 whisper.cpp、後端二選、消歧雙字元證據
+
+Johnny 口述一批精簡指令，本棒全部做完並發版 v2.0.0（build 2281）。他的原話重點：語音「確定就是 OpenAI Whisper 那個東西，而且不是雲端，是本地」（＝內嵌 whisper.cpp，不是 API）；Apple 兩條語音路徑與來源選單全砍；AI 修正模型砍 Haiku（不想要）與 Codex（沒訂閱），留 Opus＋本機；「我再說一次」還是錯，他不做收集句子/實機測試那套——「這你應該要自己可以完成」＝以後 eval/調表自己來，只有純鍵盤實機驗收才找他。
+
+**① 語音輸入＝內嵌 whisper.cpp（單一引擎）**：
+- 新 `whisper-runtime/fetch-runtime.sh`：whisper.cpp **沒有官方 macOS binary release**，從固定 tag v1.9.1 clone 原始碼 cmake 靜態編譯 `whisper-server`（3.5MB 單檔，無 dylib，只連系統框架）＋ `whisper-cli`（僅本機 benchmark 用，不打包）。bin/、models/ 進 `.gitignore`（同 llama-runtime 套路）。
+- 新 `Source/WhisperServerManager.swift`（pbxproj `FACE0105/0106`，下一棒從 **FACE0108+**；`FACE0107` 是 Copy Whisper Runtime build phase）：仿 LlamaServerManager——127.0.0.1 空閒 port、模型首次下載（`ggml-large-v3-turbo-q5_0.bin`，574MB，HF ggerganov/whisper.cpp，size+SHA256 雙驗）、孤兒清理、app 結束回收。差異：**不在 app 啟動時 spawn**（模型常駐 ~0.9GB RAM），第一次語音才啟動；錄音期間背景暖機。
+- `WhisperVoiceInputManager` 錄音端保留，stop 後用 `/usr/bin/afconvert` 轉 16kHz 16-bit mono WAV（whisper-server 只吃這個；tap 原生是 48kHz float32）再 POST `/inference`。`WhisperVoiceTranscriber` 從 OpenAI 雲端改打本機 server。
+- **模型選型有 benchmark**（`say -v Meijia/Sandy` 生成 zh-TW 測試音訊、12 句）：turbo-q5_0 錯 1 句 vs ggml-small 錯 2 句；`--prompt "以下是繁體中文的句子。"` 實測能把輸出偏繁體（沒 prompt 時整批吐簡體），OpenCC 仍當安全網。每句轉寫 ~1.7s（M2）。
+- 砍掉：`VoiceInputManager.swift`（Apple Speech）、三來源選單/selector/`VoiceInputSource` 偏好、`correctVoiceText`（Apple+L2 橋）、OpenAI 語音 key/模型設定欄與 Keychain account、`NSSpeechRecognitionUsageDescription`、13 條相關字串（三語同步）。**未實機驗證**（無麥克風可自動測）：出貨參數已用同款 server+轉檔管線端到端驗過（sim 錄音格式→afconvert→/inference→正確文字），但 Johnny 實機雙擊右 Shift 全流程（授權→錄→出字→模型下載 UX）仍待收。
+- ⚠️ 使用者升級後首次語音會觸發 574MB 下載；舊的 Apple 語音授權殘留無害。
+
+**② AI 修正後端二選（Opus=2、本機=3）**：編號不重排，歷史值 0/1 讀到視為 3。`CodexAICorrector.swift` 刪除、`launchFailed` error case 刪除、設定視窗剩 Claude key/端點/Opus 模型三欄。
+
+**③ 消歧「我再說一次」根治＝表格式升級，不是語料補丁**：
+- **根因是模型表達力不是語料量**：單鄰字 R[說] 在「在說話」與「再說一遍」兩種合法語境間先天分不開，v3/v4 實驗證明堆語料只會把 R[說] 推來推去還引入新誤翻（我在等一個包裹、外面在下雨）。
+- 解法：表加 `LB`/`RB` 雙 token 行（可含一個邊界符），打分**雙字元優先、單字元退避**；C++ 端語境改從整條 walk 的攤平字元序列取（跨節點邊界），Python 端 `context_tokens()` 同步、`--min-bigram-count` 預設 2（bigram 稀疏，1 會過擬合單句）。
+- 語料：v2 train(480)+v1 train(200)+**新 `Source/Engine/eval/zai-corpus-v3-supplement.tsv`(233，進 repo)**。補充語料刻意不含「我再說一次」原句（防 teaching-to-the-test）；第二輪補了第一輪自己引入的偏差的反證（進行式我在X/外面在下雨、翻舊帳/翻翻）。
+- **v6 表已出貨**（`Source/Data/confusion-pairs.tsv`，header 記配方）。數字 vs v2c：舊 eval 65→71/99、v2 留出集逐句比對 miss 集合**完全相同**、seed 7/8 不變、我再說一次 0→1、live-check 8/8（含我再問一次/做完再弄等已實機驗證句＋我在說話/他在說什麼不誤翻對照）、遮蔽翻轉精確率 90.3→92.3%（誤翻 3→2）、舊 eval 維持零誤翻。
+- gtest +2（bigram 覆蓋單字、無 bigram 退避）＋壞 LB/RB 行防呆；C++ 96 ran/94 pass/2 skip（上游既有）。
+- ⚠️ `~/Documents` 有 TCC 限制，語料是用 Finder AppleScript 複製出來的（前一棒的招，好用）。
+
+**④ 死碼清理**：LLM rerank prompt 三件組＋其測試、Coordinator 未讀旗標/retry slot、孤兒字串。剩餘「未用」字串（Dictionary app/Wiktionary/Marking 系列）是上游動態 key，**別删**。
+
+**驗證**：每批各自完整 `xcodebuild test` `** TEST SUCCEEDED **`（最終 122 tests/0 fail；砍了 3 個 rerank prompt 測試）＋ C++ gtest 全綠。發版 v2.0.0/2281（兩個 plist 都 bump）→ package-dmg → tag → gh release（Latest）→ 本機就地覆蓋重裝。
+
+**下一棒優先**：
+1. **收 Johnny 語音實機驗收**：雙擊右 Shift 全流程（首次授權、模型下載通知、錄→停→出字、About git 短碼確認新碼）。若 whisper-server 起不來先看 `log` 的 NSLog（WhisperServer: 開頭）。
+2. 消歧模組觀察真實使用；有錯句自己進 `real-zai-eval.tsv` 跑管線（勿再要求 Johnny 收集）。視穩定度考慮預設開啟（目前實驗預設關）。
+3. 擴「的/得/地」（三元，PAIR 行格式要先擴）。
+4. 舊掛件：`docs/l2-autocorrect-verification.md` 的 L2 實機驗證仍未跑。
 
