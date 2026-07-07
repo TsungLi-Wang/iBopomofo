@@ -109,3 +109,63 @@ struct NeuralCandidateRescorer: CandidateRescorer {
 2. Swift skeleton(第 3 節,約 1 新檔 + 3 小改動)+ 純邏輯測試。
 3. 實機低風險驗證:偏好預設關,開啟後觀察延遲與命中,Johnny 純鍵盤驗收。
 4. 數字與體感都過,才考慮預設開啟或收掉 n-gram 路徑(n-gram 在可見未來都保留當 fallback)。
+
+(2026-07-07 更新:skeleton 已落地,見交班日誌;第 1 點的 eval 變體因加速決策暫被跳過,右文問題升級為最高優先,見第 8 節。)
+
+## 8. 右文不足的根治方案:延遲全局重審(deferred global re-rank)
+
+R1 升級為最高優先(Johnny 拍板:不接受用 fallback 掩蓋)。本節是根因分析與根治設計。
+
+### 8.1 根本原因:右文為空時「全局」與「local」在數學上是同一個東西
+
+Causal LM 打分 = Σ logP(token | 前綴)。兩個候選句共享 focus 之前的所有 token,分數差 =
+
+```
+Δ = [logP(c1|left) - logP(c2|left)] + Σ_right [logP(r_i|left,c1,…) - logP(r_i|left,c2,…)]
+```
+
+第二項(右文在不同候選條件下的機率差)才是全局打分的全部優勢——harness 救回的 12 筆,鑑別訊號全在那裡(「說一次」支持「再」、「這裡」支持「在」)。右文為空時第二項不存在,Δ 塌縮成第一項,**與 local left-to-right scoring 完全等價**——不是效果下降,是同一個計算。此時模型只剩詞頻 prior,而詞頻 prior 正是引擎 unigram 已編碼的東西;更糟的是模型 raw prior 可能與語料統計打架(seed-4:Qwen 對「我」之後的「再」raw logprob 略高於「在」),神經打分反而引入退步。
+
+「讓模型想像右文再打分」救不了:對所有可能未來取期望,由全機率公式塌縮回 P(c|left),零新資訊;生成式 lookahead 只是 MAP 近似,注入的是模型自己的偏好而非使用者意圖,且倍增延遲。**缺的資訊只有一個來源——使用者接下來真的會打的字。所以解法不是改打分方式,是改決策時機。**
+
+### 8.2 主方案 A:把決策點從「候選窗瞬間」搬到「右文出現之後」
+
+架構定位:**神經版 ConfusionPairDisambiguator**,即 `docs/engine-node-override.md` 的 Phase 機制換神經打分器。注音是連續輸入,右文不是「沒有」,是「還沒到」——晚 2-4 個按鍵就到了。
+
+流程:
+
+1. **追蹤**:每次 walk 後,對讀音在混淆集合(現有 ambiguous/confusion-pair 接縫)且節點內有 ≥2 合法 unigram 的位置登記為「懸置歧義位置」。
+2. **暫決**:當下維持引擎(+查表消歧)結果,打字零停頓。
+3. **重審**:某懸置位置的右文累積 ≥2 字(或出現句末標點)→ debounce → 對該節點合法 unigram 逐一代入整句做 global preview(此時就是 harness 的條件——右文存在,即 100%/50 那個世界)→ margin 超過門檻才動作。
+4. **套用**:override-without-observe soft override(Phase A 全套護欄現成:`kOverrideValueWithScoreFromTopUnigram` 不改切詞、使用者手動選字讓位、每次 walk 重評可自我撤回、不汙染 UOM)→ 從 walk 重建 Inputting。
+
+這正是「隱形中文警察」的原始願景(邊打邊用上下文修正「現階段」句子),Johnny 已拍板高信心直接改 OK。
+
+### 8.3 輔方案 B:候選窗路徑的證據門檻(懸置,不是 fallback)
+
+`NeuralCandidateRescorer` 增加右文檢查:focus span 之後 ≥2 字(preceding 不算,commit 過的文字不能再改)→ 全局打分照舊(regime A「回頭選字」——最常見的修錯流程,右文天然存在,現有 skeleton 的全部收益保留);右文不足 → 該位置**懸置**——維持引擎排序(不是退 n-gram;n-gram 同樣只有左文,重排同樣是瞎猜),並把位置掛進 A 的追蹤清單。語義是「證據還沒到,決策延後」,不是「放棄治療」。
+
+### 8.4 補充 C(第二階段):commit 前終審
+
+句末標點 / commit 邊界時整句必然完整,對殘留懸置位置做最後一輪 global 檢查。必須非阻塞(打字停頓時 A 多半已完成,C 只是保底);不可讓 commit 等 HTTP。
+
+### 8.5 否決的方向(與理由)
+
+- **生成式 lookahead**(每候選生成未來再打分):期望上塌縮回 P(c|left);MAP 近似注入模型偏好;延遲倍增。
+- **Chat prompt 問答**(「哪個字對?」):PoC 已實測,4B 上 20% acc,退回 prompt 工程死路。
+- **換雙向模型(MLM)/更大模型**:右文不存在時,任何模型都沒有右文可看——資訊缺失不是模型能力問題。
+
+### 8.6 優缺點與量化影響
+
+| 方案 | 正確率 | 延遲 | 風險 |
+|------|--------|------|------|
+| A 延遲重審 | 右文到位後 = harness 條件(50/50);使用者停在句尾不再打的殘餘 case = 現狀(引擎+表),不劣化 | 不在按鍵關鍵路徑;debounce 後每位置 2-4 次呼叫(warm 10-50ms);每歧義位置最多重審 1-2 次(里程碑:右文達 2 字、句末) | 翻字閃爍(對策:margin 門檻 + 已翻位置僅在右文再增時重評);Swift↔C++ 橋工程量(Phase A 清單已定義);R6 靜默改字自主權(實驗開關 + 高信心門檻) |
+| B 證據門檻 | regime B 不再錯翻(≥引擎 baseline);regime A 收益全保留 | 成本趨零(少打無效請求) | 幾乎無;語義上要與 A 綁定,否則就只是不作為 |
+| C commit 終審 | 保證出手前整句審過 | commit 邊界時序需小心,不可阻塞 | 與使用者送出的 race;第二階段再做 |
+
+### 8.7 推進順序
+
+1. **Harness 先驗證 A 的核心假設**(純 Python):把 50 筆造成「增量打字序列」,模擬「focus 當下右文 0 字 → 每多 1-2 字重審一次」,量最終準確率 + 翻字次數(flip count)。這就是原第 7 節欠的右文截斷 eval,重新框成 deferred 模擬。數字要接近整句版才動 app。
+2. B:小改 `NeuralCandidateRescorer`(右文字數 gate,懸置語義)。
+3. A:Phase A 橋(override-without-observe bridge、per-position 合法 unigram 讀取、Coordinator serial+walk 世代守門、重建 Inputting)+ 神經重審排程(復用 L2 auto-correction 的 Inputting 排程接縫)。
+4. C 視 A 實機表現決定。

@@ -15,6 +15,7 @@
 
 ### 文件
 
+- `docs/l1-neural-rerank-integration.md` 新增第 8 節「右文不足的根治方案：延遲全局重審」：根因分析（右文為空時全局打分與 local 數學等價）與三段式設計（懸置歧義位置延遲重審、候選窗右文 gate、commit 前終審），復用引擎節點覆寫 Phase A 護欄。設計文件，未動程式碼。
 - 新增 `docs/l1-neural-rerank-integration.md`：PoC 接進真實 L1（`AICandidateReranker`）的整合設計。關鍵簡化：真實 L1 不需要 beam search 與 logit_bias（引擎 walk 已提供整句 baseline），只保留 focus 逐候選代入＋整句 logprob 打分；經 `CandidateRescorer` 協議注入，Coordinator 零改動；含觸發分層（confusion table / L1 / L2）、延遲控制（timeout + n-gram fallback）、server 生命週期決策點與七項風險（右文不足、logprobs 不穩、資料集偏差等）。尚未動程式碼。
 
 ## [v2.0.0] - 2026-07-07

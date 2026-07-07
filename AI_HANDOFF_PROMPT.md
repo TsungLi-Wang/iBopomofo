@@ -820,3 +820,17 @@ Johnny 拍板加速：接受風險、跳過 harness 右文截斷/亂序 eval，�
 4. 未追蹤檔案待決（同前條日誌）：兩個 eval jsonl 是否進 repo 等 Johnny 拍板。
 5. 舊掛件：語音實機驗收、L2 實機驗證清單。
 
+### 2026-07-07T19:10:00+08:00 右文不足根治設計：延遲全局重審（deferred global re-rank）
+
+Johnny 把「右文不足」升為最高優先，明確拒絕 fallback 式掩蓋。本棒完成根因分析與根治設計，寫入 `docs/l1-neural-rerank-integration.md` **第 8 節**（未動程式碼，等 Johnny 讀完拍板推進順序）。
+
+**根因（一句話）**：causal LM 整句打分的優勢全部來自「右文在不同候選條件下的機率差」；右文為空時，全局打分與 local scoring 在**數學上等價**（共享前綴抵消，只剩 P(c|left)），模型只剩 raw prior 而那可能與正解打架（seed-4）。「讓模型想像右文」被全機率公式否決（期望塌縮回 P(c|left)）。**缺的資訊只有一個來源＝使用者接下來真的會打的字 → 解法是改決策時機，不是改打分方式。**
+
+**方案**：A 主線＝延遲全局重審（神經版 ConfusionPairDisambiguator：追蹤懸置歧義位置 → 右文累積 ≥2 字後 debounce 重審 → margin 過門檻才用 Phase A override-without-observe soft override 翻字，護欄全現成）；B 輔線＝候選窗右文 gate（右文不足＝懸置交給 A，不是退 n-gram——n-gram 同樣只有左文）；C 第二階段＝commit 前非阻塞終審。否決：生成式 lookahead（marginalization 塌縮）、chat prompt（PoC 實測 20%）、換雙向/更大模型（沒有右文可看是資訊缺失不是模型能力）。
+
+**下一棒優先（依序，第 8.7 節）**：
+1. **Harness 增量打字模擬 eval**（純 Python）：50 筆造成打字序列，模擬「右文 0 字暫決 → 每多 1-2 字重審」，量最終準確率 + flip count。數字接近整句版（100%/50）才動 app。
+2. B：`NeuralCandidateRescorer` 加右文 gate（懸置語義）。
+3. A：Phase A 橋（override-without-observe bridge、per-position 合法 unigram 讀取、serial+walk 世代守門、重建 Inputting）＋重審排程（復用 L2 auto-correction 的 Inputting 排程接縫）。
+4. skeleton 實機驗收與發版順延，等右文方案定案一起驗。
+
