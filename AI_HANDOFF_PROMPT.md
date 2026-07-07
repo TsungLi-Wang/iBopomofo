@@ -752,3 +752,30 @@ Continue the "invisible Chinese police" vision with this L1 improvement.
 - Git commit and push done for the changes.
 
 Next: If acc stable, plan integration into AICandidateReranker for real L1 use (use focus from collision detection to decide where to apply global preview).
+
+### Latest: Optimized Selective Global + Analysis (50 cases)
+
+**Efficiency**:
+- Code updated to use local constrained for non-focus, full preview only for focus positions + final re-rank.
+- Run result: 50/50 (100%) LLM acc, mean latency 37.9ms (p95 50.1ms), 0 regressions.
+- Retains 100% while reducing expensive calls.
+
+**Analysis of saved cases**:
+- Local-only fails on 12/50 cases (from simulation using expand for all pos).
+- Examples:
+  - zaizai_001: local=我再說一賜 vs 我再說一次 (focus[1])
+  - zaizai_002: local=他在工司開會 vs 他在公司開會
+  - zaizai_003: local=請擬在等一夏 vs 請你再等一下
+  - zaizai_005: local=這件事在想想 vs 這件事再想想
+  - zaizai_006: local=我再路邊等你 vs 我在路邊等你
+  - zaizai_007: local=明天在回覆你 vs 明天再回覆你
+  - zaizai_008: local=他在曼就持到 vs 他再慢就遲到
+  - zaizai_009: local=他在捷運站等我 vs 她在捷運站等我
+  - zaizai_010: local=請在幫我確認 vs 請再幫我確認
+  - dedede_011: local=慢慢得走过來 vs 慢慢地走過來
+  (and 2 more similar)
+- Common features: All are 在/再 or 的/得/地 ambiguities at focus. Local beam picks a "plausible" but wrong char based on local n-gram like scores or token probs (e.g. "一賜" sounds similar or high score, "工司" vs "公司", "擬在" vs "你再", "得" vs "地"). Global full-sentence scoring makes the semantically correct full phrase higher probability (e.g. "我再說一次" > "我再說一賜").
+- Global re-rank contribution: Critical for these 12; without it, acc drops. These represent cases needing sentence-level semantics beyond local context.
+
+This confirms the approach: local for speed on clear positions, global only where needed (focus from collision detection in real L1).
+

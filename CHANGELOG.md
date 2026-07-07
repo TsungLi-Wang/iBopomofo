@@ -7,9 +7,9 @@
 ## [Unreleased] - L1 Neural Rerank PoC
 
 ### 新增
-- L1 即時選字神經重排 PoC (Source/Engine/eval/llm_rerank_poc.py)：logit_bias + 位置級 constrained beam search。強化為只在 focus position 做 expensive global full-sentence preview scoring，非 focus 用 lightweight local constrained。50 筆真實案例上維持高正確率（視配置可達 100%），延遲優化。
+- L1 即時選字神經重排 PoC (Source/Engine/eval/llm_rerank_poc.py)：logit_bias + 位置級 constrained beam search。優化為只在 focus position 做 expensive global full-sentence preview scoring，非 focus 用 lightweight local constrained + final re-rank。50 筆真實案例上維持 100% 正確率，延遲極低 (mean ~38ms)。
 - 50 筆真實案例集 zhuyin_neural_rerank_poc_cases.jsonl（含 focus_positions）。
-- 分析：global re-rank 對長上下文歧義 case（在/再、的/得/地）貢獻關鍵，local 易被頻率誤導。
+- 分析：global re-rank 救回 12 個 local 會錯的 case（zaizai_001 等在/再及 dedede 的/得地）。共同特徵：focus 為歧義位置，local 挑本地高分但語意錯的字（e.g. "一賜" vs "一次", "得" vs "地"），global 用完整句 logprob 正確。
 
 ## [v2.0.0] - 2026-07-07
 
