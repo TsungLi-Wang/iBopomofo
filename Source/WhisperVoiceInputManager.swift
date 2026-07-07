@@ -24,10 +24,9 @@
 import AVFoundation
 import Foundation
 
-/// 選項 3 的錄音端:OpenAI Whisper 雲端語音輸入。與 Apple 的 `VoiceInputManager`
-/// (邊講邊辨識)不同,這個是「錄完整段 → 上傳辨識」:雙擊右 Shift 開始錄音、
-/// 再雙擊停止後,把錄到的整段 WAV 交給 `WhisperVoiceTranscriber` 上傳,回文字走
-/// 既有 commit 出口。
+/// 語音輸入的錄音端:「錄完整段 → 本機辨識」。雙擊右 Shift 開始錄音、再雙擊停止後,
+/// 把錄到的整段音訊轉成 16kHz WAV 交給 `WhisperVoiceTranscriber`(內嵌 whisper-server,
+/// 完全離線),回文字走既有 commit 出口。
 ///
 /// 只需要麥克風授權(不需要 Speech Recognition 授權、也不需系統「聽寫」)。
 @objc final class WhisperVoiceInputManager: NSObject {
@@ -129,15 +128,28 @@ import Foundation
         let url = fileURL
         audioFile = nil  // 釋放即 flush + 關檔
 
-        guard let url, let data = try? Data(contentsOf: url), !data.isEmpty else {
+        guard let url else {
             cleanupFile()
             onError?(NSLocalizedString("Voice recognition failed", comment: ""))
             return
         }
 
         DispatchQueue.global(qos: .userInitiated).async {
-            let outcome = WhisperVoiceTranscriber.transcribe(
-                wavData: data, fileName: url.lastPathComponent)
+            // whisper-server 只吃 16kHz 16-bit mono WAV;錄音檔是 tap 原生格式
+            // (通常 48kHz float32),用系統 afconvert 轉一次(比 AVAudioConverter 少一坨碼)。
+            let converted = url.deletingPathExtension().appendingPathExtension("16k.wav")
+            defer { try? FileManager.default.removeItem(at: converted) }
+            let outcome: Result<String, AICorrectionError>
+            if Self.convertTo16kMonoWAV(input: url, output: converted),
+                let data = try? Data(contentsOf: converted), !data.isEmpty
+            {
+                outcome = WhisperVoiceTranscriber.transcribe(
+                    wavData: data, fileName: converted.lastPathComponent)
+            } else {
+                outcome = .failure(
+                    .unavailable(
+                        backend: AICorrectionBackendName.whisper, detail: "錄音檔轉換失敗"))
+            }
             DispatchQueue.main.async {
                 self.cleanupFile()
                 switch outcome {
@@ -146,6 +158,23 @@ import Foundation
                 }
             }
         }
+    }
+
+    /// 用 /usr/bin/afconvert 把錄音檔轉成 whisper 需要的 16kHz 16-bit mono WAV。
+    private static func convertTo16kMonoWAV(input: URL, output: URL) -> Bool {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/afconvert")
+        proc.arguments = ["-f", "WAVE", "-d", "LEI16@16000", "-c", "1", input.path, output.path]
+        proc.standardOutput = FileHandle.nullDevice
+        proc.standardError = FileHandle.nullDevice
+        do {
+            try proc.run()
+        } catch {
+            NSLog("語音錄音: afconvert 啟動失敗 \(error.localizedDescription)")
+            return false
+        }
+        proc.waitUntilExit()
+        return proc.terminationStatus == 0
     }
 
     private func teardown() {

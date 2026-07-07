@@ -192,26 +192,15 @@
 /* Used in the notification when L2 auto-correction needs the local server to finish starting. */
 "Local AI auto-correction is loading" = "Local AI auto-correction is loading";
 
-/* Phase 3 voice input (experimental). */
-"Voice Input (Experimental)" = "Voice Input (Experimental)";
+/* Phase 3 voice input. */
+"Voice Input" = "Voice Input";
+"Microphone permission denied" = "Microphone permission denied";
 "Stop Voice Input" = "Stop Voice Input";
 "Voice recognition is unavailable" = "Voice recognition is unavailable";
 "Cannot start microphone: %@" = "Cannot start microphone: %@";
 "Voice recognition failed" = "Voice recognition failed";
-"Voice input needs Dictation: turn it on in System Settings ▸ Keyboard ▸ Dictation" = "Voice input needs Dictation: turn it on in System Settings ▸ Keyboard ▸ Dictation";
-"Microphone or speech recognition permission denied" = "Microphone or speech recognition permission denied";
 "Voice input is ready. Double-tap right Shift again to start speaking" = "Voice input is ready. Double-tap right Shift again to start speaking";
 "Listening… double-tap right Shift to stop" = "Listening… double-tap right Shift to stop";
 "Voice input stopped" = "Voice input stopped";
-"Voice input ended automatically. Double-tap right Shift to start again" = "Voice input ended automatically. Double-tap right Shift to start again";
 "No speech detected" = "No speech detected";
-"Voice Source: Apple (Offline)" = "Voice Source: Apple (Offline)";
-"Voice Source: Apple + AI Correction" = "Voice Source: Apple + AI Correction";
-"Voice Source: OpenAI Whisper (Cloud)" = "Voice Source: OpenAI Whisper (Cloud)";
-"Apple (Offline)" = "Apple (Offline)";
-"Apple + AI Correction" = "Apple + AI Correction";
-"OpenAI Whisper (Cloud)" = "OpenAI Whisper (Cloud)";
-"Voice source switched to:" = "Voice source switched to:";
-"OpenAI voice needs an API key: set it in AI Correction Settings" = "OpenAI voice needs an API key: set it in AI Correction Settings";
-"AI is polishing the voice text…" = "AI is polishing the voice text…";
 "Transcribing the recording…" = "Transcribing the recording…";

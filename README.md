@@ -10,7 +10,7 @@
 
 - 注音輸入：沿用 McBopomofo 的注音引擎、詞庫、候選字與使用者詞彙機制。
 - AI 整句修正：組字中按 **Command + Return** 觸發。
-- 語音輸入（實驗）：**連按兩下右 Shift** 開始、再連按兩下結束出字，用 Apple 內建語音辨識（繁中、優先離線）。用法與前置設定見下方「語音輸入（實驗）」一節。
+- 語音輸入：**連按兩下右 Shift** 開始、再連按兩下結束出字，用內嵌 whisper.cpp 本機辨識（離線、免 API key）。用法見下方「語音輸入」一節。
 - 本機 AI 預設開啟：內建 `llama-server`，模型首次使用自動下載到使用者資料夾。
 - 雲端後端可切換：支援 Claude Opus。
 - 前文輔助判斷：修正時會讀取游標前方文字作為語意參考。
@@ -76,16 +76,14 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/laowang-zhuyin/master/
 | Claude 端點 | `https://api.anthropic.com/v1/messages` | 可改成代理或相容端點 |
 | Claude Opus 模型 | `claude-opus-4-8` | 準確度優先 |
 
-## 語音輸入（實驗）
+## 語音輸入
 
-用講的輸入中文：辨識後的文字會直接送進游標所在的輸入框。採用 Apple 內建語音辨識（繁體中文、優先離線 on-device），不連雲端、不需額外安裝模型。
+用講的輸入中文：辨識後的文字會直接送進游標所在的輸入框。採用內嵌 whisper.cpp（`whisper-server` + Whisper large-v3-turbo）在本機辨識，完全離線、免 API key，錄音與音訊都不出機器。
 
 ### 開始前（只需設定一次）
 
-1. 開啟系統「聽寫」：**系統設定 → 鍵盤 → 聽寫**，打開。
-   - 離線辨識需要這項；沒開啟時觸發會跳出「語音輸入需要『聽寫』」提示。
-   - 這與「語音控制（Voice Control）」是不同功能，別搞混。
-2. 首次觸發時，macOS 會分別要求「語音辨識」與「麥克風」兩項權限，請都允許。
+1. 首次使用會自動下載辨識模型（約 574MB，一次性），下載完成後永久離線可用。
+2. 首次觸發時，macOS 會要求「麥克風」權限，請允許。
    - 授權完成後只會提示「請再連按兩下右 Shift 開始說話」，**這一次還不會錄音**，要再連按一次才開始。之後不必再授權，重開機也會記得。
 
 ### 怎麼用
@@ -93,24 +91,16 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/laowang-zhuyin/master/
 | 動作 | 操作 |
 |---|---|
 | 開始 | **連按兩下右 Shift**，看到「聆聽中…」即可說話 |
-| 結束出字 | **再連按兩下右 Shift**，辨識文字會一次送進輸入框 |
-| 備用入口 | 輸入法選單的「語音輸入（實驗）／停止語音輸入」 |
+| 結束出字 | **再連按兩下右 Shift**，稍候 1~3 秒辨識文字會一次送進輸入框 |
+| 備用入口 | 輸入法選單的「語音輸入／停止語音輸入」 |
 
-說話過程中不會逐字顯示，辨識完成才一次出字。出來的文字直接落入輸入框，不進注音組字區、不需選字。只有右 Shift 會觸發，左 Shift 不會。
-
-### 辨識來源（三選一，輸入法選單可切）
-
-輸入法選單的「語音輸入」項下面有三個辨識來源，可隨時切換：
-
-- **Apple（離線）**：系統內建辨識，離線、零成本（預設）。
-- **Apple + AI 修正**：Apple 辨識後，再用目前選的 AI 後端修一次錯字與標點，仍離線。
-- **OpenAI Whisper（雲端）**：錄完整段上傳 OpenAI 辨識，辨識力最強，但需在「AI 修正設定…」填入自己的 OpenAI API key（按量付費、需連網，與 ChatGPT/Codex 訂閱不同）。
+錄音是「錄完整段、停止後一次辨識」：說話過程中不會逐字顯示。出來的文字直接落入輸入框，不進注音組字區、不需選字。只有右 Shift 會觸發，左 Shift 不會。
 
 ### 常見狀況
 
-- **跳出「需要聽寫」**：到系統設定開啟聽寫（見上）。
 - **顯示「沒聽到內容」**：這次沒有收到語音，再連按兩下右 Shift 重試即可。
-- **文字自己跑出來、好像停止聆聽了**：辨識器偵測到句尾或達到時間上限時會自行結束這一段，此時會提示「語音這段已自動結束」，再連按兩下右 Shift 即可重新開始。
+- **顯示「本機辨識引擎未就緒」**：模型還在載入（首次啟動約數秒），稍候幾秒再試一次。
+- **模型下載中斷**：連網後再連按兩下右 Shift 會自動重試。
 
 ## 目前限制
 
@@ -131,15 +121,16 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/laowang-zhuyin/master/
 - Xcode 15.3 或以上
 - Python 3.9
 - `llama-runtime/bin/` 內需有 `llama-server` 與相關 dylib
+- `whisper-runtime/bin/` 內需有 `whisper-server`
 
 ### 取得本機推理 runtime
 
 ```bash
-cd llama-runtime
-./fetch-runtime.sh
+cd llama-runtime && ./fetch-runtime.sh    # AI 修正:llama-server + dylib
+cd ../whisper-runtime && ./fetch-runtime.sh    # 語音辨識:clone whisper.cpp 原始碼編譯 whisper-server
 ```
 
-這個腳本會取得 `llama-server`、必要 dylib 與本機開發測試用模型。正式 app build 只需要 `llama-runtime/bin/`，模型會由 app 首次使用時下載。
+腳本會取得推理程式與本機開發測試用模型。正式 app build 只需要兩個 `bin/`，模型由 app 首次使用時下載。
 
 ### Build app
 
@@ -174,6 +165,7 @@ dist/LaoWangZhuyin.dmg
 | `Source/Data/` | 詞庫與資料生成工具 |
 | `Packages/` | 本地 Swift Package 依賴 |
 | `llama-runtime/` | 內嵌本機推理 runtime 與重建腳本 |
+| `whisper-runtime/` | 內嵌本機語音辨識 runtime 與重建腳本 |
 | `McBopomofoTests/` | Swift 測試 |
 | `package-dmg.sh` | Release build 與 DMG 打包腳本 |
 
@@ -220,3 +212,4 @@ dist/LaoWangZhuyin.dmg
 - azooKey-Desktop：前文擷取做法參考
 - llama.cpp：內嵌本機推理 runtime
 - Qwen3-4B-Instruct-2507：本機 AI 校正模型
+- whisper.cpp / OpenAI Whisper large-v3-turbo：內嵌本機語音辨識

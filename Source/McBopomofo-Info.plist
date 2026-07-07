@@ -110,7 +110,7 @@
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>老王注音的語音輸入(實驗功能)需要使用麥克風,把你說的話轉成文字。</string>
+	<string>老王注音的語音輸入需要使用麥克風,把你說的話轉成文字。</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSServices</key>
@@ -321,8 +321,6 @@
 			</array>
 		</dict>
 	</array>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>老王注音的語音輸入(實驗功能)使用語音辨識,把你說的話轉成文字。</string>
 	<key>TICapsLockLanguageSwitchCapable</key>
 	<true/>
 	<key>TISInputSourceID</key>

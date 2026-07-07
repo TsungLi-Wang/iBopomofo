@@ -208,8 +208,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // 收掉內嵌 llama-server 子程序,別留孤兒佔記憶體。
+        // 收掉內嵌 llama-server / whisper-server 子程序,別留孤兒佔記憶體。
         LlamaServerManager.shared.stop()
+        WhisperServerManager.shared.stop()
     }
 
     @objc func showPreferences() {

@@ -115,30 +115,6 @@ extension McBopomofoInputMethodController {
         handle(state: InputState.Empty(), client: client)
     }
 
-    /// 給語音輸入(來源=Apple + AI 修正)用:把辨識出的整段文字過一次目前選的 L2 後端。
-    /// 成功回修正後文字;任何失敗(後端未就緒/錯誤/空結果)都回 `nil`,呼叫端就用原文,
-    /// 不讓語音因 AI 修正失敗而卡住。`completion` 在主執行緒呼叫。
-    func correctVoiceText(_ text: String, client: Any!, completion: @escaping (String?) -> Void) {
-        let preceding = Self.precedingTextForAI(from: client, maxChars: 100)
-        let backend = Self.aiBackend
-        // 本機後端未就緒就別擋語音:背景暖機供下次用,這次直接回 nil(用原文)。
-        if backend == 3, !(LocalServerAICorrector.isModelInstalled && LocalServerAICorrector.isReady)
-        {
-            Self.startLocalServerIfNeeded()
-            completion(nil)
-            return
-        }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let outcome = Self.correctAIGuess(guess: text, preceding: preceding, backend: backend)
-            DispatchQueue.main.async {
-                switch outcome {
-                case let .success(corrected): completion(corrected.isEmpty ? nil : corrected)
-                case .failure: completion(nil)
-                }
-            }
-        }
-    }
-
     // 移植 azooKey 的做法:用 IMKTextInput 讀游標前已上字的前文。
     static func precedingTextForAI(from client: Any!, maxChars: Int) -> String {
         guard let imk = client as? IMKTextInput else { return "" }

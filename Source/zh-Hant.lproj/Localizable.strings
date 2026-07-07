@@ -193,26 +193,15 @@
 /* Used in the notification when L2 auto-correction needs the local server to finish starting. */
 "Local AI auto-correction is loading" = "本機 AI 自動校正載入中";
 
-/* Phase 3 voice input (experimental). */
-"Voice Input (Experimental)" = "語音輸入（實驗）";
+/* Phase 3 voice input. */
+"Voice Input" = "語音輸入";
+"Microphone permission denied" = "麥克風權限被拒絕";
 "Stop Voice Input" = "停止語音輸入";
 "Voice recognition is unavailable" = "語音辨識目前無法使用";
 "Cannot start microphone: %@" = "無法啟動麥克風：%@";
 "Voice recognition failed" = "語音辨識失敗";
-"Voice input needs Dictation: turn it on in System Settings ▸ Keyboard ▸ Dictation" = "語音輸入需要「聽寫」：請到系統設定 ▸ 鍵盤 ▸ 聽寫 開啟";
-"Microphone or speech recognition permission denied" = "麥克風或語音辨識權限被拒絕";
 "Voice input is ready. Double-tap right Shift again to start speaking" = "語音輸入授權完成，請再連按兩下右 Shift 開始說話";
 "Listening… double-tap right Shift to stop" = "聆聽中…再連按兩下右 Shift 結束";
 "Voice input stopped" = "語音輸入已結束";
-"Voice input ended automatically. Double-tap right Shift to start again" = "語音這段已自動結束，請再連按兩下右 Shift 重新開始";
 "No speech detected" = "沒聽到內容";
-"Voice Source: Apple (Offline)" = "語音來源:Apple（離線）";
-"Voice Source: Apple + AI Correction" = "語音來源:Apple + AI 修正";
-"Voice Source: OpenAI Whisper (Cloud)" = "語音來源:OpenAI Whisper（雲端）";
-"Apple (Offline)" = "Apple（離線）";
-"Apple + AI Correction" = "Apple + AI 修正";
-"OpenAI Whisper (Cloud)" = "OpenAI Whisper（雲端）";
-"Voice source switched to:" = "已切換語音來源:";
-"OpenAI voice needs an API key: set it in AI Correction Settings" = "OpenAI 語音需要 API key:請到「AI 修正設定…」填入";
-"AI is polishing the voice text…" = "AI 修正語音文字中…";
-"Transcribing the recording…" = "上傳辨識中…";
+"Transcribing the recording…" = "辨識中…";

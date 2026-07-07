@@ -38,14 +38,10 @@ enum AICorrectionConfig {
     // MARK: UserDefaults keys
     private static let kClaudeEndpoint = "AICorrectionClaudeEndpoint"
     private static let kClaudeOpusModel = "AICorrectionClaudeOpusModel"
-    private static let kOpenAITranscribeModel = "AIVoiceOpenAITranscribeModel"
 
     // MARK: 預設值(= 原本寫死的值)
     static let defaultClaudeEndpoint = "https://api.anthropic.com/v1/messages"
     static let defaultClaudeOpusModel = "claude-opus-4-8"
-    // OpenAI 語音辨識模型。預設 whisper-1(任何 OpenAI key 都能用);想換 gpt-4o-transcribe
-    // 等更新的模型,從「AI 修正設定…」填即可,不必改程式。
-    static let defaultOpenAITranscribeModel = "whisper-1"
 
     // MARK: 取值(空字串 → 退回預設,避免使用者清空欄位後整個壞掉)
     private static func value(_ key: String, default def: String) -> String {
@@ -56,14 +52,9 @@ enum AICorrectionConfig {
 
     static var claudeEndpoint: String { value(kClaudeEndpoint, default: defaultClaudeEndpoint) }
     static var claudeOpusModel: String { value(kClaudeOpusModel, default: defaultClaudeOpusModel) }
-    static var openAITranscribeModel: String {
-        value(kOpenAITranscribeModel, default: defaultOpenAITranscribeModel)
-    }
 
     /// 設定視窗存檔時呼叫:空字串代表「用預設」,所以把 key 移除而不是寫空字串進去。
-    static func save(
-        claudeEndpoint: String, claudeOpusModel: String, openAITranscribeModel: String
-    ) {
+    static func save(claudeEndpoint: String, claudeOpusModel: String) {
         let d = UserDefaults.standard
         func set(_ key: String, _ raw: String) {
             let v = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -71,19 +62,14 @@ enum AICorrectionConfig {
         }
         set(kClaudeEndpoint, claudeEndpoint)
         set(kClaudeOpusModel, claudeOpusModel)
-        set(kOpenAITranscribeModel, openAITranscribeModel)
         d.synchronize()
     }
 
     // MARK: API keys — 存 Keychain(不落明文、不進 git、不進 plist)
     private static let claudeAccount = "ClaudeAPIKey"
-    private static let openAIAccount = "OpenAIAPIKey"
 
     static var claudeAPIKey: String? { AIKeychain.read(account: claudeAccount) }
     static func setClaudeAPIKey(_ key: String) { setKey(key, account: claudeAccount) }
-
-    static var openAIAPIKey: String? { AIKeychain.read(account: openAIAccount) }
-    static func setOpenAIAPIKey(_ key: String) { setKey(key, account: openAIAccount) }
 
     private static func setKey(_ key: String, account: String) {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -96,7 +82,7 @@ enum AICorrectionConfig {
 }
 
 /// 極簡 Keychain 封裝:每個 account 存一筆 generic-password。
-/// 目前用兩個 account:`ClaudeAPIKey`(Claude 整句修正)、`OpenAIAPIKey`(OpenAI 語音辨識)。
+/// 目前用一個 account:`ClaudeAPIKey`(Claude 整句修正)。
 private enum AIKeychain {
     private static let service = "com.openvanilla.McBopomofo.AICorrection"
 
@@ -151,8 +137,6 @@ final class AISettingsWindowController: NSWindowController {
     private let apiKeyField = NSSecureTextField()
     private let claudeEndpointField = NSTextField()
     private let claudeOpusField = NSTextField()
-    private let openAIKeyField = NSSecureTextField()
-    private let openAIModelField = NSTextField()
 
     private init() {
         let window = NSWindow(
@@ -185,8 +169,6 @@ final class AISettingsWindowController: NSWindowController {
             row("Claude API key:", apiKeyField, placeholder: "sk-ant-…(存進 Keychain,留空=不用 Claude)"),
             row("Claude 端點:", claudeEndpointField, placeholder: AICorrectionConfig.defaultClaudeEndpoint),
             row("Claude Opus 模型:", claudeOpusField, placeholder: AICorrectionConfig.defaultClaudeOpusModel),
-            row("OpenAI 語音 API key:", openAIKeyField, placeholder: "sk-…(語音來源選 OpenAI Whisper 時用,存 Keychain)"),
-            row("OpenAI 語音模型:", openAIModelField, placeholder: AICorrectionConfig.defaultOpenAITranscribeModel),
         ])
         grid.translatesAutoresizingMaskIntoConstraints = false
         grid.rowSpacing = 10
@@ -231,8 +213,6 @@ final class AISettingsWindowController: NSWindowController {
         apiKeyField.stringValue = AICorrectionConfig.claudeAPIKey ?? ""
         claudeEndpointField.stringValue = AICorrectionConfig.claudeEndpoint
         claudeOpusField.stringValue = AICorrectionConfig.claudeOpusModel
-        openAIKeyField.stringValue = AICorrectionConfig.openAIAPIKey ?? ""
-        openAIModelField.stringValue = AICorrectionConfig.openAITranscribeModel
         window?.center()
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
@@ -241,11 +221,9 @@ final class AISettingsWindowController: NSWindowController {
 
     @objc private func saveSettings() {
         AICorrectionConfig.setClaudeAPIKey(apiKeyField.stringValue)
-        AICorrectionConfig.setOpenAIAPIKey(openAIKeyField.stringValue)
         AICorrectionConfig.save(
             claudeEndpoint: claudeEndpointField.stringValue,
-            claudeOpusModel: claudeOpusField.stringValue,
-            openAITranscribeModel: openAIModelField.stringValue)
+            claudeOpusModel: claudeOpusField.stringValue)
         window?.performClose(nil)
     }
 

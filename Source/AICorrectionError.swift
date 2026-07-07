@@ -27,7 +27,7 @@ import Foundation
 enum AICorrectionBackendName {
     static let claude = "Claude"
     static let local = "本機 AI"
-    static let openAIVoice = "OpenAI 語音"
+    static let whisper = "語音辨識"
 }
 
 /// AI 修正後端失敗的結構化原因。

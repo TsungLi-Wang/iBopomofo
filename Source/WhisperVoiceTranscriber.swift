@@ -24,33 +24,31 @@
 import Foundation
 import OpenCCBridge
 
-/// 選項 3:OpenAI 雲端語音轉文字(可選後端)。把錄好的整段 WAV 上傳到 OpenAI 的
-/// transcription API(`/v1/audio/transcriptions`),回傳辨識文字。
+/// 本機語音轉文字:把錄好的整段 WAV 丟給內嵌的 whisper-server(127.0.0.1,
+/// `/inference`),回傳辨識文字。完全離線,不需 API key,音訊不出機器。
 ///
-/// 需要使用者自行在「AI 修正設定…」填入 OpenAI Platform API key(存 Keychain);
-/// 這是按量付費的雲端服務,與 ChatGPT / Codex 訂閱不同。輸出統一過 OpenCC 轉繁,
-/// 因為 Whisper 對中文有時會吐簡體(與本機後端共用同一個安全網)。
+/// 輸出統一過 OpenCC 轉繁,因為 Whisper 對中文偶爾吐簡體
+/// (server 端已用繁體 prompt 偏置,這裡是最後一道安全網)。
 enum WhisperVoiceTranscriber {
 
-    static let endpoint = "https://api.openai.com/v1/audio/transcriptions"
-
-    /// 上傳 WAV 音訊,回辨識文字(已轉繁)。同步阻塞,由背景佇列呼叫。
+    /// 上傳 WAV 音訊到本機 whisper-server,回辨識文字(已轉繁)。
+    /// 同步阻塞(含等待 server 就緒),由背景佇列呼叫。
     static func transcribe(wavData: Data, fileName: String) -> Result<String, AICorrectionError> {
-        let name = AICorrectionBackendName.openAIVoice
-        guard let key = AICorrectionConfig.openAIAPIKey else {
-            return .failure(.missingAPIKey(backend: name))
+        let name = AICorrectionBackendName.whisper
+        guard let base = WhisperServerManager.shared.ensureReady() else {
+            return .failure(
+                .unavailable(backend: name, detail: "本機辨識引擎未就緒,請稍候幾秒再試一次"))
         }
-        guard let url = URL(string: endpoint) else {
-            return .failure(.invalidEndpoint(backend: name, endpoint: endpoint))
+        guard let url = URL(string: base + "/inference") else {
+            return .failure(.invalidEndpoint(backend: name, endpoint: base))
         }
 
         let boundary = "Boundary-\(UUID().uuidString)"
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         req.setValue(
             "multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        req.timeoutInterval = 60
+        req.timeoutInterval = 120
 
         var body = Data()
         func appendField(_ fieldName: String, _ value: String) {
@@ -59,8 +57,6 @@ enum WhisperVoiceTranscriber {
                 "Content-Disposition: form-data; name=\"\(fieldName)\"\r\n\r\n".data(using: .utf8)!)
             body.append("\(value)\r\n".data(using: .utf8)!)
         }
-        appendField("model", AICorrectionConfig.openAITranscribeModel)
-        appendField("language", "zh")
         appendField("response_format", "json")
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append(
@@ -77,7 +73,7 @@ enum WhisperVoiceTranscriber {
         URLSession.shared.dataTask(with: req) { data, response, error in
             defer { sem.signal() }
             if let error {
-                NSLog("語音辨識 OpenAI 連線失敗:\(error.localizedDescription)")
+                NSLog("語音辨識 whisper-server 連線失敗:\(error.localizedDescription)")
                 result = .failure(.network(backend: name))
                 return
             }
@@ -88,14 +84,10 @@ enum WhisperVoiceTranscriber {
             guard http.statusCode == 200 else {
                 if let data {
                     NSLog(
-                        "語音辨識 OpenAI HTTP \(http.statusCode):\(String(data: data, encoding: .utf8) ?? "")"
+                        "語音辨識 whisper-server HTTP \(http.statusCode):\(String(data: data, encoding: .utf8) ?? "")"
                     )
                 }
-                switch http.statusCode {
-                case 401, 403: result = .failure(.unauthorized(backend: name))
-                case 429: result = .failure(.rateLimited(backend: name))
-                default: result = .failure(.httpError(backend: name, status: http.statusCode))
-                }
+                result = .failure(.httpError(backend: name, status: http.statusCode))
                 return
             }
             guard let data,
@@ -103,7 +95,7 @@ enum WhisperVoiceTranscriber {
                 let text = json["text"] as? String
             else {
                 if let data {
-                    NSLog("語音辨識 OpenAI 回應異常:\(String(data: data, encoding: .utf8) ?? "")")
+                    NSLog("語音辨識 whisper-server 回應異常:\(String(data: data, encoding: .utf8) ?? "")")
                 }
                 result = .failure(.malformedResponse(backend: name))
                 return
@@ -116,8 +108,9 @@ enum WhisperVoiceTranscriber {
             result = .success(OpenCCBridge.shared.convertToTraditional(trimmed) ?? trimmed)
         }.resume()
 
-        guard sem.wait(timeout: .now() + 65) == .success else {
-            NSLog("語音辨識: OpenAI 請求逾時")
+        // 轉寫時間與句長成正比;push-to-talk 一段通常數秒~數十秒,120s 上限已很寬。
+        guard sem.wait(timeout: .now() + 125) == .success else {
+            NSLog("語音辨識: whisper-server 請求逾時")
             return .failure(.timeout(backend: name))
         }
         return result
