@@ -321,6 +321,24 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
 #pragma mark - Deferred neural rerank bridge
 
+// Splits a node reading like ㄇㄢˋ-ㄇㄢˋ-ㄉㄜ˙ into syllables (same separator
+// convention as ConfusionPairDisambiguator's SplitReading).
+static std::vector<std::string> NeuralSplitReading(const std::string &reading)
+{
+    std::vector<std::string> out;
+    std::string current;
+    for (char c : reading) {
+        if (c == Formosa::Gramambular2::ReadingGrid::kDefaultSeparator[0]) {
+            out.push_back(current);
+            current.clear();
+        } else {
+            current.push_back(c);
+        }
+    }
+    out.push_back(current);
+    return out;
+}
+
 - (BOOL)_neuralAppliedByUs:(const Formosa::Gramambular2::ReadingGrid::NodePtr &)node
 {
     auto it = _neuralApplied.find(node.get());
@@ -363,9 +381,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         charLocation += chars.size();
         [flatText appendString:[NSString stringWithUTF8String:node->value().c_str()]];
 
-        // v1 scope: span-1 nodes only (multi-syllable twins for 在/再 are the
-        // confusion table's business).
-        if (node->spanningLength() != 1 || chars.size() != 1) {
+        std::vector<std::string> syllables = NeuralSplitReading(node->reading());
+        if (chars.size() != syllables.size()) {
+            // Symbol/emoji or annotation nodes; not our business.
             continue;
         }
         const auto &unigrams = node->unigrams();
@@ -377,36 +395,49 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if (node->isOverridden() && ![self _neuralAppliedByUs:node]) {
             continue;
         }
-        // Eligible when any of the top alternatives is a tracked ambiguous
-        // character (current value included).
-        NSMutableArray *alternatives = [NSMutableArray array];
-        std::unordered_set<std::string> seen;
-        BOOL tracked = NO;
-        for (const auto &unigram : unigrams) {
-            if (alternatives.count >= maxAlternatives) {
-                break;
-            }
-            const std::string &value = unigram.value();
-            if (McBopomofo::Split(value).size() != 1) {
+        // Per syllable position: eligible when the current character is
+        // tracked and the node has "twin" unigrams differing only at that
+        // position (the dictionary contains e.g. both 慢慢的 and 慢慢地; the
+        // unigram walk always favors the frequent twin). A span-1 node is the
+        // degenerate case where every other unigram is a twin.
+        for (size_t k = 0; k < chars.size(); ++k) {
+            if (!ambiguousSet.count(chars[k])) {
                 continue;
             }
-            if (!seen.insert(value).second) {
+            NSMutableArray *alternatives = [NSMutableArray array];
+            std::unordered_set<std::string> seen;
+            seen.insert(chars[k]);
+            [alternatives addObject:[NSString stringWithUTF8String:chars[k].c_str()]];
+            for (const auto &unigram : unigrams) {
+                if (alternatives.count >= maxAlternatives) {
+                    break;
+                }
+                std::vector<std::string> twinChars = McBopomofo::Split(unigram.value());
+                if (twinChars.size() != chars.size()) {
+                    continue;
+                }
+                bool twin = true;
+                for (size_t j = 0; j < chars.size(); ++j) {
+                    if (j != k && twinChars[j] != chars[j]) {
+                        twin = false;
+                        break;
+                    }
+                }
+                if (!twin || !seen.insert(twinChars[k]).second) {
+                    continue;
+                }
+                [alternatives addObject:[NSString stringWithUTF8String:twinChars[k].c_str()]];
+            }
+            if (alternatives.count < 2) {
                 continue;
             }
-            if (ambiguousSet.count(value)) {
-                tracked = YES;
-            }
-            [alternatives addObject:[NSString stringWithUTF8String:value.c_str()]];
+            [spans addObject:@{
+                @"location" : @(nodeStart + k),
+                @"reading" : [NSString stringWithUTF8String:syllables[k].c_str()],
+                @"current" : [NSString stringWithUTF8String:chars[k].c_str()],
+                @"alternatives" : alternatives,
+            }];
         }
-        if (!tracked || alternatives.count < 2) {
-            continue;
-        }
-        [spans addObject:@{
-            @"location" : @(nodeStart),
-            @"reading" : [NSString stringWithUTF8String:node->reading().c_str()],
-            @"current" : [NSString stringWithUTF8String:node->value().c_str()],
-            @"alternatives" : alternatives,
-        }];
     }
 
     return @{ @"text" : flatText, @"spans" : spans };
@@ -432,23 +463,33 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     size_t charLocation = 0;
     for (const auto &node : _latestWalk.nodes) {
+        std::vector<std::string> chars = McBopomofo::Split(node->value());
         size_t nodeStart = charLocation;
-        charLocation += McBopomofo::Split(node->value()).size();
-        if (nodeStart != location) {
+        charLocation += chars.size();
+        if (location < nodeStart || location >= nodeStart + chars.size()) {
             continue;
         }
-        if (node->spanningLength() != 1 || node->reading() != readingUtf8
-            || node->value() != currentUtf8) {
+        size_t k = location - nodeStart;
+        std::vector<std::string> syllables = NeuralSplitReading(node->reading());
+        if (syllables.size() != chars.size() || syllables[k] != readingUtf8
+            || chars[k] != currentUtf8) {
             return NO;
         }
         if (node->isOverridden() && ![self _neuralAppliedByUs:node]) {
             return NO;
         }
-        // Soft override keeps the top unigram's score, so segmentation and
-        // path competition are unaffected and no re-walk is needed; nothing
-        // is observed into the user override model.
+        // Rebuild the twin value with position k replaced; selectOverrideUnigram
+        // only succeeds when that value actually exists among the node's
+        // unigrams, keeping the engine-level guarantee: text is re-picked,
+        // never generated. Soft override keeps the top unigram's score, so
+        // segmentation and path competition are unaffected and no re-walk is
+        // needed; nothing is observed into the user override model.
+        std::string targetValue;
+        for (size_t j = 0; j < chars.size(); ++j) {
+            targetValue += (j == k) ? valueUtf8 : chars[j];
+        }
         if (node->selectOverrideUnigram(
-                valueUtf8,
+                targetValue,
                 Formosa::Gramambular2::ReadingGrid::Node::OverrideType::
                     kOverrideValueWithScoreFromTopUnigram)) {
             _neuralApplied[node.get()] = node;

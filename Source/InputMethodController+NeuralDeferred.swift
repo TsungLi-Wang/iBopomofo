@@ -24,6 +24,32 @@
 import Cocoa
 import InputMethodKit
 
+/// 隱藏診斷開關(無 UI):`defaults write org.openvanilla.inputmethod.McBopomofo
+/// NeuralDeferredDiagnostics -bool YES` 後,延遲重審每個決策點寫入
+/// ~/Library/Logs/laowang-neural-deferred.log。IME 的 NSLog 在系統 log 裡撈不動
+/// (交班日誌 2026-06-25 的教訓),固定檔才可靠。預設關,零成本。
+enum NeuralDeferredDiag {
+    static var enabled: Bool {
+        UserDefaults.standard.bool(forKey: "NeuralDeferredDiagnostics")
+    }
+
+    static func log(_ message: String) {
+        guard enabled else { return }
+        let formatter = ISO8601DateFormatter()
+        let line = formatter.string(from: Date()) + " " + message + "\n"
+        let url = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/laowang-neural-deferred.log")
+        guard let data = line.data(using: .utf8) else { return }
+        if let handle = try? FileHandle(forWritingTo: url) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+        } else {
+            try? data.write(to: url)
+        }
+    }
+}
+
 /// L1.5 延遲全局重審(deferred global re-rank)。
 /// 設計:docs/l1-neural-rerank-integration.md 第 8 節。
 ///
@@ -51,7 +77,11 @@ extension McBopomofoInputMethodController {
 
     func scheduleNeuralDeferredCheckIfNeeded(for state: InputState.Inputting, client: Any?) {
         guard Preferences.enableGlobalNeuralRerank else { return }
-        guard state.composingBuffer.count >= Self.neuralDeferredMinBufferLength else { return }
+        guard state.composingBuffer.count >= Self.neuralDeferredMinBufferLength else {
+            NeuralDeferredDiag.log("skip: buffer too short (\(state.composingBuffer))")
+            return
+        }
+        NeuralDeferredDiag.log("scheduled: buffer=\(state.composingBuffer)")
 
         let coordinator = aiAssistCoordinator
         coordinator.neuralDeferredWorkItem?.cancel()
@@ -69,21 +99,37 @@ extension McBopomofoInputMethodController {
     private func performNeuralDeferredCheck(serial: UInt, client: Any?) {
         let coordinator = aiAssistCoordinator
         coordinator.neuralDeferredWorkItem = nil
-        guard serial == coordinator.neuralDeferredSerial else { return }
-        guard Preferences.enableGlobalNeuralRerank, LlamaServerManager.shared.isReady else {
+        guard serial == coordinator.neuralDeferredSerial else {
+            NeuralDeferredDiag.log("perform: stale serial")
             return
         }
-        guard let inputting = state as? InputState.Inputting else { return }
+        guard Preferences.enableGlobalNeuralRerank, LlamaServerManager.shared.isReady else {
+            NeuralDeferredDiag.log(
+                "perform: server not ready (isReady=\(LlamaServerManager.shared.isReady))")
+            return
+        }
+        guard let inputting = state as? InputState.Inputting else {
+            NeuralDeferredDiag.log("perform: state not Inputting (\(type(of: state)))")
+            return
+        }
         guard
             let snapshot = keyHandler.neuralRerankSnapshot(
                 characters: Self.neuralDeferredCharacters, maxAlternatives: 4)
                 as? [String: Any],
             let text = snapshot["text"] as? String,
             let spans = snapshot["spans"] as? [[String: Any]], !spans.isEmpty
-        else { return }
+        else {
+            NeuralDeferredDiag.log("perform: snapshot nil or no spans")
+            return
+        }
         // 對齊守門:walk 攤平字串必須等於 composing buffer(游標處有打到一半的
         // 音節時兩者不等,這輪直接跳過,音節落地後的下一次停頓自然會再來)。
-        guard text == inputting.composingBuffer else { return }
+        guard text == inputting.composingBuffer else {
+            NeuralDeferredDiag.log(
+                "perform: text mismatch walk=\(text) buffer=\(inputting.composingBuffer)")
+            return
+        }
+        NeuralDeferredDiag.log("perform: text=\(text) spans=\(spans.count)")
 
         let scalars = Array(text.unicodeScalars)
         var pending:
@@ -99,10 +145,16 @@ extension McBopomofoInputMethodController {
             else { continue }
             // 右文 gate:與候選窗路徑同一條件。
             let rightCount = scalars.count - (location + 1)
-            guard rightCount >= NeuralCandidateRescorer.rightContextMinChars else { continue }
+            guard rightCount >= NeuralCandidateRescorer.rightContextMinChars else {
+                NeuralDeferredDiag.log("span@\(location) \(current): right=\(rightCount) gated")
+                continue
+            }
             // 同一「位置+語境」只審一次;buffer 一變鍵就不同,右文增長自然重審。
             let key = "\(location):\(text)"
-            guard !coordinator.neuralDeferredDecidedKeys.contains(key) else { continue }
+            guard !coordinator.neuralDeferredDecidedKeys.contains(key) else {
+                NeuralDeferredDiag.log("span@\(location) \(current): already decided")
+                continue
+            }
 
             let alternatives = rawAlternatives.filter { !AICandidateReranker.isSymbolOrEmoji($0) }
             guard alternatives.count >= 2, alternatives.contains(current) else { continue }
@@ -128,10 +180,17 @@ extension McBopomofoInputMethodController {
                     let scores = await AISentenceScorer.shared.scoreAlternatives(
                         left: item.left, alternatives: item.alternatives, right: item.right,
                         deadline: Date().addingTimeInterval(Self.neuralDeferredScoreBudget))
-                else { continue }
+                else {
+                    NeuralDeferredDiag.log("score@\(item.location) \(item.current): failed/timeout")
+                    continue
+                }
                 let choice = AISentenceScorer.decide(
                     scores: scores, current: item.current,
                     margin: NeuralCandidateRescorer.decisionMargin)
+                NeuralDeferredDiag.log(
+                    "score@\(item.location) \(item.current)→\(choice) "
+                        + scores.map { "\($0.key)=\(String(format: "%.1f", $0.value))" }
+                            .sorted().joined(separator: " "))
                 if choice != item.current {
                     decisions.append((item.location, item.reading, item.current, choice))
                 }
@@ -142,18 +201,26 @@ extension McBopomofoInputMethodController {
                 guard let self else { return }
                 let coordinator = self.aiAssistCoordinator
                 // 打分期間使用者可能繼續動作:serial + buffer 雙守門,過期丟棄。
-                guard serial == coordinator.neuralDeferredSerial else { return }
+                guard serial == coordinator.neuralDeferredSerial else {
+                    NeuralDeferredDiag.log("apply: stale serial")
+                    return
+                }
                 guard let currentState = self.state as? InputState.Inputting,
                     currentState.composingBuffer == text
-                else { return }
+                else {
+                    NeuralDeferredDiag.log("apply: buffer changed, dropped")
+                    return
+                }
 
                 var appliedText = Array(text.unicodeScalars)
                 var applied = false
                 for decision in decisions {
-                    if self.keyHandler.applyNeuralOverride(
+                    let ok = self.keyHandler.applyNeuralOverride(
                         location: UInt(decision.location), reading: decision.reading,
                         expectedCurrent: decision.current, value: decision.value)
-                    {
+                    NeuralDeferredDiag.log(
+                        "apply@\(decision.location) \(decision.current)→\(decision.value): \(ok)")
+                    if ok {
                         applied = true
                         if let scalar = decision.value.unicodeScalars.first,
                             decision.value.unicodeScalars.count == 1

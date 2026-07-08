@@ -859,3 +859,21 @@ Johnny 授權自主推進四步到底（sim → 方案 B → 方案 A → 發版
 4. 舊掛件：語音 whisper.cpp 實機驗收、L2 實機驗證清單、兩個 eval jsonl 是否進 repo（仍未 commit，等拍板）。
 5. pbxproj 新檔 ID 從 **FACE0116+** 起。
 
+### 2026-07-08T11:40:00+08:00 v2.1.1:實機零翻字破案（多字詞節點）＋自動化端到端驗證
+
+Johnny 實測 v2.1.0 回報「只有我的手機不見了是對的其他都錯」。破案過程與結論：
+
+**兩個疊加原因**：
+1. **多字詞節點缺口（程式 bug，已修）**：「慢慢的/我的/開心地/高興地」在詞典裡是**整個詞**（`ㄇㄢˋ-ㄇㄢˋ-ㄉㄜ˙ 慢慢的` 與孿生 `慢慢地` 同節點並存），v2.1.0 snapshot 只列 span-1 節點 → 全漏。修法＝比照 ConfusionPairDisambiguator 孿生詞邏輯一般化 snapshot/apply（每音節位置找「只差該字」的孿生 unigram）。引擎級測試 `NeuralDeferredBridgeTests` 3/3（含真鍵序打字：`a04a042k7y.3eji4x96` = 慢慢的走過來）。
+2. **打字習慣（產品現實，非 bug）**：診斷 log 看到 Johnny 真實打字是**短句頻繁送出**（「背景的」3 字就 commit、標點單獨送）。延遲重審需要歧義字與右文在**同一 buffer**；送出後的字 IME 動不了。此現實請下一棒記住：對這種輸入風格，deferred 的觸發機會天然少；價值場景是整句輸入。可考慮的後續：commit 前終審（方案 C）也救不了「右文在下一個 buffer」的情況——那是 L2/剪貼簿級功能的領域。
+
+**驗證方法升級（重要，以後照抄）**：不再依賴 Johnny 打字。`osascript` + System Events **`key code`**（不是 `keystroke`！keystroke 的數字鍵事件 IME 吃不到聲調，會出「ㄇ04ㄇ04…」亂碼）送真實虛擬鍵碼進 TextEdit，端到端驗過：「慢慢的走過來→慢慢**地**走過來」「跑的很快→跑**得**很快」實機自動翻轉。標準注音鍵碼對照與整段 AppleScript 在本次 session 記錄；虛擬鍵碼 a=0 s=1 d=2 …數字 0=29 9=25 4=21 3=20 2=19 7=26 6=22。
+**隱藏診斷開關**：`defaults write org.openvanilla.inputmethod.McBopomofo NeuralDeferredDiagnostics -bool YES` → `~/Library/Logs/laowang-neural-deferred.log` 逐決策點記錄（schedule/gate/score/apply）。查完記得關（delete key）並刪 log（含使用者輸入內容）。
+
+**發佈**：v2.1.1 / build 2283（兩個 plist）。流程照舊。診斷開關已關、測試殘留已清。
+
+**下一棒優先**：
+1. 收 Johnny 對 v2.1.1 的體感（提醒他：**整句打完停一秒再送出**才看得到隱形修正；逐詞送出看不到是設計邊界不是 bug）。
+2. 觀察「短句輸入」使用者的實際觸發率；若太低，評估候選窗路徑（regime A 回頭選字）是否承擔主要價值，或考慮把 minBufferLength 降到 3。
+3. 其餘同上一條（擴字集先跑 sim、eval jsonl 待拍板、語音/L2 舊掛件）。pbxproj 新檔 ID 從 **FACE0118+** 起（FACE0116/0117 = NeuralDeferredBridgeTests）。
+
