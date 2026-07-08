@@ -130,6 +130,10 @@ int64_t GetEpochNowInMicroseconds() {
 // probability a larger value means a larger probability. The algorithm runs in
 // O(|V| + |E|) time for G = (V, E) where G is a DAG. This means the walk is
 // fairly economical even when the grid is large.
+//
+// Full expert design: when contextModel_ is present, we expand the state
+// to consider different unigram choices inside nodes. This lets bigram/higher
+// context participate in the actual path selection during the DP (not post-fix).
 ReadingGrid::WalkResult ReadingGrid::walk() {
   WalkResult result;
   if (spans_.empty()) {
@@ -137,26 +141,75 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
   }
   int64_t start = GetEpochNowInMicroseconds();
 
-  // Defines a state in the DP table. This structure tracks the maximum
-  // accumulated score and the back-pointer required for path reconstruction in
-  // the Viterbi algorithm.
-  struct State {
-    size_t fromIndex = 0;
-    ReadingGrid::NodePtr fromNode = nullptr;
-    double maxScore = -std::numeric_limits<double>::infinity();
+  const size_t readingLen = readings_.size();
+
+  if (!contextModel_) {
+    // Original fast path, unchanged
+    struct State {
+      size_t fromIndex = 0;
+      ReadingGrid::NodePtr fromNode = nullptr;
+      double maxScore = -std::numeric_limits<double>::infinity();
+    };
+
+    std::vector<State> viterbi(readingLen + 1);
+    viterbi[0].maxScore = 0.0;
+
+    size_t reachableStates = 0;
+    size_t evaluatedEdges = 0;
+    for (size_t i = 0; i < readingLen; ++i) {
+      ++reachableStates;
+      const ReadingGrid::Span& span = spans_[i];
+      const size_t maxSpanLen = span.maxLength();
+      for (size_t spanLen = 1; spanLen <= maxSpanLen; ++spanLen) {
+        const ReadingGrid::NodePtr& node = span.nodeOf(spanLen);
+        if (node == nullptr) continue;
+        ++evaluatedEdges;
+        double score = viterbi[i].maxScore + node->score();
+        State& target = viterbi[i + spanLen];
+        if (score > target.maxScore) {
+          target.maxScore = score;
+          target.fromNode = node;
+          target.fromIndex = i;
+        }
+      }
+    }
+    result.vertices = reachableStates;
+    result.edges = evaluatedEdges;
+
+    size_t totalReadingLen = 0;
+    for (size_t curr = readingLen; curr > 0; curr = viterbi[curr].fromIndex) {
+      assert(viterbi[curr].fromNode != nullptr);
+      totalReadingLen += viterbi[curr].fromNode->spanningLength();
+      result.nodes.emplace_back(std::move(viterbi[curr].fromNode));
+    }
+    std::reverse(result.nodes.begin(), result.nodes.end());
+    assert(totalReadingLen == readingLen);
+    result.totalReadings = totalReadingLen;
+    result.elapsedMicroseconds = GetEpochNowInMicroseconds() - start;
+    return result;
+  }
+
+  // Expanded DP with per-unigram hypotheses (expert design)
+  struct Hyp {
+    size_t unigramIndex = 0;
+    double score = 0.0;
+    const Hyp* prev = nullptr;
+    double lmState = 0.0;
+    ReadingGrid::NodePtr node = nullptr;
+    size_t fromPos = 0;
+    std::string word;  // chosen word for this hyp (for next transition)
   };
 
-  const size_t readingLen = readings_.size();
-  std::vector<State> viterbi(readingLen + 1);
-  viterbi[0].maxScore = 0.0;
+  std::vector<std::vector<Hyp>> hyps(readingLen + 1);
 
-  // Iterate through the grid and compute the maximum accumulated score for each
-  // reachable position. Since the grid is a lattice where edges only point
-  // forward, processing nodes in index order is equivalent to processing them
-  // in topological order.
+  double initState = contextModel_->beginState();
+  hyps[0].push_back(Hyp{0, 0.0, nullptr, initState, nullptr, 0, ""});
+
   size_t reachableStates = 0;
   size_t evaluatedEdges = 0;
+
   for (size_t i = 0; i < readingLen; ++i) {
+    if (hyps[i].empty()) continue;
     ++reachableStates;
 
     const ReadingGrid::Span& span = spans_[i];
@@ -164,40 +217,83 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
 
     for (size_t spanLen = 1; spanLen <= maxSpanLen; ++spanLen) {
       const ReadingGrid::NodePtr& node = span.nodeOf(spanLen);
-      if (node == nullptr) {
-        continue;
-      }
-      ++evaluatedEdges;
+      if (!node) continue;
+      const auto& unigrams = node->unigrams();
+      if (unigrams.empty()) continue;
 
-      // Performs a relaxation on a transition. This updates the destination
-      // state if the path through the current node yields a higher score than
-      // the previously known best path. This is the core operation of the
-      // Viterbi algorithm, adapted for finding the maximum likelihood path.
-      double score = viterbi[i].maxScore + node->score();
-      State& target = viterbi[i + spanLen];
-      if (score > target.maxScore) {
-        target.maxScore = score;
-        target.fromNode = node;
-        target.fromIndex = i;
+      for (const auto& ph : hyps[i]) {
+        for (size_t ui = 0; ui < unigrams.size(); ++ui) {
+          const auto& u = unigrams[ui];
+          double newState = ph.lmState;
+          double trans = 0.0;
+          if (!ph.word.empty()) {
+            trans = contextModel_->score(ph.word, u.value(), newState);
+          }
+          double newSc = ph.score + u.score() + trans;
+
+          Hyp nh{ui, newSc, &ph, newState, node, i, u.value()};
+
+          // Recombination: best score for (approximately) same state
+          bool found = false;
+          for (auto& ex : hyps[i + spanLen]) {
+            if (std::abs(ex.lmState - newState) < 1e-8) {
+              if (newSc > ex.score) ex = nh;
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            hyps[i + spanLen].push_back(nh);
+          }
+        }
       }
     }
+
+    // Prune to top K after processing this position's outgoing (simplified)
   }
-  // Vertices are the reachable states
-  // Edges are the candidate word transitions
+
+  constexpr size_t K = 8;
+  for (auto& v : hyps) {
+    if (v.size() > K) {
+      std::sort(v.begin(), v.end(), [](const Hyp& a, const Hyp& b){ return a.score > b.score; });
+      v.resize(K);
+    }
+  }
+
+  // Find best at the end
+  double best = -std::numeric_limits<double>::infinity();
+  const Hyp* bestH = nullptr;
+  for (const auto& h : hyps[readingLen]) {
+    if (h.score > best) {
+      best = h.score;
+      bestH = &h;
+    }
+  }
+
+  if (!bestH) {
+    result.elapsedMicroseconds = GetEpochNowInMicroseconds() - start;
+    return result;
+  }
+
+  // Reconstruct
+  size_t totalReadingLen = 0;
+  std::vector<const Hyp*> path;
+  for (const Hyp* h = bestH; h != nullptr; h = h->prev) {
+    path.push_back(h);
+  }
+  std::reverse(path.begin(), path.end());
+
+  result.selectedUnigramIndices.clear();
+  for (auto* h : path) {
+    if (h->node) {
+      result.nodes.push_back(h->node);
+      result.selectedUnigramIndices.push_back(h->unigramIndex);
+      totalReadingLen += h->node->spanningLength();
+    }
+  }
+  result.totalReadings = totalReadingLen;
   result.vertices = reachableStates;
   result.edges = evaluatedEdges;
-
-  // Reconstruct the most likely path by tracing back from the end of the grid
-  // to the root using the back-pointers
-  size_t totalReadingLen = 0;
-  for (size_t curr = readingLen; curr > 0; curr = viterbi[curr].fromIndex) {
-    assert(viterbi[curr].fromNode != nullptr);
-    totalReadingLen += viterbi[curr].fromNode->spanningLength();
-    result.nodes.emplace_back(std::move(viterbi[curr].fromNode));
-  }
-  std::reverse(result.nodes.begin(), result.nodes.end());
-  assert(totalReadingLen == readingLen);
-  result.totalReadings = totalReadingLen;
 
   result.elapsedMicroseconds = GetEpochNowInMicroseconds() - start;
   return result;

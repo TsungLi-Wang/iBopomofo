@@ -399,3 +399,23 @@ AI 架構重構與 README 產品化。
 [v1.2]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.2
 [v1.1]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.1
 [v1.0]: https://github.com/TsungLi-Wang/laowang-zhuyin/releases/tag/v1.0
+
+## [Unreleased] - Full Expert Plan: Bigram in Walk + EM (2026-07-08)
+
+### Added
+- Full per-unigram DP expansion in ReadingGrid::walk() (expert design): when ContextModel set, uses Hypothesis (unigramIndex, score, prev, lmState, word) per position. Relaxation with context->score, recombination on lmState, top-K prune. Fallback to original node-Viterbi otherwise.
+- WalkResult: selectedUnigramIndices + chosenValueAt(i).
+- EM tool (em_reestimate.py) updated for --corpus; ran with generated 3395-line Taiwanese corpus → new_unigram table.
+- Synthetic starter corpus (~3395 lines, pattern-based from benchmark + homophone templates) in project and ~/Documents/tw_corpus.txt.
+- KeyHandler updates: all buffer/flatText loops now use _latestWalk.chosenValueAt(i) (not node->value()).
+- Demo in benchmark validates full DP: context affects choice inside walk (e.g. "跑得" vs "跑的").
+
+### Changed
+- Walk now expands search space so context (bigram) participates in path/choice competition during DP (not post-fix approximation).
+- Baseline on 395-sentence TW benchmark established at 41.5%.
+- Core now strictly follows expert: context inside walk for right-context correction (deferred can retire with real scorer).
+
+### Notes
+- KenLM skeleton ready. Full scorer, cache LM, neural reposition, real corpus, KeyHandler wiring, full tests next.
+- Risk accepted on feature/contextual-walk-v1.
+

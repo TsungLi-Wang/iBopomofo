@@ -163,6 +163,7 @@ class ReadingGrid {
 
   struct WalkResult {
     std::vector<NodePtr> nodes;
+    std::vector<size_t> selectedUnigramIndices;  // parallel to nodes; index into node->unigrams() for the chosen one when using ContextModel
     size_t totalReadings = 0;
     size_t vertices = 0;
     size_t edges = 0;
@@ -178,6 +179,9 @@ class ReadingGrid {
 
     std::vector<std::string> valuesAsStrings() const;
     std::vector<std::string> readingsAsStrings() const;
+
+    // Returns the chosen value for the i-th node in the path (uses selectedUnigramIndices if present)
+    std::string chosenValueAt(size_t i) const;
   };
 
   WalkResult walk();
@@ -238,6 +242,18 @@ class ReadingGrid {
     std::shared_ptr<LanguageModel> lm_;
   };
 
+  // ContextModel for bigram (or higher) transitions inside walk.
+  // When set, walk will use it to score transitions between chosen unigrams.
+  class ContextModel {
+   public:
+    virtual ~ContextModel() = default;
+    // Return log prob of the word given previous state, and update out state.
+    virtual double score(const std::string& prevWord, const std::string& word, double& state) = 0;
+    virtual double beginState() = 0;
+  };
+
+  void setContextModel(ContextModel* cm) { contextModel_ = cm; }
+
   [[nodiscard]] const std::vector<Span>& spans() const { return spans_; }
 
   [[nodiscard]] const std::vector<std::string>& readings() const {
@@ -250,6 +266,7 @@ class ReadingGrid {
   std::vector<std::string> readings_;
   std::vector<Span> spans_;
   ScoreRankedLanguageModel lm_;
+  ContextModel* contextModel_ = nullptr;
 
   // Internal methods for maintaining the grid.
 

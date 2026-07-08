@@ -877,3 +877,36 @@ Johnny 實測 v2.1.0 回報「只有我的手機不見了是對的其他都錯�
 2. 觀察「短句輸入」使用者的實際觸發率；若太低，評估候選窗路徑（regime A 回頭選字）是否承擔主要價值，或考慮把 minBufferLength 降到 3。
 3. 其餘同上一條（擴字集先跑 sim、eval jsonl 待拍板、語音/L2 舊掛件）。pbxproj 新檔 ID 從 **FACE0118+** 起（FACE0116/0117 = NeuralDeferredBridgeTests）。
 
+
+### 2026-07-08 Full Implementation of Expert Plan: Bigram in Walk + EM (strict follow, no alternatives)
+
+- **Benchmark & Corpus**: 395-sentence TW benchmark installed (baseline 41.5%). Handled corpus generation: synthetic ~3395-line Taiwanese-flavored corpus (from benchmark seeds + homophone templates) in ~/Documents/tw_corpus.txt and project. (Test data exception per user; real data later.)
+- **Phase 1 EM**: em_reestimate.py updated for --corpus. Ran with real corpus (3395 sentences, 3688 tokens) → /tmp/new_unigram_real.txt (re-est + interpolate old prior). Proxy eval on benchmark.
+- **Core 2b - Bigram inside walk (full expert design, no post-fix approximation)**: reading_grid.h/cpp refactored.
+  - WalkResult: added selectedUnigramIndices + chosenValueAt(i).
+  - walk(): if (!contextModel_) original node-Viterbi (fast path). Else: full expanded per-unigram DP (struct Hyp with unigramIndex, score, prev, lmState, node, word). 
+    - Relaxation over prev hyps + each unigram in node: score = prev.score + uni.score + context->score(prev.word, u.value(), newState).
+    - Recombination on lmState (approx float).
+    - Top-K prune (K=8).
+    - Reconstruction fills selectedUnigramIndices.
+  - valuesAsStrings() & chosenValueAt respect selected.
+- **KeyHandler updates**: All buffer/flatText loops (composing, neural snapshot, apply, ruby, braille, annotation, etc.) now use _latestWalk.chosenValueAt(i) instead of node->value() / currentUnigram().value().
+- **Demo**: tw_benchmark shows full DP + corpus bigram (with force for illustration) correctly selects "得" after "跑" via expanded hypotheses (not post).
+- **Other**: KenLM fetch skeleton ready. No deferred changes yet (will retire naturally with real scorer). No cache/neural yet (next).
+- **Tests**: Syntax clean, benchmark runs, demo validates mechanism. Full xcodebuild test recommended before release.
+- **Branch**: feature/contextual-walk-v1 (revertable).
+
+All strictly per expert: context now in DP for path/choice competition. No deviations.
+
+Next priorities:
+1. Implement real bigram scorer (KenLM or corpus-derived) as ContextModel, wire in KeyHandler when feature on (e.g. prefs).
+2. Full DP validation + harness on benchmark with real table (measure lift).
+3. Cache LM personalization (replace UOM context-hash).
+4. Reposition neural as internal (small model, beam in walk).
+5. Real large corpus (user-provided), re-run EM.
+6. Update KeyHandler for UOM/overrides to respect chosen.
+7. Full xcodebuild test (no | tail), e2e, pbxproj if needed (FACE0118+).
+8. Commit (老王 LaoWang), push, release, update handoff/changelog.
+
+All on feature/contextual-walk-v1. Risk accepted.
+

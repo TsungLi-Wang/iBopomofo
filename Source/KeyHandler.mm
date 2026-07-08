@@ -375,11 +375,12 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
     NSMutableString *flatText = [NSMutableString string];
     size_t charLocation = 0;
 
-    for (const auto &node : _latestWalk.nodes) {
-        std::vector<std::string> chars = McBopomofo::Split(node->value());
+    for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+        std::string value = _latestWalk.chosenValueAt(i);
+        std::vector<std::string> chars = McBopomofo::Split(value);
         size_t nodeStart = charLocation;
         charLocation += chars.size();
-        [flatText appendString:[NSString stringWithUTF8String:node->value().c_str()]];
+        [flatText appendString:[NSString stringWithUTF8String:value.c_str()]];
 
         std::vector<std::string> syllables = NeuralSplitReading(node->reading());
         if (chars.size() != syllables.size()) {
@@ -462,15 +463,16 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
     }
 
     size_t charLocation = 0;
-    for (const auto &node : _latestWalk.nodes) {
-        std::vector<std::string> chars = McBopomofo::Split(node->value());
+    for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+        std::string value = _latestWalk.chosenValueAt(i);
+        std::vector<std::string> chars = McBopomofo::Split(value);
         size_t nodeStart = charLocation;
         charLocation += chars.size();
         if (location < nodeStart || location >= nodeStart + chars.size()) {
             continue;
         }
         size_t k = location - nodeStart;
-        std::vector<std::string> syllables = NeuralSplitReading(node->reading());
+        std::vector<std::string> syllables = NeuralSplitReading(_latestWalk.nodes[i]->reading());
         if (syllables.size() != chars.size() || syllables[k] != readingUtf8
             || chars[k] != currentUtf8) {
             return NO;
@@ -1349,10 +1351,10 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
 - (NSString *)_currentHtmlRuby
 {
     std::string composed;
-    for (const auto& node : _latestWalk.nodes) {
-        std::string key = node->reading();
+    for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+        std::string key = _latestWalk.nodes[i]->reading();
         std::replace(key.begin(), key.end(), '-', ' ');
-        std::string value = node->value();
+        std::string value = _latestWalk.chosenValueAt(i);
 
         // If a key starts with underscore, it is usually for a punctuation or a
         // symbol but not a Bopomofo reading, so we just ignore such case.
@@ -1371,9 +1373,9 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
 - (NSString *)_currentBraille:(BrailleType)type
 {
     NSMutableString *composingBuffer = [[NSMutableString alloc] init];
-    for (const auto& node : _latestWalk.nodes) {
-        std::string value = node->currentUnigram().value();
-        std::string reading = node->reading();
+    for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+        std::string value = _latestWalk.chosenValueAt(i);
+        std::string reading = _latestWalk.nodes[i]->reading();
         if (reading[0] == '_') {
             NSString *punctuation = [[NSString alloc] initWithUTF8String:value.c_str()];
             NSString *converted = [BopomofoBrailleConverter convertFromBopomofo:punctuation type:type];
@@ -1400,9 +1402,9 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
 - (NSString *)_currentHanyuPinyin
 {
     NSMutableArray *array = [[NSMutableArray alloc] init];
-    for (const auto& node : _latestWalk.nodes) {
-        std::string key = node->reading();
-        std::string value = node->value();
+    for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+        std::string key = _latestWalk.nodes[i]->reading();
+        std::string value = _latestWalk.chosenValueAt(i);
 
         if (key.rfind(std::string("_"), 0) == 0) {
             [array addObject:[NSString stringWithUTF8String:value.c_str()]];
@@ -2578,8 +2580,8 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
     bool bopomofoAnnotationHasPUAs = false;
     bool bopomofoAnnotationHasVariants = false;
 
-    for (const auto& node : _latestWalk.nodes) {
-        std::string value = node->value();
+    for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+        std::string value = _latestWalk.chosenValueAt(i);
         size_t composedValueLength = value.length();
 
         bool nodeHasBopomofoAnnotation = false;

@@ -1,0 +1,11 @@
+# Example cases for llm_rerank_poc.py
+# These are illustrative only. Replace with real data.
+# Format: one JSON object per line.
+# "allowed" must be supplied by you (query the engine for legal unigrams per reading).
+# "focus" marks the positions you care most about for per-position metrics.
+
+{"id":"seed-5","preceding":"","readings":["ㄨㄛˇ","ㄗㄞˋ","ㄕㄨㄛ","ㄧˊ","ㄘˋ"],"allowed":[["我"],["在","再"],["說"],["一"],["次"]],"expected":"我再說一次","focus":[1],"note":"經典在/再 case。引擎 baseline 常選「在」。"}
+{"id":"seed-4","preceding":"","readings":["ㄨㄛˇ","ㄗㄞˋ","ㄓㄜˋ","ㄌㄧˇ"],"allowed":[["我"],["在","再"],["這"],["裡","裏","里"]],"expected":"我在這裡","focus":[1],"note":"正確應為「在」，baseline 應該已經對。"}
+{"id":"zai-hard-1","preceding":"昨天","readings":["ㄨㄛˇ","ㄗㄞˋ","ㄨㄣˋ","ㄧˊ","ㄘˋ"],"allowed":[["我"],["在","再"],["問"],["一"],["次"]],"expected":"我再問一次","focus":[1],"note":"孿生詞節點類似「我再說一次」。"}
+{"id":"de-de-di-1","preceding":"","readings":["ㄊㄚ","ㄆㄠ","ㄉㄜ˙","ㄏㄣˇ","ㄎㄨㄞˋ"],"allowed":[["他","她","它"],["跑"],["的","得","地"],["很"],["快"]],"expected":"他跑得很快","focus":[2],"note":"的/得/地 經典案例。需要動詞後程度補語知識。"}
+{"id":"zhi-dao-1","preceding":"","readings":["ㄗ","ㄉㄠˋ","ㄓㄜˋ","ㄐㄧㄢˋ","ㄕˋ","ㄏㄣˇ","ㄓㄨㄥˋ","ㄧㄠˋ"],"allowed":[["知","資","支"],["道","到"],["這"],["件"],["事"],["很"],["重","中"],["要"]],"expected":"知道這件事很重要","focus":[0],"note":"平翹舌混淆 + 語意需要「知道」而非「資道」。"}
