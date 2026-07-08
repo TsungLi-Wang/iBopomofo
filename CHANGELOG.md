@@ -4,6 +4,12 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
+## [Unreleased]
+
+### 文件
+
+- **實機端到端打字驗證方法固化**：新增 `docs/e2e-typing-verification.md`（AppleScript `key code` 送真實鍵碼進 TextEdit 的完整方法、注音→鍵序→鍵碼對照、陷阱清單）與一鍵腳本 `scripts/e2e-typing-check.sh`；`AGENTS.md` Testing 節加入指引。改打字當下行為（L1/延遲重審/消歧器）必跑，單元測試全綠不足以代表實機行為（v2.1.1 教訓）。
+
 ## [v2.1.1] - 2026-07-08
 
 ### 修正

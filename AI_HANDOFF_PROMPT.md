@@ -867,7 +867,7 @@ Johnny 實測 v2.1.0 回報「只有我的手機不見了是對的其他都錯�
 1. **多字詞節點缺口（程式 bug，已修）**：「慢慢的/我的/開心地/高興地」在詞典裡是**整個詞**（`ㄇㄢˋ-ㄇㄢˋ-ㄉㄜ˙ 慢慢的` 與孿生 `慢慢地` 同節點並存），v2.1.0 snapshot 只列 span-1 節點 → 全漏。修法＝比照 ConfusionPairDisambiguator 孿生詞邏輯一般化 snapshot/apply（每音節位置找「只差該字」的孿生 unigram）。引擎級測試 `NeuralDeferredBridgeTests` 3/3（含真鍵序打字：`a04a042k7y.3eji4x96` = 慢慢的走過來）。
 2. **打字習慣（產品現實，非 bug）**：診斷 log 看到 Johnny 真實打字是**短句頻繁送出**（「背景的」3 字就 commit、標點單獨送）。延遲重審需要歧義字與右文在**同一 buffer**；送出後的字 IME 動不了。此現實請下一棒記住：對這種輸入風格，deferred 的觸發機會天然少；價值場景是整句輸入。可考慮的後續：commit 前終審（方案 C）也救不了「右文在下一個 buffer」的情況——那是 L2/剪貼簿級功能的領域。
 
-**驗證方法升級（重要，以後照抄）**：不再依賴 Johnny 打字。`osascript` + System Events **`key code`**（不是 `keystroke`！keystroke 的數字鍵事件 IME 吃不到聲調，會出「ㄇ04ㄇ04…」亂碼）送真實虛擬鍵碼進 TextEdit，端到端驗過：「慢慢的走過來→慢慢**地**走過來」「跑的很快→跑**得**很快」實機自動翻轉。標準注音鍵碼對照與整段 AppleScript 在本次 session 記錄；虛擬鍵碼 a=0 s=1 d=2 …數字 0=29 9=25 4=21 3=20 2=19 7=26 6=22。
+**驗證方法升級（重要，以後照抄）**：不再依賴 Johnny 打字。`osascript` + System Events **`key code`**（不是 `keystroke`！keystroke 的數字鍵事件 IME 吃不到聲調，會出「ㄇ04ㄇ04…」亂碼）送真實虛擬鍵碼進 TextEdit，端到端驗過：「慢慢的走過來→慢慢**地**走過來」「跑的很快→跑**得**很快」實機自動翻轉。**方法已固化（2026-07-08 Johnny 指示確保不失傳）**：完整文件 `docs/e2e-typing-verification.md`（注音→鍵序→鍵碼對照、模板、陷阱）＋一鍵腳本 `./scripts/e2e-typing-check.sh "<美式鍵序>"`（已實測）＋ `AGENTS.md` Testing 節有錨點。改打字當下行為必跑,單元測試全綠不算數（v2.1.1 教訓）。
 **隱藏診斷開關**：`defaults write org.openvanilla.inputmethod.McBopomofo NeuralDeferredDiagnostics -bool YES` → `~/Library/Logs/laowang-neural-deferred.log` 逐決策點記錄（schedule/gate/score/apply）。查完記得關（delete key）並刪 log（含使用者輸入內容）。
 
 **發佈**：v2.1.1 / build 2283（兩個 plist）。流程照舊。診斷開關已關、測試殘留已清。

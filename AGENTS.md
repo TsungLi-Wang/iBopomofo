@@ -185,6 +185,14 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 - **C++ tests:** Add to `Source/Engine/CMakeLists.txt` in `McBopomofoLMLibTest` target, use GoogleTest
 - **Mixed tests:** Use Objective-C++ (`.mm`) with bridging header for Swift-C++ interop
 - Snapshot/restore `UserDefaults` in tests (see `PreferencesTests.swift`)
+- **Live end-to-end typing verification (no human needed):** after changing any
+  typing-time behavior (L1 rerank, deferred neural rerank, disambiguator, key
+  handling), run `./scripts/e2e-typing-check.sh "<US key sequence>"` — it types
+  real virtual key codes into TextEdit through the installed IME and reports
+  the committed text. Full method, bopomofo-to-key tables, and pitfalls (must
+  use `key code`, never `keystroke`) in `docs/e2e-typing-verification.md`.
+  Unit tests alone have missed real-device failures before (v2.1.1); use this
+  before telling the user a typing-time change works.
 
 ### Dictionary Data Modifications
 
