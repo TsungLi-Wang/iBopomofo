@@ -834,3 +834,28 @@ Johnny 把「右文不足」升為最高優先，明確拒絕 fallback 式掩蓋
 3. A：Phase A 橋（override-without-observe bridge、per-position 合法 unigram 讀取、serial+walk 世代守門、重建 Inputting）＋重審排程（復用 L2 auto-correction 的 Inputting 排程接縫）。
 4. skeleton 實機驗收與發版順延，等右文方案定案一起驗。
 
+### 2026-07-08T10:30:00+08:00 右文根治全鏈落地：真打分器＋延遲全局重審，發佈 v2.1.0
+
+Johnny 授權自主推進四步到底（sim → 方案 B → 方案 A → 發版）。全部完成，發佈 **v2.1.0**（build 2282）。過程有兩個推翻前提的大發現，讀第 8.8 節（`docs/l1-neural-rerank-integration.md`）前先看這段。
+
+**發現一（最重要，影響所有歷史 PoC 數字）**：llama-server `/completion` 在 `n_predict=0` 時**不回 prompt logprobs**——它生成 1 個 token 並回報那個 token 的機率。PoC 的 `score_full_sentence_logprob` 從來不是整句打分；「50 筆 100%、mean 38ms」是假象（全平手時保持 allowed[0]，而該資料集 allowed[0]=expected）。**skeleton 的 `LlamaServerManager.scoreLogprob` 有同一個 bug，已刪除**。正確做法＝鏈式法則逐 token＋**logit_bias 探針**（目標 +100 → greedy 必中 → 回報 logprob 實測為 raw 值，build b9692 與無偏 top_logprobs 全精度吻合）。公平性陷阱：BPE 併「我再」成單 token、「我/載」不併，必須從哨兵起整句打分（`AISentenceScorer` / `deferred_rerank_sim.py` 註解有完整說明）。
+
+**發現二（真實數字）**：sim（50 筆、真打分）右文 0 字 76% → 右文 ≥3 字 88%，deferred 假設成立；殘餘 miss 全是「再→在」單方向（4B 對「在」先驗過強），神經會推翻混淆表已翻對的「再」→ **分工制**：表獨家擁有 ㄗㄞˋ，神經字集（`neuralDeferredCharacters`）刻意排除 在/再/載。
+
+**本版落地（Swift 125 tests/0 fail、C++ gtest 96/94+2skip、live-check 6/7）**：
+- `AISentenceScorer.swift`（FACE0112/0113）：真整句打分器，候選窗與延遲層共用；`decide` margin 決策純函式。
+- `AINeuralCandidateRescorer` 改寫（方案 B）：右文 ≥2 字才打分（θ=1.0）；不足＝**懸置**（回引擎 top；不退 n-gram——n-gram 也只有左文）；偏好關時走既有 n-gram 不變。
+- `KeyHandler` 橋（方案 A）：`neuralRerankSnapshot`（span-1 歧義節點＋攤平字串）＋`applyNeuralOverride`（override-without-observe 軟覆寫，`kOverrideValueWithScoreFromTopUnigram`，不 re-walk、不進 UOM、使用者覆寫讓位、weak_ptr 登記防位址重用、`clear` 時清登記）。
+- `InputMethodController+NeuralDeferred.swift`（FACE0114/0115）：Inputting → debounce 0.6s → snapshot（攤平字串==buffer 對齊守門，濾掉打到一半的音節）→ 右文 ≥2 字打分 → margin 過門檻軟覆寫＋重建畫面；serial+buffer 雙守門；「位置:buffer」鍵防重複打分。
+- **給 Johnny 的實機驗證句（已用出貨模型跑過，鐵則照辦）**：開「AI 神經候選重排（實驗）」（會暖 server/觸發 2.9GB 下載）後整句打：「慢慢地走過來」「跑得很快」「吃得很開心」「字寫得很漂亮」「他高興地說著」→ 打字停頓後「的」應隱形翻成「地/得」；「我的手機不見了」不應翻。已知保守 miss：「開心地笑了」margin 0.9 差 0.1 不翻（不是錯翻）。注意延遲層需 buffer 仍在組字中（未 commit）才看得到翻轉。
+- 發版流程照舊：test → package-dmg → commit → push → tag v2.1.0 → gh release（Latest）→ 本機就地覆蓋重裝。兩個 plist 都 bump（2.1.0/2282）。
+
+**踩雷記錄（省下一棒時間）**：`?:` GNU 擴展在 KeyHandler.mm 會被 -Werror 擋（`UTF8String ?: ""` 不能用）；DerivedData PCH 髒掉照舊 rm -rf 該專案快取；roll 過的 500 錯誤＝探到 UTF-8 續位元組（罕見字拆 byte token），以 logprob 0 近似（P≈1 且對所有候選一致）。
+
+**下一棒優先**：
+1. 收 Johnny 實機驗收（驗證句如上）。特別觀察：翻字時機體感（停頓 0.6s＋打分 ~0.3-0.6s）、有無閃爍、candidate window 路徑重排是否干擾。
+2. 方案 C（commit 前終審）視實機表現決定；多字詞孿生節點（span>1）不在神經 v1 範圍。
+3. 擴神經字集前先用 `deferred_rerank_sim.py` 的 `ChainRuleScorer` 對新 pair 出數字（別再用 `llm_rerank_poc.py` 的壞打分函式）。
+4. 舊掛件：語音 whisper.cpp 實機驗收、L2 實機驗證清單、兩個 eval jsonl 是否進 repo（仍未 commit，等拍板）。
+5. pbxproj 新檔 ID 從 **FACE0116+** 起。
+

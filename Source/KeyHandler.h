@@ -92,6 +92,27 @@ extern InputMode InputModePlainBopomofo;
 
 - (NSArray<NSString *> *)collectUserFileIssues;
 
+// L1 延遲神經重審橋(docs/l1-neural-rerank-integration.md 第 8 節)。
+//
+// snapshot:列舉最新 walk 中「span-1、有 >=2 個 unigram、值落在 ambiguousCharacters
+// 集合」的歧義節點。回 @{ @"text": 整條 walk 的攤平字串,
+// @"spans": @[ @{ @"location": 字位移(unicode scalar 計數), @"reading", @"current",
+// @"alternatives": 候選值陣列 } ] }。使用者/UOM 覆寫過的節點不列(本橋自己翻過的
+// 照列,右文再增時可重評)。Plain 注音模式回 nil。
+- (nullable NSDictionary *)neuralRerankSnapshotForCharacters:(NSString *)ambiguousCharacters
+                                             maxAlternatives:(NSUInteger)maxAlternatives
+    NS_SWIFT_NAME(neuralRerankSnapshot(characters:maxAlternatives:));
+
+// 套用神經延遲決策:重找 location 上的節點,驗 reading 與目前值後做
+// override-without-observe 軟覆寫(kOverrideValueWithScoreFromTopUnigram:
+// 節點分數不變、不改切詞、不需 re-walk、不進 UOM)。成功回 YES,呼叫端再用
+// buildInputtingState 重建畫面。
+- (BOOL)applyNeuralOverrideAtLocation:(NSUInteger)location
+                              reading:(NSString *)reading
+                      expectedCurrent:(NSString *)expectedCurrent
+                                value:(NSString *)value
+    NS_SWIFT_NAME(applyNeuralOverride(location:reading:expectedCurrent:value:));
+
 @property (strong, nonatomic) InputMode inputMode;
 @property (weak, nonatomic) id<KeyHandlerDelegate> delegate;
 @property (assign, nonatomic, readonly) NSInteger actualCandidateCursorIndex;

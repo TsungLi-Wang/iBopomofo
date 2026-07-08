@@ -4,19 +4,28 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
-## [Unreleased] - L1 Neural Rerank PoC
+## [v2.1.0] - 2026-07-08
+
+AI 神經候選重排（實驗功能，預設關閉）首次落地。開啟後由本機 AI 模型（llama-server，與本機 AI 修正共用）用「整句機率」重審同音歧義字，分兩條路徑：候選窗開啟時重排候選順序；打字過程中對「的/得/地」等歧義位置在右文出現後隱形改選（延遲全局重審）。「在/再」仍由既有混淆表負責（分工制，神經層不推翻表的決定）。
 
 ### 新增
 
-- **L1 神經候選重排 skeleton（實驗，預設關）**：新增 `Source/AINeuralCandidateRescorer.swift`，把 PoC 的「focus 逐候選代入 → 整句 logprob → argmax」接進真實 L1。經 `CandidateRescorer` 協議注入 `AIAssistCoordinator`（debounce/serial/buffer 過期丟棄全沿用）；`LlamaServerManager` 新增 `scoreLogprob(text:)`（`/completion` + `n_predict=0` + `cache_prompt`）。強制 fallback：偏好關閉、server 未就緒、相異候選不足、任一打分失敗、超過總預算 300ms，一律退回既有 n-gram。新偏好 `EnableGlobalNeuralRerank` + 選單「AI 神經候選重排（實驗）」（三語）。llama-server 生命週期改為「任一需要者持有」：神經重排開啟時切走本機修正後端不再停 server。新增 9 個純邏輯測試（mock scorer，不起 server）。
-- L1 即時選字神經重排 PoC (Source/Engine/eval/llm_rerank_poc.py)：logit_bias + 位置級 constrained beam search。優化為只在 focus position 做 expensive global full-sentence preview scoring，非 focus 用 lightweight local constrained + final re-rank。50 筆真實案例上維持 100% 正確率，延遲極低 (mean ~38ms)。
-- 50 筆真實案例集 zhuyin_neural_rerank_poc_cases.jsonl（含 focus_positions）。
-- 分析：global re-rank 救回 12 個 local 會錯的 case（zaizai_001 等在/再及 dedede 的/得地）。共同特徵：focus 為歧義位置，local 挑本地高分但語意錯的字（e.g. "一賜" vs "一次", "得" vs "地"），global 用完整句 logprob 正確。
+- **AI 神經候選重排（實驗，預設關）**：新偏好 `EnableGlobalNeuralRerank` + 選單「AI 神經候選重排（實驗）」（三語）。兩條路徑：
+  - **候選窗路徑**（`AINeuralCandidateRescorer`）：focus span 右文 ≥2 字才由神經打分重排（θ=1.0 margin 才翻）；右文不足＝懸置（維持引擎排序，交給延遲層），不退 n-gram——整句打分的優勢全部來自右文，右文為空時神經與 local 打分數學等價，沒有新資訊。偏好關閉時維持既有 n-gram 行為。
+  - **延遲全局重審**（`InputMethodController+NeuralDeferred` + `KeyHandler` 橋）：右文不足的根治。打字停頓 0.6s 後對 walk 上的歧義節點（右文已累積 ≥2 字）做整句打分，margin 過門檻就以 override-without-observe 軟覆寫隱形改選（不改切詞、不進使用者覆寫模型、使用者手動選字永遠優先、免 re-walk）。出貨模型實測：「慢慢地走過來」「跑得很快」「吃得很開心」「字寫得很漂亮」正確翻轉，「我的手機」不誤翻。
+  - **分工制**：神經層字集刻意排除「在/再/載」——sim 顯示 4B 模型對「在」有系統性偏好，會推翻混淆表已翻對的「再」；ㄗㄞˋ 由表（92.3% 翻轉精確率）獨家負責。
+- **`AISentenceScorer`：真整句機率打分器**（兩條路徑共用）：鏈式法則逐 token 打分，logit_bias 探針（目標 token +100 → greedy 必中 → 回報的 logprob 實測為 raw 值）一次呼叫取得精確機率、無 top-k 損失；哨兵起點修正 BPE 邊界合併的比較不公平；`cache_prompt` 巢狀前綴增量解碼。
+- llama-server 生命週期改為「任一需要者持有」：神經重排開啟時會暖 server（模型未裝觸發首次下載），切走本機修正後端不再停 server。
+- eval：`deferred_rerank_sim.py` 增量打字模擬（真實鏈式打分）：右文 0 字瞬時準確率 76% → 右文 ≥3 字 88%，證實「等右文再判」方向；θ sweep 與翻字次數統計。
+- 測試：12 個純邏輯測試（focusSplit、右文 gate、懸置語義、margin 決策、符號閘門；mock scorer 不起 server）。
+
+### 修正
+
+- **重要勘誤：PoC harness 的「50 筆 100%、mean 38ms」是量測假象**。llama-server `/completion` 在 `n_predict=0` 時不回 prompt logprobs（會生成一個 token 並回報該 token 的機率），PoC 打的分數是 P(下一字|句子) 而非 P(句子)；100% 來自「打分全部平手時保持 allowed[0]」而該資料集 allowed[0]=expected。本版的 `AISentenceScorer` 與 sim 數字（76%/88%）才是真實水位。`llm_rerank_poc.py` 的舊打分函式保留供歷史參考，新實驗一律用 `deferred_rerank_sim.py`。
 
 ### 文件
 
-- `docs/l1-neural-rerank-integration.md` 新增第 8 節「右文不足的根治方案：延遲全局重審」：根因分析（右文為空時全局打分與 local 數學等價）與三段式設計（懸置歧義位置延遲重審、候選窗右文 gate、commit 前終審），復用引擎節點覆寫 Phase A 護欄。設計文件，未動程式碼。
-- 新增 `docs/l1-neural-rerank-integration.md`：PoC 接進真實 L1（`AICandidateReranker`）的整合設計。關鍵簡化：真實 L1 不需要 beam search 與 logit_bias（引擎 walk 已提供整句 baseline），只保留 focus 逐候選代入＋整句 logprob 打分；經 `CandidateRescorer` 協議注入，Coordinator 零改動；含觸發分層（confusion table / L1 / L2）、延遲控制（timeout + n-gram fallback）、server 生命週期決策點與七項風險（右文不足、logprobs 不穩、資料集偏差等）。尚未動程式碼。
+- `docs/l1-neural-rerank-integration.md`：整合設計（第 1-7 節）＋右文不足根治設計與實測結果（第 8 節，含 8.8 最終落地架構）。
 
 ## [v2.0.0] - 2026-07-07
 

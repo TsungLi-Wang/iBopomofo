@@ -169,3 +169,51 @@ Causal LM 打分 = Σ logP(token | 前綴)。兩個候選句共享 focus 之前�
 2. B:小改 `NeuralCandidateRescorer`(右文字數 gate,懸置語義)。
 3. A:Phase A 橋(override-without-observe bridge、per-position 合法 unigram 讀取、Coordinator serial+walk 世代守門、重建 Inputting)+ 神經重審排程(復用 L2 auto-correction 的 Inputting 排程接縫)。
 4. C 視 A 實機表現決定。
+
+### 8.8 實測結果與最終落地架構(2026-07-08,v2.1.0)
+
+上面 1→3 已全部做完並隨 v2.1.0 出貨。過程中有兩個推翻前提的發現,以及據此修訂的設計:
+
+**發現一:PoC 的整句打分從來不是整句打分。** llama-server `/completion` 在
+`n_predict=0` 時不回 prompt logprobs——它生成一個 token 並回報那個 token 的機率。
+PoC 的 `score_full_sentence_logprob` 量的是 P(下一字|句子) 這個弱代理;先前
+「50 筆 100%、mean 38ms」是資料集假象(打分全部平手時保持 allowed[0],而該資料集
+allowed[0]=expected)。**真整句分數要用鏈式法則逐 token 取**,而精確取法是
+**logit_bias 探針**:目標 token bias +100 讓 greedy 必中,回報的 logprob 實測
+(build b9692,與無偏 top_logprobs 全精度吻合)是 raw 值——一次呼叫、無 top-k
+損失。公平性陷阱:BPE 會把「我再」併成單 token 而「我/載」不併,只從共同前綴
+起算會偏袒合併的候選;必須從哨兵起整句打分(見 `AISentenceScorer` 與
+`deferred_rerank_sim.py` 註解)。
+
+**發現二(真實數字):右文效應成立,但模型有系統性「在」偏好。**
+`deferred_rerank_sim.py`(50 筆、精確打分):右文 0 字時瞬時 argmax 76%、右文
+≥3 字 88%——**+12 個百分點來自等右文,deferred 假設成立**。殘餘 miss 全部是
+「再→在」單方向(4B 對「在」的先驗過強,右文也拉不回),而這正是混淆表以
+92.3% 精確率覆蓋的 pair,且 sim 顯示神經會把表翻對的「再」翻回去。
+
+**因此最終架構加了「分工制」**:混淆表擁有 ㄗㄞˋ(在/再/載,神經字集刻意排除),
+神經層負責表沒覆蓋的 pair(的/得/地、平翹舌、語意對;字集
+`neuralDeferredCharacters`)。在非「在/再」子集上 θ=1.0:引擎本來對的**零誤翻**,
+引擎錯的救回約 26-27/30。
+
+**落地元件**:
+- `AISentenceScorer.swift`:鏈式法則 + logit_bias 探針打分器(候選窗與延遲層共用);
+  `decide(scores:current:margin:)` margin 決策。
+- `NeuralCandidateRescorer`(候選窗路徑=方案 B):右文 ≥2 字才打分,不足=懸置
+  (回引擎 top,不退 n-gram);θ=1.0;偏好關閉時走既有 n-gram 不受影響。
+- `KeyHandler` 橋(方案 A):`neuralRerankSnapshot`(列舉 span-1 歧義節點+攤平
+  字串)與 `applyNeuralOverride`(override-without-observe 軟覆寫,
+  `kOverrideValueWithScoreFromTopUnigram`,不 re-walk、不進 UOM,使用者覆寫讓位,
+  weak_ptr 登記防位址重用)。
+- `InputMethodController+NeuralDeferred.swift`:Inputting 更新 → debounce 0.6s →
+  snapshot(攤平字串==buffer 的對齊守門)→ 右文 ≥2 字的位置打分 → margin 過門檻
+  → 軟覆寫+重建畫面;serial+buffer 雙守門丟過期結果;「位置:buffer」鍵避免同語境
+  重複打分。
+- 出貨模型 live-check(θ=1.0,引擎預設「的」情境):慢慢**地**走過來、跑**得**很快、
+  吃**得**很開心、字寫**得**很漂亮、他高興**地**說著 翻對;我的手機不見了 正確不動;
+  開心地笑了 margin 0.9 差 0.1 保守不翻(已知 miss,不是錯翻)。
+
+**尚未做 / 已知限制**:方案 C(commit 前終審)未做;多字詞孿生節點(span>1)不在
+神經 v1 範圍;`llm_rerank_poc.py` 的舊打分函式仍是壞的(僅供歷史參考,新實驗一律
+用 `deferred_rerank_sim.py` 的 `ChainRuleScorer`);延遲層字集是人工挑的,擴充前
+先用 sim 對新 pair 出數字。

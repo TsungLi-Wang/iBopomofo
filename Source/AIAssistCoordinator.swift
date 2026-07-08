@@ -58,6 +58,12 @@ final class AIAssistCoordinator {
     var aiAutoCorrectionRequestSerial: UInt = 0
     var aiAutoCorrectionWorkItem: DispatchWorkItem?
 
+    // L1.5 延遲神經重審(右文出現後對 buffer 內歧義位置隱形改選)
+    var neuralDeferredWorkItem: DispatchWorkItem?
+    var neuralDeferredSerial: UInt = 0
+    // 已審過的「位置:buffer」鍵,避免同一語境重複打分;buffer 一變即自然重審。
+    var neuralDeferredDecidedKeys: Set<String> = []
+
     init(
         controller: McBopomofoInputMethodController?,
         delegate: AIAssistControllerDelegate? = nil,
@@ -203,6 +209,13 @@ final class AIAssistCoordinator {
         aiCandidateSuggestion = nil
         aiAutoCorrectionSuggestion = nil
         aiCandidateRerankedValue = nil
+        neuralDeferredDecidedKeys.removeAll()
+    }
+
+    func cancelPendingNeuralDeferred() {
+        neuralDeferredWorkItem?.cancel()
+        neuralDeferredWorkItem = nil
+        neuralDeferredSerial += 1
     }
 
     func cancelPendingRerank() {
@@ -218,6 +231,7 @@ final class AIAssistCoordinator {
     private func cancelAll() {
         cancelPendingRerank()
         cancelPendingAutoCorrection()
+        cancelPendingNeuralDeferred()
     }
 }
 

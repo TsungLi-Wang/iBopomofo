@@ -893,6 +893,7 @@ extension McBopomofoInputMethodController {
                 cursorIndex: state.cursorIndex, client: client)
         }
         scheduleAIAutoCorrectionIfNeeded(for: state, client: client)
+        scheduleNeuralDeferredCheckIfNeeded(for: state, client: client)
     }
 
     private func handle(state: InputState.Marking, previous: InputState, client: Any?) {

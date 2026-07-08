@@ -23,67 +23,90 @@
 
 import Foundation
 
-/// L1 神經候選重排(設計見 docs/l1-neural-rerank-integration.md)。
+/// L1 神經候選重排(候選窗路徑)。設計見 docs/l1-neural-rerank-integration.md 第 8 節。
 ///
-/// 核心:對候選窗的每個候選,把候選值代入 composing buffer 的 focus span 組成整句
-/// (沿用 `AICandidateNGramScorer.contextText`),打 llama-server `/completion` 取整句
-/// logprob,選最高分者。這是 PoC harness「focus position global full-sentence preview」
-/// 在真實 L1 的對應——引擎 walk 已提供整句 baseline,因此不需要 beam search、
-/// logit_bias 與 char→token 映射。
-///
-/// 鐵則:只在引擎既有候選裡挑,絕不生成;任何失敗一律退回 n-gram。
-/// Fallback 條件(全部退 `NgramCandidateRescorer`):
-/// - 偏好 `enableGlobalNeuralRerank` 關閉
-/// - llama-server 未就緒(不等暖機)
-/// - 過符號閘門後相異候選值不足 2 個
-/// - 任一候選打分失敗(logprobs 缺失/非有限值)—— 部分分數會偏排序,寧可全退
-/// - 超過總預算(300ms)
+/// 核心語義:
+/// - focus span 之後右文 >= 2 字才由神經斷言排序(整句打分的優勢全部來自右文;
+///   右文為空時與 local scoring 數學等價,神經沒有新資訊)。
+/// - 右文不足 = **懸置**:維持引擎排序(回引擎 top,套用端視為 no-op),把決策
+///   留給延遲全局重審層(使用者繼續打字、右文出現後在 buffer 內隱形修正)。
+///   不退 n-gram —— n-gram 同樣只有左文,重排一樣是瞎猜。
+/// - 打分用 AISentenceScorer(鏈式法則 + logit_bias 探針,真整句機率);margin
+///   超過門檻才翻,否則維持引擎序。
+/// - 偏好關閉時走既有 n-gram(現狀行為,不受本功能影響)。
 struct NeuralCandidateRescorer: CandidateRescorer {
 
-    typealias SentenceScorer = @Sendable (String) async -> Double?
+    typealias AlternativesScorer = @Sendable (
+        _ left: String, _ alternatives: [String], _ right: String, _ deadline: Date
+    ) async -> [String: Double]?
 
-    /// 全部候選打分的總預算;逾時退 n-gram,不留使用者等。
-    static let totalBudget: TimeInterval = 0.3
+    /// 右文至少幾個字才由神經斷言(gate;不足=懸置)。
+    static let rightContextMinChars = 2
+    /// 打分窗口:focus 左右各取幾個字(鏈式打分成本與窗口成正比)。
+    static let leftWindowChars = 6
+    static let rightWindowChars = 3
+    /// 翻案 margin:最高分比引擎 top 高出此值才重排(sim 掃描:1.0 時引擎本來
+    /// 對的零誤翻、錯的仍大多救回)。
+    static let decisionMargin = 1.0
+    /// 全部候選打分的總預算;逾時=懸置。
+    static let totalBudget: TimeInterval = 0.9
 
     private let fallback = NgramCandidateRescorer()
-    private let scorer: SentenceScorer
-    private let isNeuralAvailable: @Sendable () -> Bool
+    private let scorer: AlternativesScorer
+    private let isServerReady: @Sendable () -> Bool
 
     init(
-        scorer: @escaping SentenceScorer = { text in
-            await LlamaServerManager.shared.scoreLogprob(text: text)
+        scorer: @escaping AlternativesScorer = { left, alternatives, right, deadline in
+            await AISentenceScorer.shared.scoreAlternatives(
+                left: left, alternatives: alternatives, right: right, deadline: deadline)
         },
-        isNeuralAvailable: @escaping @Sendable () -> Bool = {
-            Preferences.enableGlobalNeuralRerank && LlamaServerManager.shared.isReady
-        }
+        isServerReady: @escaping @Sendable () -> Bool = { LlamaServerManager.shared.isReady }
     ) {
         self.scorer = scorer
-        self.isNeuralAvailable = isNeuralAvailable
+        self.isServerReady = isServerReady
     }
 
     // MARK: - CandidateRescorer
 
     func shouldRescore(_ context: AICandidateRerankContext) -> Bool {
-        // 觸發閘門完全沿用既有 collision 偵測;neural/n-gram 的分流在 rescore 內決定。
+        // 觸發閘門完全沿用既有 collision 偵測;neural/n-gram/懸置在 rescore 內分流。
         fallback.shouldRescore(context)
     }
 
     func rescore(context: AICandidateRerankContext) async -> Result<String, AICorrectionError> {
-        guard isNeuralAvailable(), Self.eligibleForNeural(context) else {
+        guard Preferences.enableGlobalNeuralRerank else {
+            // 功能關閉:維持既有 n-gram 行為,與本功能加入前完全相同。
             return await fallback.rescore(context: context)
         }
-        if let best = await Self.neuralBestCandidate(
-            context: context, scorer: scorer, budget: Self.totalBudget)
-        {
-            return .success(best)
+        guard let engineTop = context.candidates.first?.value else {
+            return .failure(.malformedResponse(backend: AICorrectionBackendName.local))
         }
-        NSLog("AI神經重排: 打分失敗或逾時,退回 n-gram")
-        return await fallback.rescore(context: context)
+        // 以下所有「不打」的情況都回引擎 top(懸置=維持引擎序,不是退 n-gram)。
+        guard isServerReady() else { return .success(engineTop) }
+        guard let split = AICandidateNGramScorer.focusSplit(context: context),
+            split.right.count >= Self.rightContextMinChars
+        else {
+            return .success(engineTop)
+        }
+        let values = Self.scoringCandidates(in: context).map(\.value)
+        guard values.count >= 2 else { return .success(engineTop) }
+
+        let left = String((context.preceding + split.left).suffix(Self.leftWindowChars))
+        let right = String(split.right.prefix(Self.rightWindowChars))
+        guard let scores = await scorer(
+            left, values, right, Date().addingTimeInterval(Self.totalBudget))
+        else {
+            NSLog("AI神經重排: 打分失敗或逾時,維持引擎排序")
+            return .success(engineTop)
+        }
+        return .success(
+            AISentenceScorer.decide(
+                scores: scores, current: engineTop, margin: Self.decisionMargin))
     }
 
     // MARK: - 純邏輯(可單元測試)
 
-    /// 過符號閘門後仍有 >=2 個相異候選值才值得打 server(= harness 的 |allowed| > 1)。
+    /// 過符號閘門後仍有 >=2 個相異候選值才值得打 server。
     static func eligibleForNeural(_ context: AICandidateRerankContext) -> Bool {
         scoringCandidates(in: context).count >= 2
     }
@@ -103,55 +126,5 @@ struct NeuralCandidateRescorer: CandidateRescorer {
             result.append(candidate)
         }
         return result
-    }
-
-    /// 逐候選代入組整句 → 打分 → 選最高。任一候選失敗或超出預算回 nil(呼叫端 fallback)。
-    /// 循序打分:llama-server 單 slot,平行只會排隊;循序還能讓共享前綴命中 KV cache。
-    /// 以嚴格大於比較、依引擎順序迭代,同分時自然由引擎原排序勝出。
-    static func neuralBestCandidate(
-        context: AICandidateRerankContext,
-        scorer: @escaping SentenceScorer,
-        budget: TimeInterval
-    ) async -> String? {
-        let candidates = scoringCandidates(in: context)
-        guard candidates.count >= 2 else { return nil }
-
-        let deadline = Date().addingTimeInterval(budget)
-        var best: String?
-        var bestScore = -Double.infinity
-
-        for candidate in candidates {
-            let remaining = deadline.timeIntervalSinceNow
-            guard remaining > 0 else { return nil }
-
-            let text = AICandidateNGramScorer.contextText(replacingWith: candidate.value, in: context)
-            guard let score = await withTimeout(remaining, operation: { await scorer(text) }),
-                score.isFinite
-            else {
-                return nil
-            }
-            if score > bestScore {
-                bestScore = score
-                best = candidate.value
-            }
-        }
-        return best
-    }
-
-    /// 在時限內完成 operation,否則回 nil 並取消它(URLSession async 呼叫會跟著取消,
-    /// 避免廢請求堆在 server 上卡到 L2)。
-    static func withTimeout<T: Sendable>(
-        _ seconds: TimeInterval, operation: @escaping @Sendable () async -> T?
-    ) async -> T? {
-        await withTaskGroup(of: T?.self) { group in
-            group.addTask { await operation() }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
-                return nil
-            }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
-        }
     }
 }

@@ -84,6 +84,8 @@
 		FACE0073FACE0073FACE0073 /* WhisperVoiceInputManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0072FACE0072FACE0072 /* WhisperVoiceInputManager.swift */; };
 		FACE0105FACE0105FACE0105 /* WhisperServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0106FACE0106FACE0106 /* WhisperServerManager.swift */; };
 		FACE0108FACE0108FACE0108 /* AINeuralCandidateRescorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0109FACE0109FACE0109 /* AINeuralCandidateRescorer.swift */; };
+		FACE0112FACE0112FACE0112 /* AISentenceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0113FACE0113FACE0113 /* AISentenceScorer.swift */; };
+		FACE0114FACE0114FACE0114 /* InputMethodController+NeuralDeferred.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0115FACE0115FACE0115 /* InputMethodController+NeuralDeferred.swift */; };
 		FACE0110FACE0110FACE0110 /* AINeuralCandidateRescorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0111FACE0111FACE0111 /* AINeuralCandidateRescorerTests.swift */; };
 		FACE0081FACE0081FACE0081 /* AIAssistCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0080FACE0080FACE0080 /* AIAssistCoordinator.swift */; };
 		FACE0053FACE0053FACE0053 /* InputMethodController+AIAutoCorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0052FACE0052FACE0052 /* InputMethodController+AIAutoCorrection.swift */; };
@@ -260,6 +262,8 @@
 		FACE0072FACE0072FACE0072 /* WhisperVoiceInputManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperVoiceInputManager.swift; sourceTree = "<group>"; };
 		FACE0106FACE0106FACE0106 /* WhisperServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperServerManager.swift; sourceTree = "<group>"; };
 		FACE0109FACE0109FACE0109 /* AINeuralCandidateRescorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AINeuralCandidateRescorer.swift; sourceTree = "<group>"; };
+		FACE0113FACE0113FACE0113 /* AISentenceScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISentenceScorer.swift; sourceTree = "<group>"; };
+		FACE0115FACE0115FACE0115 /* InputMethodController+NeuralDeferred.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+NeuralDeferred.swift"; sourceTree = "<group>"; };
 		FACE0111FACE0111FACE0111 /* AINeuralCandidateRescorerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AINeuralCandidateRescorerTests.swift; sourceTree = "<group>"; };
 		FACE0080FACE0080FACE0080 /* AIAssistCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistCoordinator.swift; sourceTree = "<group>"; };
 		FACE0052FACE0052FACE0052 /* InputMethodController+AIAutoCorrection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+AIAutoCorrection.swift"; sourceTree = "<group>"; };
@@ -411,6 +415,8 @@
 				FACE0072FACE0072FACE0072 /* WhisperVoiceInputManager.swift */,
 				FACE0106FACE0106FACE0106 /* WhisperServerManager.swift */,
 				FACE0109FACE0109FACE0109 /* AINeuralCandidateRescorer.swift */,
+				FACE0113FACE0113FACE0113 /* AISentenceScorer.swift */,
+				FACE0115FACE0115FACE0115 /* InputMethodController+NeuralDeferred.swift */,
 				FACE0080FACE0080FACE0080 /* AIAssistCoordinator.swift */,
 				FACE0016FACE0016FACE0016 /* ClaudeAICorrector.swift */,
 				FACE0018FACE0018FACE0018 /* LocalServerAICorrector.swift */,
@@ -929,6 +935,8 @@
 				FACE0073FACE0073FACE0073 /* WhisperVoiceInputManager.swift in Sources */,
 				FACE0105FACE0105FACE0105 /* WhisperServerManager.swift in Sources */,
 				FACE0108FACE0108FACE0108 /* AINeuralCandidateRescorer.swift in Sources */,
+				FACE0112FACE0112FACE0112 /* AISentenceScorer.swift in Sources */,
+				FACE0114FACE0114FACE0114 /* InputMethodController+NeuralDeferred.swift in Sources */,
 				FACE0081FACE0081FACE0081 /* AIAssistCoordinator.swift in Sources */,
 				FACE0017FACE0017FACE0017 /* ClaudeAICorrector.swift in Sources */,
 				FACE0019FACE0019FACE0019 /* LocalServerAICorrector.swift in Sources */,

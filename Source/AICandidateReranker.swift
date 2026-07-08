@@ -241,6 +241,25 @@ struct AICandidateNGramScorer {
         return best
     }
 
+    /// 把 composing buffer 沿 focus span(目前第一候選所在範圍)切成左右兩半。
+    /// 找不到 span 回 nil。neural 右文 gate 與打分窗口都用這個切法。
+    static func focusSplit(context: AICandidateRerankContext) -> (left: String, right: String)? {
+        guard let current = context.candidates.first?.value, !current.isEmpty else { return nil }
+        let composing = context.composingBuffer
+        if composing == current {
+            return (left: "", right: "")
+        }
+        guard let range = replacementRange(
+            of: current, in: composing, cursorIndex: context.cursorIndex)
+        else {
+            return nil
+        }
+        return (
+            left: String(composing[..<range.lowerBound]),
+            right: String(composing[range.upperBound...])
+        )
+    }
+
     static func contextText(replacingWith value: String, in context: AICandidateRerankContext) -> String {
         let composing = context.composingBuffer
         guard let current = context.candidates.first?.value, !current.isEmpty else {

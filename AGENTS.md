@@ -124,7 +124,9 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 | `Source/Data/AGENTS.md` | Comprehensive dictionary data documentation |
 | `algorithm.md` | Detailed algorithm explanation (Chinese) |
 | `McBopomofoTests/PreferencesTests.swift` | Example Swift Testing suite patterns |
-| `Source/Engine/eval/llm_rerank_poc.py` | PoC harness for logit_bias + constrained beam search L1 neural rerank (global full-sentence on focus) |
+| `Source/Engine/eval/llm_rerank_poc.py` | Historical PoC harness; its sentence scorer is known-broken (measures next-token probability). Use deferred_rerank_sim.py for new experiments |
+| `Source/Engine/eval/deferred_rerank_sim.py` | Deferred neural re-rank simulation with true chain-rule scoring (logit_bias probe); source of truth for L1 neural numbers |
+| `Source/AISentenceScorer.swift` | In-app true full-sentence scorer (chain rule + logit_bias probe) shared by candidate-window and deferred neural rerank |
 
 ## Development Guidelines
 

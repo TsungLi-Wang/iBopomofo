@@ -36,6 +36,7 @@
 #import <sstream>
 #import <string>
 #import <unordered_map>
+#import <unordered_set>
 #import <utility>
 #import <vector>
 
@@ -68,6 +69,13 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // path. Per-KeyHandler so its applied-override bookkeeping never crosses
     // client sessions. Inert unless the table resource exists in the bundle.
     McBopomofo::ConfusionPairDisambiguator *_confusionPairDisambiguator;
+
+    // Nodes soft-overridden by the deferred neural rerank bridge, so it can
+    // re-evaluate its own decisions without fighting user overrides. Same
+    // weak_ptr pattern as ConfusionPairDisambiguator (guards address reuse).
+    std::unordered_map<const Formosa::Gramambular2::ReadingGrid::Node *,
+                       std::weak_ptr<Formosa::Gramambular2::ReadingGrid::Node>>
+        _neuralApplied;
 
     NSString *_inputMode;
 }
@@ -308,6 +316,147 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _grid->clear();
     _latestWalk = Formosa::Gramambular2::ReadingGrid::WalkResult {};
     _confusionPairDisambiguator->reset();
+    _neuralApplied.clear();
+}
+
+#pragma mark - Deferred neural rerank bridge
+
+- (BOOL)_neuralAppliedByUs:(const Formosa::Gramambular2::ReadingGrid::NodePtr &)node
+{
+    auto it = _neuralApplied.find(node.get());
+    if (it == _neuralApplied.end()) {
+        return NO;
+    }
+    std::shared_ptr<Formosa::Gramambular2::ReadingGrid::Node> locked = it->second.lock();
+    // Address reuse guard: only trust the entry when the weak_ptr still
+    // resolves to the same node object.
+    return locked != nullptr && locked.get() == node.get();
+}
+
+- (nullable NSDictionary *)neuralRerankSnapshotForCharacters:(NSString *)ambiguousCharacters
+                                             maxAlternatives:(NSUInteger)maxAlternatives
+{
+    if (_inputMode == InputModePlainBopomofo) {
+        return nil;
+    }
+    if (_latestWalk.nodes.empty()) {
+        return nil;
+    }
+
+    const char *ambiguousUtf8 = ambiguousCharacters.UTF8String;
+    std::vector<std::string> ambiguousList =
+        McBopomofo::Split(std::string(ambiguousUtf8 != NULL ? ambiguousUtf8 : ""));
+    std::unordered_set<std::string> ambiguousSet(ambiguousList.begin(), ambiguousList.end());
+
+    // Drop registry entries for nodes the grid no longer holds.
+    for (auto it = _neuralApplied.begin(); it != _neuralApplied.end();) {
+        it = it->second.expired() ? _neuralApplied.erase(it) : std::next(it);
+    }
+
+    NSMutableArray *spans = [NSMutableArray array];
+    NSMutableString *flatText = [NSMutableString string];
+    size_t charLocation = 0;
+
+    for (const auto &node : _latestWalk.nodes) {
+        std::vector<std::string> chars = McBopomofo::Split(node->value());
+        size_t nodeStart = charLocation;
+        charLocation += chars.size();
+        [flatText appendString:[NSString stringWithUTF8String:node->value().c_str()]];
+
+        // v1 scope: span-1 nodes only (multi-syllable twins for 在/再 are the
+        // confusion table's business).
+        if (node->spanningLength() != 1 || chars.size() != 1) {
+            continue;
+        }
+        const auto &unigrams = node->unigrams();
+        if (unigrams.size() < 2) {
+            continue;
+        }
+        // Never fight the user or the user override model; own overrides may
+        // be re-evaluated as more right context arrives.
+        if (node->isOverridden() && ![self _neuralAppliedByUs:node]) {
+            continue;
+        }
+        // Eligible when any of the top alternatives is a tracked ambiguous
+        // character (current value included).
+        NSMutableArray *alternatives = [NSMutableArray array];
+        std::unordered_set<std::string> seen;
+        BOOL tracked = NO;
+        for (const auto &unigram : unigrams) {
+            if (alternatives.count >= maxAlternatives) {
+                break;
+            }
+            const std::string &value = unigram.value();
+            if (McBopomofo::Split(value).size() != 1) {
+                continue;
+            }
+            if (!seen.insert(value).second) {
+                continue;
+            }
+            if (ambiguousSet.count(value)) {
+                tracked = YES;
+            }
+            [alternatives addObject:[NSString stringWithUTF8String:value.c_str()]];
+        }
+        if (!tracked || alternatives.count < 2) {
+            continue;
+        }
+        [spans addObject:@{
+            @"location" : @(nodeStart),
+            @"reading" : [NSString stringWithUTF8String:node->reading().c_str()],
+            @"current" : [NSString stringWithUTF8String:node->value().c_str()],
+            @"alternatives" : alternatives,
+        }];
+    }
+
+    return @{ @"text" : flatText, @"spans" : spans };
+}
+
+- (BOOL)applyNeuralOverrideAtLocation:(NSUInteger)location
+                              reading:(NSString *)reading
+                      expectedCurrent:(NSString *)expectedCurrent
+                                value:(NSString *)value
+{
+    if (_inputMode == InputModePlainBopomofo) {
+        return NO;
+    }
+    const char *readingC = reading.UTF8String;
+    const char *currentC = expectedCurrent.UTF8String;
+    const char *valueC = value.UTF8String;
+    std::string readingUtf8(readingC != NULL ? readingC : "");
+    std::string currentUtf8(currentC != NULL ? currentC : "");
+    std::string valueUtf8(valueC != NULL ? valueC : "");
+    if (valueUtf8.empty() || valueUtf8 == currentUtf8) {
+        return NO;
+    }
+
+    size_t charLocation = 0;
+    for (const auto &node : _latestWalk.nodes) {
+        size_t nodeStart = charLocation;
+        charLocation += McBopomofo::Split(node->value()).size();
+        if (nodeStart != location) {
+            continue;
+        }
+        if (node->spanningLength() != 1 || node->reading() != readingUtf8
+            || node->value() != currentUtf8) {
+            return NO;
+        }
+        if (node->isOverridden() && ![self _neuralAppliedByUs:node]) {
+            return NO;
+        }
+        // Soft override keeps the top unigram's score, so segmentation and
+        // path competition are unaffected and no re-walk is needed; nothing
+        // is observed into the user override model.
+        if (node->selectOverrideUnigram(
+                valueUtf8,
+                Formosa::Gramambular2::ReadingGrid::Node::OverrideType::
+                    kOverrideValueWithScoreFromTopUnigram)) {
+            _neuralApplied[node.get()] = node;
+            return YES;
+        }
+        return NO;
+    }
+    return NO;
 }
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback
