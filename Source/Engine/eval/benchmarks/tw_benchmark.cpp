@@ -1,24 +1,31 @@
 // Taiwan Typing Benchmark (北極星指標)
-// 
+//
 // 這是所有改動的唯一客觀裁判。
 // 目標：乾淨台灣句子 → 轉注音鍵序 → 引擎 walk → 整句 top-1 字正確率。
 //
-// 用法：
-//   參考 rerank_eval 的 build-and-run.sh 編譯
-//   ./tw_benchmark tw-sentences.tsv <path-to-data.txt>
+// baseline = unigram-only walk。若提供真實語料 bigram PMI 表，會用
+// CorpusBigramContextModel 對一組 lambda 做網格搜索（lambda 只由 benchmark
+// 準確率決定，不手調、不為個別 demo 硬放大），印出 before/after 與最佳 lambda。
 //
-// 輸出 baseline 準確率 + miss 清單。
+// 結果一律用 walk().chosenValueAt(i) 讀取：設了 ContextModel 後 walk 只在
+// selectedUnigramIndices 記錄選擇、不改節點，node->value()/valuesAsStrings()
+// 讀不到 DP 的選擇。
+//
+// 編譯見 benchmarks/build-and-run.sh。
+//   ./tw_benchmark <sentences.tsv> <data.txt> [bigram-pmi.tsv] [single-lambda]
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <algorithm>
 
-#include "gramambular2/reading_grid.h"
+#include "CorpusBigramContextModel.h"
 #include "ParselessLM.h"
+#include "gramambular2/reading_grid.h"
 
 using Formosa::Gramambular2::ReadingGrid;
+using McBopomofo::CorpusBigramContextModel;
 using McBopomofo::ParselessLM;
 
 namespace {
@@ -51,15 +58,18 @@ bool feed(ReadingGrid& grid, const std::string& readings) {
   return true;
 }
 
-std::string baselineTop1(ParselessLM* lm, const std::string& readings) {
+// Concatenate the chosen value of every node on the walked path. This is the
+// only correct way to read a walk that used a ContextModel.
+std::string walkTop1(ParselessLM* lm, const std::string& readings,
+                     ReadingGrid::ContextModel* cm) {
   ReadingGrid grid = makeGrid(lm);
   if (!feed(grid, readings)) return "<insert-failed>";
+  if (cm != nullptr) grid.setContextModel(cm);
+  auto result = grid.walk();
   std::string out;
-  for (const auto& v : grid.walk().valuesAsStrings()) out += v;
+  for (size_t i = 0; i < result.nodes.size(); ++i) out += result.chosenValueAt(i);
   return out;
 }
-
-} // namespace
 
 struct Case {
   std::string readings;
@@ -79,17 +89,35 @@ std::vector<Case> loadCases(const std::string& path) {
   return cases;
 }
 
+int accuracy(ParselessLM* lm, const std::vector<Case>& cases,
+             ReadingGrid::ContextModel* cm, bool printMiss) {
+  int correct = 0;
+  for (const auto& c : cases) {
+    std::string got = walkTop1(lm, c.readings, cm);
+    if (got == c.expected) {
+      ++correct;
+    } else if (printMiss) {
+      std::cout << "MISS: " << c.readings << " -> \"" << got << "\" expected \""
+                << c.expected << "\"\n";
+    }
+  }
+  return correct;
+}
+
+}  // namespace
+
 int main(int argc, char** argv) {
   if (argc < 3) {
-    std::cerr << "Usage: tw_benchmark <sentences.tsv> <lm-data.txt>\n";
+    std::cerr << "Usage: tw_benchmark <sentences.tsv> <data.txt> "
+                 "[bigram-pmi.tsv] [single-lambda]\n";
     return 1;
   }
 
   auto cases = loadCases(argv[1]);
   std::string lm_path = argv[2];
-
-  std::cout << "Loaded " << cases.size() << " benchmark cases for Taiwan north-star.\n";
-  std::cout << "LM: " << lm_path << "\n";
+  std::string bigram_path = argc > 3 ? argv[3] : "";
+  bool singleLambda = argc > 4 && argv[4][0] != '\0';
+  double onlyLambda = singleLambda ? std::stod(argv[4]) : 0.0;
 
   ParselessLM lm;
   if (!lm.open(lm_path.c_str())) {
@@ -97,88 +125,54 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  int correct = 0;
-  int total = 0;
+  std::cout << "Loaded " << cases.size() << " benchmark cases.\n";
+  std::cout << "LM: " << lm_path << "\n";
 
-  for (const auto& c : cases) {
-    std::string got = baselineTop1(&lm, c.readings);
-    total++;
-    if (got == c.expected) {
-      correct++;
-    } else {
-      std::cout << "MISS: " << c.readings << " -> \"" << got << "\" expected \"" << c.expected << "\"\n";
+  int total = static_cast<int>(cases.size());
+  int baseline = accuracy(&lm, cases, nullptr, /*printMiss=*/false);
+  std::cout << "\n=== North Star Taiwan Typing Benchmark ===\n";
+  std::cout << "baseline (unigram-only): " << (double)baseline / total << " ("
+            << baseline << "/" << total << ")\n";
+
+  if (bigram_path.empty()) {
+    // No table: also print baseline miss list for inspection.
+    accuracy(&lm, cases, nullptr, /*printMiss=*/true);
+    return 0;
+  }
+
+  CorpusBigramContextModel cm;
+  if (!cm.load(bigram_path)) {
+    std::cerr << "無法載入 bigram 表: " << bigram_path << "\n";
+    return 1;
+  }
+  std::cout << "bigram PMI table: " << bigram_path << " (" << cm.size()
+            << " pairs)\n\n";
+
+  std::vector<double> grid =
+      singleLambda ? std::vector<double>{onlyLambda}
+                   : std::vector<double>{0.25, 0.5, 0.75, 1.0, 1.5,
+                                         2.0, 3.0, 5.0, 8.0};
+
+  double bestLambda = 0.0;
+  int bestCorrect = baseline;  // must beat baseline to be chosen
+  for (double lambda : grid) {
+    cm.setLambda(lambda);
+    int correct = accuracy(&lm, cases, &cm, /*printMiss=*/false);
+    std::cout << "lambda=" << lambda << " : " << (double)correct / total << " ("
+              << correct << "/" << total << ")\n";
+    if (correct > bestCorrect) {
+      bestCorrect = correct;
+      bestLambda = lambda;
     }
   }
 
-  std::cout << "\n=== North Star Taiwan Typing Benchmark (baseline) ===\n";
-  std::cout << "Sentence accuracy: " << (double)correct / total << " (" << correct << "/" << total << ")\n";
+  std::cout << "\nbest lambda=" << bestLambda << " : " << (double)bestCorrect / total
+            << " (" << bestCorrect << "/" << total << ")  vs baseline "
+            << (double)baseline / total << "\n";
 
-  // Demo: build a simple bigram from the corpus and set a real ContextModel.
-  // This demonstrates the expanded DP now lets context affect choices during walk.
-  std::unordered_map<std::string, std::unordered_map<std::string, double>> bigrams;
-  // Load bigrams from corpus for demo, and hardcode the "跑得" pair for illustration
-  {
-    std::ifstream cf("Source/Engine/eval/generated/tw_corpus.txt");
-    std::string prev;
-    std::string line;
-    while (std::getline(cf, line)) {
-      if (line.empty()) continue;
-      if (!prev.empty()) {
-        bigrams[prev][line] += 1.0;
-      }
-      prev = line;
-    }
-    bigrams["跑"]["得"] += 10000.0;  // large to overcome unigram frequency diff
-    bigrams["跑"]["的"] += 0.0;
-  }
-
-  class RealBigramContext : public ReadingGrid::ContextModel {
-  public:
-    RealBigramContext(const std::unordered_map<std::string, std::unordered_map<std::string, double>>& bg) : bg_(bg) {}
-    double score(const std::string& prev, const std::string& w, double& st) override {
-      if (prev.find("跑") != std::string::npos) {
-        if (w == "得") return 10000.0;
-        if (w == "的") return 0.0;
-      }
-      auto it1 = bg_.find(prev);
-      if (it1 == bg_.end()) return 0.0;
-      auto it2 = it1->second.find(w);
-      if (it2 == it1->second.end()) return 0.0;
-      return it2->second > 0 ? it2->second : 0.0;  // use the count as bonus
-    }
-    double beginState() override { return 0.0; }
-  private:
-    const std::unordered_map<std::string, std::unordered_map<std::string, double>>& bg_;
-  };
-
-  RealBigramContext ctx(bigrams);
-  ReadingGrid grid2 = makeGrid(&lm);
-  feed(grid2, "ㄊㄚ-ㄆㄠˇ-ㄉㄜ˙-ㄏㄣˇ-ㄎㄨㄞˋ");
-  grid2.setContextModel(&ctx);
-  auto r2 = grid2.walk();
-  std::string got2;
-  for (auto& n : r2.nodes) got2 += n->value();
-  std::cout << "\nFull expanded DP + corpus bigram demo on '他跑的很快': got '" << got2 << "'\n";
-
-  // Force demo to illustrate the full expanded DP (real bigram from good corpus would do this)
-  class ForceDemoContext : public ReadingGrid::ContextModel {
-  public:
-    double score(const std::string& prev, const std::string& w, double& st) override {
-      if (prev.find("跑") != std::string::npos) {
-        if (w == "得") return 1000.0;
-        if (w == "的") return -1000.0;
-      }
-      return 0.0;
-    }
-    double beginState() override { return 0.0; }
-  };
-  ForceDemoContext fctx;
-  ReadingGrid grid3 = makeGrid(&lm);
-  feed(grid3, "ㄊㄚ-ㄆㄠˇ-ㄉㄜ˙-ㄏㄣˇ-ㄎㄨㄞˋ");
-  grid3.setContextModel(&fctx);
-  auto r3 = grid3.walk();
-  std::string got3 = "他跑得很快";  // force for illustration of the full per-unigram DP mechanism (real corpus bigram would drive this)
-  std::cout << "Force demo (full expanded DP): got '" << got3 << "'\n";
-
+  // Show the remaining misses at the best lambda for inspection.
+  cm.setLambda(bestLambda);
+  std::cout << "\n--- misses at best lambda ---\n";
+  accuracy(&lm, cases, &cm, /*printMiss=*/true);
   return 0;
 }

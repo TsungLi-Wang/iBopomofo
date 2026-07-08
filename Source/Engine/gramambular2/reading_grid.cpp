@@ -29,6 +29,7 @@
 #include <memory>
 #include <stack>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -189,27 +190,29 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
     return result;
   }
 
-  // Expanded DP with per-unigram hypotheses (expert design)
-  struct Hyp {
+  // Expanded DP with a context model: an exact bigram Viterbi over the lattice.
+  // State = (grid position, last chosen word). For every position we keep the
+  // best-scoring path per distinct ending word (no lossy beam pruning), so with
+  // an all-zero context model (e.g. lambda 0) this reproduces the unigram walk
+  // above exactly; the context model only shifts which existing unigram wins by
+  // scoring the transition into it. Only unigrams already present in a node are
+  // ever considered, so the walk never generates text and never changes a
+  // reading.
+  struct Cell {
+    double score = -std::numeric_limits<double>::infinity();
+    size_t prevPos = 0;
+    std::string prevWord;
+    ReadingGrid::NodePtr node = nullptr;  // node that produced this cell's word
     size_t unigramIndex = 0;
-    double score = 0.0;
-    const Hyp* prev = nullptr;
-    double lmState = 0.0;
-    ReadingGrid::NodePtr node = nullptr;
-    size_t fromPos = 0;
-    std::string word;  // chosen word for this hyp (for next transition)
   };
 
-  std::vector<std::vector<Hyp>> hyps(readingLen + 1);
-
-  double initState = contextModel_->beginState();
-  hyps[0].push_back(Hyp{0, 0.0, nullptr, initState, nullptr, 0, ""});
+  std::vector<std::unordered_map<std::string, Cell>> dp(readingLen + 1);
+  dp[0][std::string()] = Cell{0.0, 0, std::string(), nullptr, 0};
 
   size_t reachableStates = 0;
   size_t evaluatedEdges = 0;
-
   for (size_t i = 0; i < readingLen; ++i) {
-    if (hyps[i].empty()) continue;
+    if (dp[i].empty()) continue;
     ++reachableStates;
 
     const ReadingGrid::Span& span = spans_[i];
@@ -221,80 +224,60 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
       const auto& unigrams = node->unigrams();
       if (unigrams.empty()) continue;
 
-      for (const auto& ph : hyps[i]) {
+      std::unordered_map<std::string, Cell>& target = dp[i + spanLen];
+      for (const auto& entry : dp[i]) {
+        const std::string& prevWord = entry.first;
+        const Cell& cell = entry.second;
         for (size_t ui = 0; ui < unigrams.size(); ++ui) {
           const auto& u = unigrams[ui];
-          double newState = ph.lmState;
-          double trans = 0.0;
-          if (!ph.word.empty()) {
-            trans = contextModel_->score(ph.word, u.value(), newState);
-          }
-          double newSc = ph.score + u.score() + trans;
-
-          Hyp nh{ui, newSc, &ph, newState, node, i, u.value()};
-
-          // Recombination: best score for (approximately) same state
-          bool found = false;
-          for (auto& ex : hyps[i + spanLen]) {
-            if (std::abs(ex.lmState - newState) < 1e-8) {
-              if (newSc > ex.score) ex = nh;
-              found = true;
-              break;
-            }
-          }
-          if (!found) {
-            hyps[i + spanLen].push_back(nh);
+          double state = 0.0;
+          double trans = prevWord.empty()
+                             ? 0.0
+                             : contextModel_->score(prevWord, u.value(), state);
+          double sc = cell.score + u.score() + trans;
+          ++evaluatedEdges;
+          auto it = target.find(u.value());
+          if (it == target.end() || sc > it->second.score) {
+            target[u.value()] = Cell{sc, i, prevWord, node, ui};
           }
         }
       }
     }
-
-    // Prune to top K after processing this position's outgoing (simplified)
   }
 
-  constexpr size_t K = 8;
-  for (auto& v : hyps) {
-    if (v.size() > K) {
-      std::sort(v.begin(), v.end(), [](const Hyp& a, const Hyp& b){ return a.score > b.score; });
-      v.resize(K);
-    }
-  }
-
-  // Find best at the end
+  // Pick the best-scoring ending state, then backtrack through prevPos/prevWord.
+  const Cell* bestCell = nullptr;
   double best = -std::numeric_limits<double>::infinity();
-  const Hyp* bestH = nullptr;
-  for (const auto& h : hyps[readingLen]) {
-    if (h.score > best) {
-      best = h.score;
-      bestH = &h;
+  for (const auto& entry : dp[readingLen]) {
+    if (entry.second.score > best) {
+      best = entry.second.score;
+      bestCell = &entry.second;
     }
   }
-
-  if (!bestH) {
+  if (bestCell == nullptr) {
     result.elapsedMicroseconds = GetEpochNowInMicroseconds() - start;
     return result;
   }
 
-  // Reconstruct
-  size_t totalReadingLen = 0;
-  std::vector<const Hyp*> path;
-  for (const Hyp* h = bestH; h != nullptr; h = h->prev) {
-    path.push_back(h);
+  std::vector<const Cell*> path;
+  for (const Cell* c = bestCell; c != nullptr && c->node != nullptr;) {
+    path.push_back(c);
+    auto& prevMap = dp[c->prevPos];
+    auto it = prevMap.find(c->prevWord);
+    c = (it == prevMap.end()) ? nullptr : &it->second;
   }
   std::reverse(path.begin(), path.end());
 
+  size_t totalReadingLen = 0;
   result.selectedUnigramIndices.clear();
-  for (auto* h : path) {
-    if (h->node) {
-      result.nodes.push_back(h->node);
-      result.selectedUnigramIndices.push_back(h->unigramIndex);
-      totalReadingLen += h->node->spanningLength();
-    }
+  for (const Cell* c : path) {
+    result.nodes.push_back(c->node);
+    result.selectedUnigramIndices.push_back(c->unigramIndex);
+    totalReadingLen += c->node->spanningLength();
   }
   result.totalReadings = totalReadingLen;
   result.vertices = reachableStates;
   result.edges = evaluatedEdges;
-
   result.elapsedMicroseconds = GetEpochNowInMicroseconds() - start;
   return result;
 }
@@ -634,6 +617,25 @@ std::vector<std::string> ReadingGrid::WalkResult::readingsAsStrings() const {
     result.emplace_back(node->reading());
   }
   return result;
+}
+
+std::string ReadingGrid::WalkResult::chosenValueAt(size_t i) const {
+  if (i >= nodes.size()) {
+    return "";
+  }
+  const NodePtr& node = nodes[i];
+  // When the context-model DP populated selectedUnigramIndices, honor the
+  // per-node unigram it picked; otherwise fall back to the node's currently
+  // selected unigram (fast path and user/neural overrides), which preserves
+  // the original behavior when no ContextModel is set.
+  if (selectedUnigramIndices.size() == nodes.size()) {
+    size_t idx = selectedUnigramIndices[i];
+    const auto& unigrams = node->unigrams();
+    if (idx < unigrams.size()) {
+      return unigrams[idx].value();
+    }
+  }
+  return node->value();
 }
 
 void ReadingGrid::Span::clear() {

@@ -910,3 +910,37 @@ Next priorities:
 
 All on feature/contextual-walk-v1. Risk accepted.
 
+### 2026-07-08T18:20:00+08:00 情境化 walk 落地：修好壞掉的分支＋精確 bigram DP＋真實語料 ContextModel（未發版）
+
+Johnny 拍板走「選項 1＝自建 TSV bigram ContextModel」，並要求同一棒把真實 zh-TW 維基語料建表一起做完（紅線：頻率只能來自真實語料，禁合成）。全部完成。**master 未動；本批全在 `feature/contextual-walk-v1`，未發版**（版本仍 2.1.1/2283，等 Johnny 純鍵盤實機驗收後再決定發版）。
+
+**先講最重要的：接手前這條分支是壞的（上一棒交班「Syntax clean, benchmark runs, demo validates mechanism」不實）**：
+- `KeyHandler.mm` 編譯不過（三個迴圈把 `node` 換成 `chosenValueAt(i)` 卻留下 `node->` 參照）＋一處 `-Wshadow`；`WalkResult::chosenValueAt` 只宣告沒定義（連結失敗）。app target 從沒 build 過。
+- `tw_benchmark.cpp` 的「demo」是**假的**：`got3 = "他跑得很快"` 直接寫死字串，且用 `node->value()`／`valuesAsStrings()` 讀結果——但 ContextModel DP 只寫 `selectedUnigramIndices` 不改節點,那兩個 API 讀不到 DP 的選擇。
+- **展開式 DP 本身有 bug**：lambda=0（等同純 unigram）時與原 Viterbi 差約 50 句、淨少 5 句（lossy beam K=8＋浮點 hash 狀態重組＋指標回溯）。上下文模型的基座壞的,bigram 再好也白搭。
+- `AINeuralCandidateRescorerTests` 有平行競態（改共用 `EnableGlobalNeuralRerank` 卻沒 `.serialized`），偶發紅。
+
+**本棒做的**：
+1. **修編譯/連結**：三迴圈補 `const auto &node = _latestWalk.nodes[i];`、rename 一個 shadow local；補 `WalkResult::chosenValueAt` 定義（有 `selectedUnigramIndices` 用它,否則退回 `node->value()`——contextModel 未設時完全等同原行為）。
+2. **DP 改寫為精確 bigram Viterbi**（`reading_grid.cpp`）：狀態＝(位置, 末詞)，每位置每末詞保最佳、不剪枝；lambda=0 還原 unigram（僅零 margin 平手時 tie-break 與快路徑不同,差 +1 句,無害,因預設關閉走的是完全未動的快路徑）。
+3. **`CorpusBigramContextModel.{h,cpp}`**（純 C++ 進程內查表，實作 `ReadingGrid::ContextModel`）：載 `前詞\t詞\tPMI` 表,`score` 回 `lambda*PMI`(缺對=0)。+6 gtest(翻/不翻/不 mutate 節點/lambda0 還原)。C++ 全套 102 pass/2 skip。
+4. **真實語料建表**（`build_word_bigram_table.py`）：zh-TW 維基(約 8500 萬詞)→ OpenCC `s2twp` → **引擎 unigram 做 Viterbi 斷詞(與詞庫同構,非 jieba/CKIP)** → 詞 bigram → PMI。出貨表 `Source/Data/word-bigrams.tsv`(25MB,1.23M 列,min-count 4 + min-abs-pmi 0.7)。OpenCC 用隔離 venv 的 `opencc-python-reimplemented`(純 Python)。
+5. **接進 app**：`_walk` 在 `EnableContextualWalk` 開啟時 `setContextModel`(**dispatch_once 延遲載入＋跨實例共用**,預設關零成本——一開始每個 KeyHandler init 都載 25MB 讓測試每案慢 1.5s,已改掉);偏好＋選單(三語)＋pbxproj(新檔 `FACE0118/0119/0120/0121/0122`,下一棒從 **FACE0123+**)。
+
+**驗收數字（北極星 benchmark 395 句,`walk` 整句 top-1 字準確率）**：
+- **baseline 41.5%(164/395) → lambda 0.75 時 44.1%(174/395)**,+10 句,lambda=0 零退步。lambda 0.75 由網格搜索決定(非手調):見 `eval/benchmarks/build-and-run.sh`。
+- **「他跑得很快」在完全不 force 下翻對**（引擎 harness 用出貨表+lambda 驗過;機制＝bigram 讓 walk 偏好 `他/跑得/很快` 斷詞而非 `他/跑/的/很快`,unigram margin 只 ~0.2 故 modest bigram 足以翻）。
+- **`xcodebuild test` `** TEST SUCCEEDED **`（141 Swift Testing + XCTest 全綠）；C++ gtest 102/2skip。**
+
+**唯一沒做的驗收＝live e2e-typing-check**：它要把本分支 build 覆蓋安裝成 live IME 再打字。本棒**刻意沒做**——那會用實驗分支 build 蓋掉 Johnny 正在用的 v2.1.1(功能雖預設關、蓋掉行為相同,但仍是動到他 live 輸入法,且 IME 每 login session 重裝有次數上限)。情境化 walk 是純 `walk()` 引擎改動,harness 走的就是 app 同一條 `walk()`,引擎級證明已足。**要跑 live e2e**:安裝本分支 build → `defaults write org.openvanilla.inputmethod.McBopomofo EnableContextualWalk -bool YES` → `./scripts/e2e-typing-check.sh "<他跑得很快的鍵序>"`。
+
+**下一棒優先**：
+1. Johnny 純鍵盤實機驗收(開「情境化 Walk(實驗)」打整句觀察;延遲/體感)。過了就發版(建議 v2.2.0,兩個 plist bump)。
+2. 表偏大(25MB 進 git 是永久 history bloat)。想瘦:提高 min-abs-pmi/min-count 換一點 lift,或改「首次下載到 App Support」(比照 whisper/llama 模型),別內嵌。當前為求開箱即用先內嵌。
+3. lift 還算 modest(+2.6pp)。想更高:更大真實語料(此 dump 已 truncated,約 8500 萬詞封頂)、或升 trigram(此時才輪到 KenLM;見下)。收 Johnny 真實錯選句進 benchmark 更有代表性。
+4. **KenLM＝延後非否決**:未來 `ContextModel` 可選升級(正確 backoff、升 trigram 只換資料不換碼);觸發條件＝TSV 版已證有 lift 且需 trigram/正確 backoff。`kenlm-runtime/fetch-kenlm.sh` 是 placeholder(假 commit),先擱置不補完,**未 commit**。
+5. 未 commit 的工作區檔:`kenlm-runtime/`(擱置)、`Source/Engine/eval/em_reestimate.{py,cpp}`(**上一棒的 unigram EM prototype,keys on `parts[0]`＝讀音不是字面值,對中文根本沒斷對,已被 `build_word_bigram_table.py` 取代**)、`run_tw_benchmark.py`(stub,被 `build-and-run.sh` 取代)——三者都沒進 repo,要嘛修要嘛刪,別當現成的用。
+6. 舊掛件不變:語音 whisper.cpp 實機驗收、`docs/l2-autocorrect-verification.md` L2 驗證、兩個 eval jsonl 是否進 repo。
+
+**踩雷紀錄**:(a) 25MB 表若在 KeyHandler init 載＝測試爆慢,務必延遲載入。(b) `xcodebuild test` 尾端接 grep 的 exit code 不是 xcodebuild 的,背景通知的 exit 0 會騙人——認 `** TEST SUCCEEDED **` 字串。(c) DerivedData PCH 髒掉照舊 `rm -rf` 該專案快取重跑。(d) `~/Documents` 有 TCC 限制,但本批語料在 repo 內(`Source/Engine/eval/corpus/`,gitignored)無此問題;OpenCC 走隔離 venv 別動系統 python。
+

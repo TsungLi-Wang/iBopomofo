@@ -26,7 +26,10 @@ import Testing
 
 @testable import McBopomofo
 
-@Suite("NeuralCandidateRescorer Tests")
+// .serialized because these tests mutate the shared EnableGlobalNeuralRerank
+// preference; without it, parallel execution races on the global key (a test
+// that sets the preference false can observe true set by a concurrent test).
+@Suite("NeuralCandidateRescorer Tests", .serialized)
 struct AINeuralCandidateRescorerTests {
 
     /// buffer = 我的手機,focus span = 的(cursorIndex 2),右文 = 手機(2 字)。

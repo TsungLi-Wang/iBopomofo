@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #import "ConfusionPairDisambiguator.h"
+#import "CorpusBigramContextModel.h"
 #import "KeyHandler.h"
 #import "LanguageModelManager+Privates.h"
 #import "Mandarin.h"
@@ -376,6 +377,7 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
     size_t charLocation = 0;
 
     for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+        const auto &node = _latestWalk.nodes[i];
         std::string value = _latestWalk.chosenValueAt(i);
         std::vector<std::string> chars = McBopomofo::Split(value);
         size_t nodeStart = charLocation;
@@ -464,8 +466,9 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
 
     size_t charLocation = 0;
     for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
-        std::string value = _latestWalk.chosenValueAt(i);
-        std::vector<std::string> chars = McBopomofo::Split(value);
+        const auto &node = _latestWalk.nodes[i];
+        std::string nodeValue = _latestWalk.chosenValueAt(i);
+        std::vector<std::string> chars = McBopomofo::Split(nodeValue);
         size_t nodeStart = charLocation;
         charLocation += chars.size();
         if (location < nodeStart || location >= nodeStart + chars.size()) {
@@ -2581,6 +2584,7 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
     bool bopomofoAnnotationHasVariants = false;
 
     for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+        const auto &node = _latestWalk.nodes[i];
         std::string value = _latestWalk.chosenValueAt(i);
         size_t composedValueLength = value.length();
 
@@ -2690,6 +2694,38 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
 
 - (void)_walk
 {
+    // Contextual walk (experimental): a corpus-derived word-bigram model lets
+    // context influence the actual path/choice competition inside walk(). It
+    // only re-picks among the unigrams already present in a node (never
+    // generates text, never changes a reading). When off, the grid uses the
+    // fast unigram walk, so shipping behavior is unchanged.
+    //
+    // The ~25 MB table is loaded lazily, once, and shared across KeyHandler
+    // instances (read-only after load; score() writes only its caller-owned
+    // state argument). Loading only happens the first time the feature is
+    // actually used, so the default-off path pays nothing at startup.
+    if (Preferences.enableContextualWalk
+        && _inputMode != InputModePlainBopomofo) {
+        static McBopomofo::CorpusBigramContextModel *sharedContextModel = nullptr;
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            auto *model = new McBopomofo::CorpusBigramContextModel();
+            // lambda 0.75 is the benchmark grid-search optimum (eval/benchmarks:
+            // 41.5% -> 44.1% top-1 sentence accuracy over 395 Taiwan sentences);
+            // it is not hand-tuned per case.
+            model->setLambda(0.75);
+            NSString *path = [[NSBundle bundleForClass:[self class]] pathForResource:@"word-bigrams" ofType:@"tsv"];
+            if (path != nil) {
+                model->load(path.UTF8String);
+            }
+            sharedContextModel = model;
+        });
+        _grid->setContextModel(sharedContextModel->isLoaded() ? sharedContextModel
+                                                              : nullptr);
+    } else {
+        _grid->setContextModel(nullptr);
+    }
+
     _latestWalk = _grid->walk();
 
     // Confusion-pair disambiguation (e.g. 在/再): re-picks among the unigrams

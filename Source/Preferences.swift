@@ -59,6 +59,7 @@ private let kCustomUserPhraseLocation = "CustomUserPhraseLocation"
 private let kEnableAICandidateRerankKey = "EnableAICandidateRerank"
 private let kEnableAIAutoCorrectionKey = "EnableAIAutoCorrection"
 private let kEnableConfusionPairDisambiguationKey = "EnableConfusionPairDisambiguation"
+private let kEnableContextualWalkKey = "EnableContextualWalk"
 private let kEnableGlobalNeuralRerankKey = "EnableGlobalNeuralRerank"
 
 private let kDefaultCandidateListTextSize: CGFloat = 16
@@ -243,6 +244,7 @@ class Preferences: NSObject {
             kEnableAIAutoCorrectionKey,
             kEnableConfusionPairDisambiguationKey,
             kEnableGlobalNeuralRerankKey,
+            kEnableContextualWalkKey,
         ]
     }
 
@@ -278,6 +280,7 @@ class Preferences: NSObject {
         Preferences.enableAIAutoCorrection = Preferences.enableAIAutoCorrection
         Preferences.enableConfusionPairDisambiguation =
             Preferences.enableConfusionPairDisambiguation
+        Preferences.enableContextualWalk = Preferences.enableContextualWalk
     }
 
     @EnumUserDefault(key: kKeyboardLayoutPreferenceKey, defaultValue: KeyboardLayout.standard)
@@ -492,6 +495,17 @@ extension Preferences {
     @objc static func toggleConfusionPairDisambiguationEnabled() -> Bool {
         enableConfusionPairDisambiguation = !enableConfusionPairDisambiguation
         return enableConfusionPairDisambiguation
+    }
+
+    // 引擎層情境化 walk:語料詞 bigram ContextModel 讓上下文參與 walk 的路徑競爭
+    // (只重排既有候選,不生成)。實驗功能,預設關閉;需 bundle 內有
+    // word-bigrams.tsv 才會生效。
+    @UserDefault(key: kEnableContextualWalkKey, defaultValue: false)
+    @objc static var enableContextualWalk: Bool
+
+    @objc static func toggleContextualWalkEnabled() -> Bool {
+        enableContextualWalk = !enableContextualWalk
+        return enableContextualWalk
     }
 
     // L1 神經候選重排(llama-server 整句 logprob 打分)。實驗功能,預設關閉;

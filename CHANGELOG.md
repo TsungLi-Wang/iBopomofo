@@ -6,9 +6,23 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **情境化 Walk（實驗功能，預設關閉）**：引擎 `walk()` 新增可選的詞 bigram `ContextModel`，讓上下文參與**打字當下的路徑競爭**（不是事後重寫），只在節點既有的 unigram 裡改選——不生成新字、不改讀音。開啟後由真實語料詞 bigram（`CorpusBigramContextModel`）對每個候選加 `lambda * PMI(前詞, 詞)`。北極星 benchmark（395 句台灣句、`walk` 整句 top-1 字準確率）：baseline **41.5%（164/395）→ lambda 0.75 時 44.1%（174/395）**，+10 句、lambda=0 零退步；lambda 0.75 由 benchmark 網格搜索決定（非手調）。「他跑得很快」在完全不 force 下自然翻對（bigram 讓 walk 偏好 `他/跑得/很快` 的斷詞而非 `他/跑/的/很快`）。
+  - 新偏好 `EnableContextualWalk` + 選單「情境化 Walk（實驗）」（三語）。預設關閉時 grid 走原本的 unigram 快路徑，出貨行為完全不變。
+  - **語料表 `Source/Data/word-bigrams.tsv`（隨 app 內建，約 25MB）**：只用真實語料統計，來源 zh-TW 維基（約 8,500 萬詞），OpenCC `s2twp` 轉台灣詞形，斷詞單位與引擎詞庫同構（用引擎 unigram 做 Viterbi 斷詞，非 jieba/CKIP）。表存 PMI（`log P(詞|前詞) - log P(詞)`），與 lambda 無關故可不重建就網格搜索。建表管線 `Source/Engine/eval/build_word_bigram_table.py`；北極星 harness `Source/Engine/eval/benchmarks/`（`tw_benchmark.cpp` + `build-and-run.sh`，395 句、baseline 與網格搜索）。
+  - 表以延遲載入（`dispatch_once`）且跨 KeyHandler 實例共用,只有第一次真正使用該功能時才載入,預設關閉路徑零啟動成本。
+
+### 修正
+
+- **修好 `feature/contextual-walk-v1` 的編譯/連結破洞**：前一批 commit 宣稱「Syntax clean」但實際 app target 無法編譯（`KeyHandler.mm` 多處 `node` 未宣告、一處 `-Wshadow`）也無法連結（`WalkResult::chosenValueAt` 只宣告沒定義）。已補齊。
+- **`walk()` 的 ContextModel DP 改寫為精確 bigram Viterbi**：原「展開式 DP」用 lossy beam（K=8）+ 浮點 hash 狀態重組 + 指標回溯，在 lambda=0（等同純 unigram）時與原 Viterbi 相差約 50 句、淨少 5 句——即上下文模型的基座本身就有 bug。改為以「(位置, 末詞) 為狀態」的精確 DP（不剪枝），lambda=0 還原 unigram 結果，bigram 效果可乾淨量測。預設關閉時 grid 走完全未動的原快路徑。
+- **`AINeuralCandidateRescorerTests` 平行競態修正**：該 suite 會改共用的 `EnableGlobalNeuralRerank` 偏好卻沒標 `.serialized`，Swift Testing 預設平行執行下偶發互踩（設 false 的測試讀到別的測試設的 true）。比照 `PreferencesTests`/`ServiceProviderTests` 補 `.serialized`。
+
 ### 文件
 
 - **實機端到端打字驗證方法固化**：新增 `docs/e2e-typing-verification.md`（AppleScript `key code` 送真實鍵碼進 TextEdit 的完整方法、注音→鍵序→鍵碼對照、陷阱清單）與一鍵腳本 `scripts/e2e-typing-check.sh`；`AGENTS.md` Testing 節加入指引。改打字當下行為（L1/延遲重審/消歧器）必跑，單元測試全綠不足以代表實機行為（v2.1.1 教訓）。
+- `Source/Engine/eval/benchmarks/README.md`：北極星 benchmark 與情境化 walk 重現步驟、before/after 數字、建表管線。KenLM 作為 `ContextModel` 未來可選升級（正確 backoff、升級 trigram 只換資料不換碼）延後、非否決；觸發條件＝TSV 版經 harness 證明有 lift 且需 trigram/正確 backoff 時。placeholder 抓取腳本（假 commit）先擱置不補完。
 
 ## [v2.1.1] - 2026-07-08
 
