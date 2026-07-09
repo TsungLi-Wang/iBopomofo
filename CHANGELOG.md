@@ -4,6 +4,19 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
+## [Unreleased]
+
+### 引擎（n-gram + RNN 混合主線 · 第一刀）
+
+- **路徑級 reselect API**：`WalkResult::reselectUnigramValue` — RNN／後處理可在既有 unigram 內改選，只改 `selectedUnigramIndices`、不發明字、不強制污染 override。
+- **`chosenValueAt` 優先序**：node override（手選／post-walk 神經）> ContextModel DP 索引 > top unigram。修掉「情境化 walk 預設開時，延遲神經 soft override 改了 node 但畫面仍顯示 DP 選字」的組不起來問題。
+- **KeyHandler neural apply** 在 soft override 成功後同步 `reselectUnigramValue`。
+- 設計與殘餘數字：`docs/ngram-rnn-hybrid.md`。
+
+### 文件 / 工具
+
+- **語料 bigram 表瘦身 harness 量測**（尚未替換出貨表、非主線）：`slim_word_bigram_table.py`；候選 `min_abs_pmi=2.0` → ~6.7MB、177/395。
+
 ## [v2.3.0] - 2026-07-09
 
 **預設啟用情境化選字 + 個人化。** 新安裝／未改過偏好的使用者一開箱就走語料 bigram walk；手動選字會記住並軟影響之後同上下文的選字。個人化資料只存本機。

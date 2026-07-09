@@ -645,10 +645,15 @@ std::string ReadingGrid::WalkResult::chosenValueAt(size_t i) const {
     return "";
   }
   const NodePtr& node = nodes[i];
-  // When the context-model DP populated selectedUnigramIndices, honor the
-  // per-node unigram it picked; otherwise fall back to the node's currently
-  // selected unigram (fast path and user/neural overrides), which preserves
-  // the original behavior when no ContextModel is set.
+  // Post-walk overrides (hand-picked candidate, soft neural reselect via
+  // node override) must beat ContextModel DP indices. Without this, a neural
+  // soft override after a contextual walk updates node->value() but the UI
+  // still reads the stale DP pick from selectedUnigramIndices — n-gram walk
+  // and RNN layer never compose. Pre-walk overrides are already baked into
+  // the DP's selectedUnigramIndices (override collapses the candidate set).
+  if (node->isOverridden()) {
+    return node->value();
+  }
   if (selectedUnigramIndices.size() == nodes.size()) {
     size_t idx = selectedUnigramIndices[i];
     const auto& unigrams = node->unigrams();
@@ -657,6 +662,45 @@ std::string ReadingGrid::WalkResult::chosenValueAt(size_t i) const {
     }
   }
   return node->value();
+}
+
+bool ReadingGrid::WalkResult::reselectUnigramValue(size_t nodeIndex,
+                                                   const std::string& value) {
+  if (nodeIndex >= nodes.size() || value.empty()) {
+    return false;
+  }
+  const NodePtr& node = nodes[nodeIndex];
+  const auto& unigrams = node->unigrams();
+  size_t found = unigrams.size();
+  for (size_t ui = 0; ui < unigrams.size(); ++ui) {
+    if (unigrams[ui].value() == value) {
+      found = ui;
+      break;
+    }
+  }
+  if (found >= unigrams.size()) {
+    return false;
+  }
+
+  // Ensure indices are parallel to nodes so future chosenValueAt reads DP
+  // (or reselect) choices rather than silently falling back mid-path.
+  if (selectedUnigramIndices.size() != nodes.size()) {
+    selectedUnigramIndices.assign(nodes.size(), 0);
+    for (size_t j = 0; j < nodes.size(); ++j) {
+      const auto& ugs = nodes[j]->unigrams();
+      const std::string cur = nodes[j]->value();
+      size_t idx = 0;
+      for (size_t ui = 0; ui < ugs.size(); ++ui) {
+        if (ugs[ui].value() == cur) {
+          idx = ui;
+          break;
+        }
+      }
+      selectedUnigramIndices[j] = idx;
+    }
+  }
+  selectedUnigramIndices[nodeIndex] = found;
+  return true;
 }
 
 void ReadingGrid::Span::clear() {

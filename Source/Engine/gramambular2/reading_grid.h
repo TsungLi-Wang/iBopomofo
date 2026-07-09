@@ -180,8 +180,18 @@ class ReadingGrid {
     std::vector<std::string> valuesAsStrings() const;
     std::vector<std::string> readingsAsStrings() const;
 
-    // Returns the chosen value for the i-th node in the path (uses selectedUnigramIndices if present)
+    // Returns the chosen value for the i-th node on the path.
+    // Priority: node override (user / post-walk neural) > ContextModel DP
+    // selectedUnigramIndices > node->value() (top unigram / fast path).
     std::string chosenValueAt(size_t i) const;
+
+    // n-gram + RNN hybrid path selection: re-pick an existing unigram on a path
+    // node by updating selectedUnigramIndices only (does not mutate node
+    // override state, does not re-walk, never invents text). Initializes
+    // selectedUnigramIndices from current node values if empty so it also
+    // works after a fast-path (unigram-only) walk. Returns false if `value`
+    // is not among that node's unigrams.
+    bool reselectUnigramValue(size_t nodeIndex, const std::string& value);
   };
 
   WalkResult walk();

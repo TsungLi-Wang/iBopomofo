@@ -492,6 +492,12 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
         // never generated. Soft override keeps the top unigram's score, so
         // segmentation and path competition are unaffected and no re-walk is
         // needed; nothing is observed into the user override model.
+        //
+        // Hybrid path (n-gram walk + RNN reselect): also write
+        // selectedUnigramIndices so chosenValueAt stays consistent when a
+        // ContextModel walk left DP indices behind. Node override alone is
+        // not enough — chosenValueAt used to prefer DP indices and would
+        // silently discard a post-walk neural flip under EnableContextualWalk.
         std::string targetValue;
         for (size_t j = 0; j < chars.size(); ++j) {
             targetValue += (j == k) ? valueUtf8 : chars[j];
@@ -500,6 +506,7 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
                 targetValue,
                 Formosa::Gramambular2::ReadingGrid::Node::OverrideType::
                     kOverrideValueWithScoreFromTopUnigram)) {
+            _latestWalk.reselectUnigramValue(i, targetValue);
             _neuralApplied[node.get()] = node;
             return YES;
         }

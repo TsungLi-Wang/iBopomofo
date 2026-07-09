@@ -200,5 +200,32 @@ TEST_F(CorpusBigramContextModelTest, OverrideIsHonoredWithContextModel) {
   EXPECT_EQ(chosenJoined(result), "他跑得很快");
 }
 
+// n-gram + RNN hybrid: after a ContextModel walk has filled
+// selectedUnigramIndices, a post-walk path reselect (no node override) must
+// change chosenValueAt. This is the clean write path for neural path scoring
+// — selection lives in WalkResult, not as a lattice patch.
+TEST_F(CorpusBigramContextModelTest, PostWalkReselectUpdatesChosenWithContextModel) {
+  ReadingGrid::WalkResult result = walkWith(0.0, /*useModel=*/true);
+  ASSERT_EQ(result.chosenValueAt(2), "的");
+  ASSERT_EQ(result.selectedUnigramIndices.size(), result.nodes.size());
+  ASSERT_TRUE(result.reselectUnigramValue(2, "得"));
+  EXPECT_FALSE(result.nodes[2]->isOverridden());
+  EXPECT_EQ(result.chosenValueAt(2), "得");
+  EXPECT_EQ(chosenJoined(result), "他跑得很快");
+}
+
+// Regression: soft override applied AFTER contextual walk (neural deferred
+// style) must win over stale DP indices in chosenValueAt. Without override
+// priority, EnableContextualWalk ON would make post-walk neural flips invisible.
+TEST_F(CorpusBigramContextModelTest, PostWalkSoftOverrideBeatsDpIndices) {
+  ReadingGrid::WalkResult result = walkWith(0.0, /*useModel=*/true);
+  ASSERT_EQ(result.chosenValueAt(2), "的");
+  ASSERT_TRUE(result.nodes[2]->selectOverrideUnigram(
+      "得", ReadingGrid::Node::OverrideType::kOverrideValueWithScoreFromTopUnigram));
+  EXPECT_EQ(result.chosenValueAt(2), "得")
+      << "Post-walk soft override lost to ContextModel selectedUnigramIndices.";
+  EXPECT_EQ(chosenJoined(result), "他跑得很快");
+}
+
 }  // namespace
 }  // namespace McBopomofo
