@@ -4,6 +4,14 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
+## [Unreleased]
+
+### 修正
+
+- **§1.2 UOM context key 對齊修復**：`UserOverrideModel::FormObservationKey` 先前用節點靜態值（head＝top unigram、前後文＝`currentUnigram`）組 key。情境化 Walk 開啟時 DP 可把 context 節點翻成非 top（例：螢幕顯示「得」、節點 top 仍是「的」）卻不 mutate 節點，key 就讀到「的」→ 在「得」情境學到的偏好寫進「的」的 key，之後洩漏到無關的「的」情境。修法：key 改讀 `WalkResult::chosenValueAt(i)`（head 與前後文皆然；無 ContextModel 時 fallback 到 `node->value()`，預設路徑行為不變）。範圍只碰 UOM key 生成，不碰 DP、不碰個人化。
+  - 測試：`ObservationKeyUsesChosenValueWithContextModel`（修前紅：偏好從「得」情境洩漏到「的」；修後綠）＋對照 `ObservationKeyUsesNodeValueOnFastPath`。
+  - 北極星 benchmark 逐位元不退：walk ON λ0.75 **44.1%（174/395）**、walk OFF **41.5%（164/395）**。
+
 ## [v2.2.1] - 2026-07-09
 
 修復 v2.2.0 的功能性 bug：**開啟 `EnableContextualWalk`（情境化 Walk）後無法手動選字**。已安裝 v2.2.0 且開了此實驗功能的使用者請更新到 v2.2.1。

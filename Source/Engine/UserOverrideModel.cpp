@@ -45,14 +45,15 @@ static constexpr char kEmptyNodeString[] = "()";
 static double Score(size_t eventCount, size_t totalCount, double eventTimestamp,
                     double timestamp, double lambda);
 
-// Form the observation key from the nodes of a walk. This goes backward, but
-// we are using a const_iterator, the "end" here should be a .cbegin() of a
-// vector.
+// Form the observation key from a walk. Walks backward from head for up to
+// two preceding nodes. Values come from WalkResult::chosenValueAt so that a
+// ContextModel DP choice (stored only in selectedUnigramIndices, never written
+// back onto the node) is what the key sees — matching what the user saw on
+// screen. Without a ContextModel, chosenValueAt falls back to node->value().
 static std::string FormObservationKey(
+    const Formosa::Gramambular2::ReadingGrid::WalkResult& walk,
     std::vector<Formosa::Gramambular2::ReadingGrid::NodePtr>::const_iterator
-        head,
-    std::vector<Formosa::Gramambular2::ReadingGrid::NodePtr>::const_iterator
-        end);
+        head);
 
 UserOverrideModel::UserOverrideModel(size_t capacity, double decayConstant)
     : capacity_(capacity) {
@@ -138,11 +139,11 @@ void UserOverrideModel::observe(
   bool breakingUp =
       currentNode->spanningLength() == 1 && prevHeadNode->spanningLength() > 1;
 
+  const auto& keyWalk =
+      breakingUp ? walkAfterUserOverride : walkBeforeUserOverride;
   auto nodeIter = breakingUp ? currentNodeIt : prevHeadNodeIt;
-  auto endPoint = breakingUp ? walkAfterUserOverride.nodes.begin()
-                             : walkBeforeUserOverride.nodes.begin();
 
-  std::string key = FormObservationKey(nodeIter, endPoint);
+  std::string key = FormObservationKey(keyWalk, nodeIter);
   observe(key, currentNode->currentUnigram().value(), timestamp,
           forceHighScoreOverride);
 }
@@ -151,7 +152,10 @@ UserOverrideModel::Suggestion UserOverrideModel::suggest(
     const Formosa::Gramambular2::ReadingGrid::WalkResult& currentWalk,
     size_t cursor, double timestamp) {
   auto nodeIter = currentWalk.findNodeAt(cursor);
-  std::string key = FormObservationKey(nodeIter, currentWalk.nodes.begin());
+  if (nodeIter == currentWalk.nodes.cend()) {
+    return UserOverrideModel::Suggestion{};
+  }
+  std::string key = FormObservationKey(currentWalk, nodeIter);
   return suggest(key, timestamp);
 }
 
@@ -253,42 +257,51 @@ static bool IsPunctuation(
 }
 
 static std::string FormObservationKey(
+    const Formosa::Gramambular2::ReadingGrid::WalkResult& walk,
     std::vector<Formosa::Gramambular2::ReadingGrid::NodePtr>::const_iterator
-        head,
-    std::vector<Formosa::Gramambular2::ReadingGrid::NodePtr>::const_iterator
-        end) {
-  // Using the top unigram from the head node. Recall that this is an
-  // observation for *before* the user override, and when we provide
-  // a suggestion, this head node is never overridden yet.
-  std::string headStr =
-      CombineReadingValue((*head)->reading(), (*head)->unigrams()[0].value());
+        head) {
+  if (walk.nodes.empty() || head == walk.nodes.cend()) {
+    return std::string(kEmptyNodeString) + "-" + kEmptyNodeString + "-" +
+           kEmptyNodeString;
+  }
 
-  // For the next two nodes, use their current unigram values. If it's a
-  // punctuation, we ignore the reading and the value altogether and treat
-  // it as if it's like the beginning of the sentence.
+  auto begin = walk.nodes.cbegin();
+  size_t headIndex = static_cast<size_t>(std::distance(begin, head));
+
+  // Head + up to two preceding context nodes. Values must match what the user
+  // actually saw (chosenValueAt), not the node's static top/current unigram.
+  // When ContextModel DP has flipped a node, selectedUnigramIndices is the
+  // only place that records the display choice; node->value() stays at top.
+  std::string headStr = CombineReadingValue((*head)->reading(),
+                                            walk.chosenValueAt(headIndex));
+
+  // If a preceding node is punctuation, ignore reading/value and treat it as
+  // the beginning of the sentence (same as historical UOM behavior).
   std::string prevStr;
   bool prevIsPunctuation = false;
-  if (head != end) {
+  if (head != begin) {
     --head;
+    size_t prevIndex = static_cast<size_t>(std::distance(begin, head));
     prevIsPunctuation = IsPunctuation(*head);
     if (prevIsPunctuation) {
       prevStr = kEmptyNodeString;
     } else {
       prevStr = CombineReadingValue((*head)->reading(),
-                                    (*head)->currentUnigram().value());
+                                    walk.chosenValueAt(prevIndex));
     }
   } else {
     prevStr = kEmptyNodeString;
   }
 
   std::string anteriorStr;
-  if (head != end && !prevIsPunctuation) {
+  if (head != begin && !prevIsPunctuation) {
     --head;
-    if (IsPunctuation((*head))) {
+    size_t anteriorIndex = static_cast<size_t>(std::distance(begin, head));
+    if (IsPunctuation(*head)) {
       anteriorStr = kEmptyNodeString;
     } else {
       anteriorStr = CombineReadingValue((*head)->reading(),
-                                        (*head)->currentUnigram().value());
+                                        walk.chosenValueAt(anteriorIndex));
     }
   } else {
     anteriorStr = kEmptyNodeString;

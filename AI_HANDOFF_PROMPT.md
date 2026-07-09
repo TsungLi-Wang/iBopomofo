@@ -1005,3 +1005,28 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 1. **roadmap 第 4 步 cache LM 個人化（升級現有 UOM）**＝新的主線。先盤點+提計畫+Johnny 點頭再實作（別直衝）。難點＝個人化價值在「你自己的打字」但 tw benchmark 固定 395 句量不出，驗收方案要先想清（benchmark 不退步 + 個人化專屬小測試）。紅線：個人化資料不進 git、不外傳。
 2. （擱置）EM 重估 unigram — 等口語語料。
 3. 25MB 表瘦身。
+
+### 2026-07-09T14:45:13+08:00 roadmap 第 4 步第一段：§1.2 UOM context key 對齊修復（未發版，停等點頭）
+
+**範圍鐵律守住**：只碰 UOM key 生成，不碰 DP、不碰個人化（第 4 步 B 未做）。
+
+**問題（本棒測試紅先證死）**：`FormObservationKey` 三段都讀節點靜態值（head＝`unigrams()[0]`、前後文＝`currentUnigram()`）。contextual walk 開時 DP 把 context 節點翻成非 top 卻不 mutate 節點 → key 讀到 top（例「的」）而使用者看到 chosen（「得」）→ 髒學習外溢。預設關所以今天 dormant，但 B 要把個人偏好接進 DP 前必須先修對。
+
+**修法**：
+- `UserOverrideModel.cpp`：`FormObservationKey` 改吃整份 `WalkResult`，以 `i = distance(nodes.begin(), head)` 取 `walk.chosenValueAt(i)`（head + prev + anterior 皆然）。無 ContextModel 時 `chosenValueAt` fallback `node->value()`，快路徑行為不變。
+- `observe` / `suggest` 的 walk 包裝同步改呼叫；`suggest` 對 `findNodeAt` 越界補 early return。
+- 公開 API 簽名不變（仍吃 WalkResult + cursor）；KeyHandler 呼叫端無需改。
+
+**測試（紅→綠）**：
+- `ObservationKeyUsesChosenValueWithContextModel`：強 bigram 把 的→得 後 observe 快→塊；同 flipped 上下文 suggest 得「塊」；lambda=0 未翻的「的」上下文**不得**洩漏「塊」。修前紅（Got candidate='塊'）、修後綠。
+- 對照 `ObservationKeyUsesNodeValueOnFastPath`：無 ContextModel 時學習/取回仍綠。
+
+**驗收數字（三項分列）**：
+- 引擎 gtest `McBopomofoLMLibTest`：**106 pass / 2 skip**（含新 2 個 UOM key 測試）；`gramambular2_test` **21/21**。
+- tw benchmark 逐位元不退：`./build-and-run.sh tw-sentences.tsv` → baseline **0.41519 (164/395)**；`./build-and-run.sh tw-sentences.tsv ../../../Data/word-bigrams.tsv 0.75` → **lambda=0.75 : 0.440506 (174/395)**。
+- xcodebuild test：本棒有跑（見當棒回報 stdout）；未 commit／未發版。
+
+**下一棒優先**：
+1. **§1.2 已修對**。Johnny 點頭後進 **第 4 步 B**：個人偏好軟加分接進 ContextModel DP（先提盤點+計畫再寫 code）。已裁定：走 B 軟加分（非 A 硬覆寫）；優先序 `當下手選（硬）> 個人偏好加分（軟、count 門檻+backoff）> 全域 bigram > top unigram`；資料放 user data folder（`user-override-cache.dat`）、gitignore、不進 bundle；cold cache 下 tw 逐位元不退 + 合成學習曲線 harness（學得會／重啟存活／衰減／不外溢 + mu_user 升格守門）。
+2. （擱置）EM 重估 unigram — 等口語語料。
+3. 25MB 表瘦身。
