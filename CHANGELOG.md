@@ -13,6 +13,10 @@
 - **KeyHandler neural apply** 在 soft override 成功後同步 `reselectUnigramValue`。
 - 設計與殘餘數字：`docs/ngram-rnn-hybrid.md`。
 
+### 分析工具
+
+- **同路徑 Oracle 上界**（`Source/Engine/eval/benchmarks/same_path_oracle.cpp`）：bigram λ=0.75 的 221 miss 中，僅 **66（29.9%）** 可靠同路徑 unigram reselect 救回；**155** 需 path／切詞層。完整表與例子見 `docs/ngram-rnn-hybrid.md` §2.1。
+
 ### 文件 / 工具
 
 - **語料 bigram 表瘦身 harness 量測**（尚未替換出貨表、非主線）：`slim_word_bigram_table.py`；候選 `min_abs_pmi=2.0` → ~6.7MB、177/395。

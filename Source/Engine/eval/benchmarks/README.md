@@ -20,6 +20,26 @@ the expected text. This is the single objective judge for engine changes.
 
 Unigram-only walk: **41.5% (164/395)**.
 
+## Same-path oracle upper bound
+
+For each bigram-miss sentence, ask whether the expected surface can be formed
+by only re-picking unigrams on the **same** walk path (no resegmentation).
+That is the ceiling for `reselectUnigramValue` / single-node RNN reselect.
+
+```bash
+clang++ -std=c++17 -O2 -I../.. -I../../gramambular2 \
+  same_path_oracle.cpp ../../gramambular2/reading_grid.cpp \
+  ../../CorpusBigramContextModel.cpp ../../ParselessLM.cpp \
+  ../../ParselessPhraseDB.cpp ../../MemoryMappedFile.cpp \
+  -o /tmp/same_path_oracle
+/tmp/same_path_oracle tw-sentences.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75
+```
+
+Recorded result (2026-07-09, shipped table, λ=0.75): **66/221** miss sentences
+in-oracle (**29.9%**); **155/221** need a different path. Full write-up:
+`docs/ngram-rnn-hybrid.md` §2.1.
+
 ## Contextual walk (corpus word-bigram ContextModel)
 
 `CorpusBigramContextModel` adds `lambda * PMI(prev, word)` to each candidate's
@@ -64,6 +84,48 @@ python3 ../build_word_bigram_table.py \
 the bundled table small (~25 MB) without losing the informative collocations.
 `opencc-python-reimplemented` (pure Python) provides `s2twp`.
 
-Note: `../em_reestimate.py` (unigram EM prototype) keys on `parts[0]`, which is
-the reading, not the surface value, so it does not segment Chinese text as
-intended; the bigram pipeline above supersedes it for context modeling.
+## Table slim experiment (2026-07-09, post-filter of shipped TSV)
+
+Shipped table is already `min_count=4` + `min_abs_pmi=0.7` (~25 MB, 1.23M
+rows). Raising `|PMI|` further **does not need a wiki rebuild**: use
+`../slim_word_bigram_table.py` on the shipped TSV, then re-run this harness.
+
+Commands actually run (cold cache, fixed λ=0.75 unless noted):
+
+```bash
+# filter (example)
+python3 ../slim_word_bigram_table.py \
+  --in ../../../Data/word-bigrams.tsv \
+  --out /tmp/word-bigrams-abs2.0.tsv --min-abs-pmi 2.0
+
+# single lambda
+./build-and-run.sh tw-sentences.tsv /tmp/word-bigrams-abs2.0.tsv 0.75
+# full lambda grid
+./build-and-run.sh tw-sentences.tsv /tmp/word-bigrams-abs2.0.tsv
+```
+
+| min \|PMI\| | rows | ~size | λ=0.75 accuracy | best λ (grid) |
+|------------:|-----:|------:|----------------:|---------------|
+| **0.7 shipped** | 1,233,770 | ~24.4 MB | **174/395 (44.1%)** | 0.75 → 174 |
+| 1.0 | 934,178 | ~18.7 MB | 170/395 (43.0%) | (not re-gridded) |
+| 1.2 | 771,953 | ~15.5 MB | 173/395 (43.8%) | (not re-gridded) |
+| 1.5 | 571,175 | ~11.6 MB | **176/395 (44.6%)** | 0.75 → 176 |
+| **2.0** | 325,004 | **~6.7 MB** | **177/395 (44.8%)** | **0.75 → 177** |
+
+Notes:
+
+- Non-monotonic at 1.0 / 1.2 (slightly worse than shipped): weak-mid PMI rows
+  can help some cases and hurt others; only strong collocations at ≥1.5/2.0
+  beat the shipped point on this set.
+- Acceptance case `他跑得很快` stays flipped (not in miss list) at λ=0.75 for
+  shipped / 1.5 / 2.0.
+- **Not yet swapped into `Source/Data/word-bigrams.tsv` or a release** — needs
+  product sign-off (DMG size + cold-cache north-star bump). Recommended ship
+  candidate: **`min_abs_pmi=2.0`**, keep λ=0.75, ~**6.7 MB**, **+3 sentences**
+  vs current shipped table.
+- Alternative product path (not measured here): first-run download to
+  Application Support instead of embedding (like whisper models).
+
+Note: early `em_reestimate.py` prototypes keyed on the reading column and were
+not engine-isomorphic; the correct EM attempt is `../em_reestimate_unigram.py`
+(negative result on wiki domain — shelved; see parent `README.md`).

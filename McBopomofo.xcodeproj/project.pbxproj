@@ -187,6 +187,7 @@
 		FACE0120FACE0120FACE0120 /* CorpusBigramContextModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CorpusBigramContextModel.h; sourceTree = "<group>"; };
 		FACE0124FACE0124FACE0124 /* CompositeContextModel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CompositeContextModel.cpp; sourceTree = "<group>"; };
 		FACE0125FACE0125FACE0125 /* CompositeContextModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CompositeContextModel.h; sourceTree = "<group>"; };
+		FACE0126FACE0126FACE0126 /* same_path_oracle.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = same_path_oracle.cpp; sourceTree = "<group>"; };
 		FACE0122FACE0122FACE0122 /* word-bigrams.tsv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "word-bigrams.tsv"; sourceTree = "<group>"; };
 		6A68C1C22EC7F2C0005284A0 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = en; path = en.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
 		6A68C1C42EC7F6B7005284A0 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.stringsdict"; sourceTree = "<group>"; };
@@ -461,6 +462,7 @@
 			isa = PBXGroup;
 			children = (
 				6A4F5F8F2879E838008C4307 /* gramambular2 */,
+				FACE0128FACE0128FACE0128 /* eval */,
 				6A0D4F1F15FC0EB100ABF4B3 /* Mandarin */,
 				6ADF5B132BA513E000577D98 /* AssociatedPhrasesV2.cpp */,
 				6ADF5B182BA513E000577D98 /* AssociatedPhrasesV2.h */,
@@ -544,6 +546,22 @@
 				6A4F5F932879E838008C4307 /* reading_grid.cpp */,
 			);
 			path = gramambular2;
+			sourceTree = "<group>";
+		};
+		FACE0127FACE0127FACE0127 /* benchmarks */ = {
+			isa = PBXGroup;
+			children = (
+				FACE0126FACE0126FACE0126 /* same_path_oracle.cpp */,
+			);
+			path = benchmarks;
+			sourceTree = "<group>";
+		};
+		FACE0128FACE0128FACE0128 /* eval */ = {
+			isa = PBXGroup;
+			children = (
+				FACE0127FACE0127FACE0127 /* benchmarks */,
+			);
+			path = eval;
 			sourceTree = "<group>";
 		};
 		6A6ED162279764CD0012872E /* Custom Phrase Templates */ = {
