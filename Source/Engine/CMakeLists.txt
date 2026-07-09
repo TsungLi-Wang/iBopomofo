@@ -18,6 +18,8 @@ add_library(McBopomofoLMLib
         CorpusBigramContextModel.cpp
         CompositeContextModel.h
         CompositeContextModel.cpp
+        CharNGramPathScorer.h
+        CharNGramPathScorer.cpp
         McBopomofoLM.cpp
         McBopomofoLM.h
         MemoryMappedFile.h

@@ -6,9 +6,20 @@
 
 ## [Unreleased]
 
-### 引擎（n-gram + RNN 混合主線 · 尚未單獨發版）
+## [v2.4.0] - 2026-07-09
 
-- **路徑級 reselect API**、`chosenValueAt` 優先序、Oracle 上界分析：見 `docs/ngram-rnn-hybrid.md`（已在 master，隨後續版本一併出貨）。
+**實驗性神經路徑重排（n-best + PathScorer，Mozc 風格）。** 預設關閉；開啟後在情境化 walk 之上對 top-10 路徑做句級重打分。標點熱修已含於 v2.3.1。
+
+### 新增
+
+- **n-best 路徑抽取**（`ReadingGrid::walkNBest`，每狀態 K=8 hypotheses，N=10）：ContextModel DP 可回傳多條完整路徑；rank-0 與既有 walk top-1 對齊（harness 386/386）。
+- **PathScorer 介面 + 融合**：`final = walk_score + ν · scoreSentence(words)`；`PathScorer=nullptr` 或 `ν=0` 時完全等於既有 walk（三 Guard 不退）。
+- **CharNGramPathScorer（路徑句級 scorer）**：字元 trigram backoff，語料為台灣打字句 + zh-TW 維基抽樣（約 3.2MB `path-char-ngrams.tsv` 內嵌）。**模型選擇理由**：現成可商用、繁中、on-device 且 ≤50MB／≤30ms 的小 RNN／Transformer 權重難在延遲預算內落地；沿用專案真實語料自建 char n-gram 當 PathScorer，架構仍是 Mozc 式 n-best rescore（可日後換真 RNN 權重而不改 walk）。ν 網格 `{0,0.1,0.25,0.5,0.75,1.0}` 最佳 **ν=0.1 → 175/395**（walk ON 174 → +1）；更高 ν 退步（書面語域，採低 ν 只在 walk 接近時輕推）。延遲實測 mean ≈ **2.1ms**/句（遠低於 30ms）。
+- **偏好** `EnableNeuralPathRerank`（預設 **NO**）+ `NeuralPathRerankNu`（預設 0.1）+ 選單「神經路徑重排（實驗）」。
+
+### 文件
+
+- `docs/ngram-rnn-hybrid.md`、eval harness `nbest_path_rerank.cpp`。
 
 ## [v2.3.1] - 2026-07-09
 

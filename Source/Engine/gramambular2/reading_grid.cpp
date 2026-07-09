@@ -30,6 +30,7 @@
 #include <stack>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -315,8 +316,190 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
   result.totalReadings = totalReadingLen;
   result.vertices = reachableStates;
   result.edges = evaluatedEdges;
+  result.walkScore = best;
+  result.elapsedMicroseconds = GetEpochNowInMicroseconds() - start;
+
+  // Optional Mozc-style n-best + PathScorer fusion. When scorer is null or
+  // nu==0 this branch is skipped → bit-identical to the single-best path above.
+  if (pathScorer_ != nullptr && pathRerankNu_ != 0.0) {
+    auto nbest = walkNBest(pathRerankNBest_);
+    if (!nbest.empty()) {
+      size_t bestIdx = 0;
+      double bestFinal = -std::numeric_limits<double>::infinity();
+      for (size_t pi = 0; pi < nbest.size(); ++pi) {
+        double rnn = pathScorer_->scoreSentence(nbest[pi].words);
+        double finalScore = nbest[pi].walkScore + pathRerankNu_ * rnn;
+        nbest[pi].pathScore = finalScore;
+        if (finalScore > bestFinal) {
+          bestFinal = finalScore;
+          bestIdx = pi;
+        }
+      }
+      const RankedPath& picked = nbest[bestIdx];
+      result.nodes = picked.nodes;
+      result.selectedUnigramIndices = picked.selectedUnigramIndices;
+      result.walkScore = picked.walkScore;
+      result.totalReadings = 0;
+      for (const auto& n : result.nodes) {
+        result.totalReadings += n->spanningLength();
+      }
+    }
+  }
+
   result.elapsedMicroseconds = GetEpochNowInMicroseconds() - start;
   return result;
+}
+
+std::vector<ReadingGrid::RankedPath> ReadingGrid::walkNBest(size_t n) {
+  std::vector<RankedPath> out;
+  if (spans_.empty() || n == 0) {
+    return out;
+  }
+  // N-best is defined under ContextModel DP. Without a model, only the single
+  // unigram path exists (callers that need it can walk() separately).
+  if (!contextModel_) {
+    return out;
+  }
+
+  const size_t readingLen = readings_.size();
+  const size_t K = kNBestHypK;
+
+  struct Hyp {
+    double score = -std::numeric_limits<double>::infinity();
+    size_t prevPos = 0;
+    std::string prevWord;
+    size_t prevHypIndex = 0;
+    ReadingGrid::NodePtr node = nullptr;
+    size_t unigramIndex = 0;
+    std::string word;
+  };
+
+  // dp[pos][lastWord] = up to K hyps ending there, sorted by score desc.
+  std::vector<std::unordered_map<std::string, std::vector<Hyp>>> dp(
+      readingLen + 1);
+  {
+    Hyp h0;
+    h0.score = 0.0;
+    h0.word = "";
+    dp[0][std::string()].push_back(std::move(h0));
+  }
+
+  auto tryAdd = [K](std::vector<Hyp>& hyps, Hyp h) {
+    hyps.push_back(std::move(h));
+    std::stable_sort(hyps.begin(), hyps.end(),
+                     [](const Hyp& a, const Hyp& b) { return a.score > b.score; });
+    if (hyps.size() > K) {
+      hyps.resize(K);
+    }
+  };
+
+  for (size_t i = 0; i < readingLen; ++i) {
+    if (dp[i].empty()) continue;
+    const ReadingGrid::Span& span = spans_[i];
+    const size_t maxSpanLen = span.maxLength();
+    for (size_t spanLen = 1; spanLen <= maxSpanLen; ++spanLen) {
+      const ReadingGrid::NodePtr& node = span.nodeOf(spanLen);
+      if (!node) continue;
+      const auto& unigrams = node->unigrams();
+      if (unigrams.empty()) continue;
+
+      const bool nodeOverridden = node->isOverridden();
+      const std::string overriddenValue =
+          nodeOverridden ? node->value() : std::string();
+      const double overriddenScore = node->score();
+      const std::string& nodeReading = node->reading();
+      const bool forceTopUnigramOnly =
+          !nodeOverridden &&
+          (nodeReading.rfind("_punctuation_", 0) == 0 ||
+           nodeReading.rfind("_half_punctuation_", 0) == 0 ||
+           nodeReading.rfind("_ctrl_punctuation_", 0) == 0 ||
+           nodeReading.rfind("_letter_", 0) == 0);
+
+      auto& target = dp[i + spanLen];
+      for (const auto& entry : dp[i]) {
+        const std::string& prevWord = entry.first;
+        const std::vector<Hyp>& prevHyps = entry.second;
+        for (size_t phi = 0; phi < prevHyps.size(); ++phi) {
+          const Hyp& ph = prevHyps[phi];
+          for (size_t ui = 0; ui < unigrams.size(); ++ui) {
+            if (forceTopUnigramOnly && ui != 0) break;
+            const auto& u = unigrams[ui];
+            if (nodeOverridden && u.value() != overriddenValue) continue;
+            double state = 0.0;
+            double trans = contextModel_->scoreWithReading(
+                prevWord, nodeReading, u.value(), state);
+            double sc =
+                ph.score + (nodeOverridden ? overriddenScore : u.score()) +
+                trans;
+            Hyp nh;
+            nh.score = sc;
+            nh.prevPos = i;
+            nh.prevWord = prevWord;
+            nh.prevHypIndex = phi;
+            nh.node = node;
+            nh.unigramIndex = ui;
+            nh.word = u.value();
+            tryAdd(target[u.value()], std::move(nh));
+          }
+        }
+      }
+    }
+  }
+
+  // Collect ending hyps.
+  struct EndRef {
+    double score;
+    std::string word;
+    size_t hypIndex;
+  };
+  std::vector<EndRef> ends;
+  for (const auto& entry : dp[readingLen]) {
+    for (size_t hi = 0; hi < entry.second.size(); ++hi) {
+      ends.push_back(EndRef{entry.second[hi].score, entry.first, hi});
+    }
+  }
+  std::stable_sort(ends.begin(), ends.end(),
+                   [](const EndRef& a, const EndRef& b) {
+                     return a.score > b.score;
+                   });
+
+  std::unordered_set<std::string> seenJoined;
+  for (const EndRef& er : ends) {
+    if (out.size() >= n) break;
+    // Backtrack.
+    std::vector<const Hyp*> rev;
+    size_t pos = readingLen;
+    std::string word = er.word;
+    size_t hi = er.hypIndex;
+    while (pos > 0) {
+      auto mit = dp[pos].find(word);
+      if (mit == dp[pos].end() || hi >= mit->second.size()) break;
+      const Hyp* h = &mit->second[hi];
+      if (h->node == nullptr) break;
+      rev.push_back(h);
+      size_t ppos = h->prevPos;
+      std::string pword = h->prevWord;
+      size_t phi = h->prevHypIndex;
+      pos = ppos;
+      word = std::move(pword);
+      hi = phi;
+    }
+    std::reverse(rev.begin(), rev.end());
+    RankedPath rp;
+    rp.walkScore = er.score;
+    rp.pathScore = er.score;
+    std::string joined;
+    for (const Hyp* h : rev) {
+      rp.nodes.push_back(h->node);
+      rp.selectedUnigramIndices.push_back(h->unigramIndex);
+      rp.words.push_back(h->word);
+      joined += h->word;
+    }
+    if (joined.empty()) continue;
+    if (!seenJoined.insert(joined).second) continue;
+    out.push_back(std::move(rp));
+  }
+  return out;
 }
 
 std::vector<ReadingGrid::Candidate> ReadingGrid::candidatesAt(size_t loc) {

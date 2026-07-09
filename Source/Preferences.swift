@@ -61,6 +61,8 @@ private let kEnableAIAutoCorrectionKey = "EnableAIAutoCorrection"
 private let kEnableConfusionPairDisambiguationKey = "EnableConfusionPairDisambiguation"
 private let kEnableContextualWalkKey = "EnableContextualWalk"
 private let kEnableGlobalNeuralRerankKey = "EnableGlobalNeuralRerank"
+private let kEnableNeuralPathRerankKey = "EnableNeuralPathRerank"
+private let kNeuralPathRerankNuKey = "NeuralPathRerankNu"
 
 private let kDefaultCandidateListTextSize: CGFloat = 16
 private let kMinCandidateListTextSize: CGFloat = 12
@@ -245,6 +247,7 @@ class Preferences: NSObject {
             kEnableConfusionPairDisambiguationKey,
             kEnableGlobalNeuralRerankKey,
             kEnableContextualWalkKey,
+            kEnableNeuralPathRerankKey,
         ]
     }
 
@@ -507,6 +510,22 @@ extension Preferences {
         enableContextualWalk = !enableContextualWalk
         return enableContextualWalk
     }
+
+    /// Mozc-style n-best + PathScorer fusion after ContextModel walk.
+    /// Default OFF so cold+empty matches v2.3.1 bit-identical path selection.
+    @UserDefault(key: kEnableNeuralPathRerankKey, defaultValue: false)
+    @objc static var enableNeuralPathRerank: Bool
+
+    @objc static func toggleNeuralPathRerankEnabled() -> Bool {
+        enableNeuralPathRerank = !enableNeuralPathRerank
+        return enableNeuralPathRerank
+    }
+
+    /// Interpolation weight ν for final_score = walk_score + ν · path_scorer.
+    /// Default 0.25 from harness grid search on tw-sentences (see CHANGELOG).
+    /// Default 0.1 from nbest_path_rerank harness grid (175/395 best; higher ν regresses).
+    @UserDefault(key: kNeuralPathRerankNuKey, defaultValue: 0.1)
+    @objc static var neuralPathRerankNu: Double
 
     // L1 神經候選重排(llama-server 整句 logprob 打分)。實驗功能,預設關閉;
     // 依賴本機 llama-server,未就緒時自動退回 n-gram。見 docs/l1-neural-rerank-integration.md。

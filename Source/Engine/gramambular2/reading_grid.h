@@ -192,9 +192,42 @@ class ReadingGrid {
     // works after a fast-path (unigram-only) walk. Returns false if `value`
     // is not among that node's unigrams.
     bool reselectUnigramValue(size_t nodeIndex, const std::string& value);
+
+    // Cumulative walk DP score of the chosen path (ContextModel path only;
+    // 0 on fast path). Used by n-best + PathScorer fusion.
+    double walkScore = 0.0;
+  };
+
+  // Optional sentence-level path scorer for n-best rerank (Mozc-style).
+  // nullptr → no rerank; walk() bit-identical to pre-rerank behavior.
+  class PathScorer {
+   public:
+    virtual ~PathScorer() = default;
+    // Log-domain sentence score over the path word sequence (higher = better).
+    virtual double scoreSentence(const std::vector<std::string>& words) = 0;
+  };
+
+  // One complete lattice path with walk DP score (before PathScorer fusion).
+  struct RankedPath {
+    std::vector<NodePtr> nodes;
+    std::vector<size_t> selectedUnigramIndices;
+    std::vector<std::string> words;
+    double walkScore = 0.0;
+    double pathScore = 0.0;  // walkScore + nu * pathScorer (after fusion)
   };
 
   WalkResult walk();
+
+  // Extract top-N complete paths under the current ContextModel (requires
+  // contextModel_ != nullptr). Rank 0 must match walk() top-1 words when
+  // PathScorer is not applied. Empty if no context model / empty grid.
+  std::vector<RankedPath> walkNBest(size_t n);
+
+  void setPathScorer(PathScorer* scorer) { pathScorer_ = scorer; }
+  void setPathRerankNu(double nu) { pathRerankNu_ = nu; }
+  void setPathRerankNBest(size_t n) { pathRerankNBest_ = n == 0 ? 1 : n; }
+  [[nodiscard]] PathScorer* pathScorer() const { return pathScorer_; }
+  [[nodiscard]] double pathRerankNu() const { return pathRerankNu_; }
 
   struct Candidate {
     Candidate(std::string r, std::string v, std::string rv = "")
@@ -286,6 +319,11 @@ class ReadingGrid {
   std::vector<Span> spans_;
   ScoreRankedLanguageModel lm_;
   ContextModel* contextModel_ = nullptr;
+  PathScorer* pathScorer_ = nullptr;
+  double pathRerankNu_ = 0.0;
+  size_t pathRerankNBest_ = 10;
+  // Per-state hypothesis beam for n-best (exact top-1 preserved as best hyp).
+  static constexpr size_t kNBestHypK = 8;
 
   // Internal methods for maintaining the grid.
 

@@ -126,6 +126,11 @@ class McBopomofoInputMethodController: IMKInputController {
             action: #selector(toggleContextualWalkEnabled(_:)), keyEquivalent: "")
         contextualWalkItem.state = Preferences.enableContextualWalk.state
 
+        let neuralPathItem = menu.addItem(
+            withTitle: NSLocalizedString("Neural Path Rerank (Experimental)", comment: ""),
+            action: #selector(toggleNeuralPathRerankEnabled(_:)), keyEquivalent: "")
+        neuralPathItem.state = Preferences.enableNeuralPathRerank.state
+
         let voiceInputTitle =
             WhisperVoiceInputManager.shared.isRecording
             ? NSLocalizedString("Stop Voice Input", comment: "")
@@ -436,6 +441,10 @@ class McBopomofoInputMethodController: IMKInputController {
 
     @objc func toggleContextualWalkEnabled(_ sender: Any?) {
         _ = Preferences.toggleContextualWalkEnabled()
+    }
+
+    @objc func toggleNeuralPathRerankEnabled(_ sender: Any?) {
+        _ = Preferences.toggleNeuralPathRerankEnabled()
     }
 
     // L1 神經重排與「本機 AI 修正後端」共用同一顆 llama-server;server 由「任一需要者」持有:
