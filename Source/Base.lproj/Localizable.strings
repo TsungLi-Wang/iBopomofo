@@ -187,7 +187,7 @@
 "AI Auto-Correction (Experimental)" = "AI Auto-Correction (Experimental)";
 "Homophone Disambiguation (Experimental)" = "Homophone Disambiguation (Experimental)";
 "Neural Candidate Rerank (Experimental)" = "Neural Candidate Rerank (Experimental)";
-"Contextual Walk (Experimental)" = "Contextual Walk (Experimental)";
+"Contextual Selection" = "Contextual Selection";
 
 /* Used in the notification when L1 AI needs the local server to finish starting. */
 /* Used in the notification when L2 auto-correction needs the local server to finish starting. */

@@ -1054,3 +1054,22 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 2. （可選）開 L1 backoff（β1>0）需先有不外溢合成集。
 3. （擱置）EM unigram；25MB 表瘦身。
 4. 未 push / 未發版——等 Johnny 點頭發版節奏。
+
+### 2026-07-09T 發佈 v2.3.0：預設開情境化選字 + 個人化
+
+Johnny 實機個人化通過後拍板：**預設開**、一次發 v2.3.0。
+
+**發版前新使用者體驗 Guard（cold 空 cache + walk ON）**：
+```
+baseline (unigram-only): 0.41519 (164/395)
+lambda=0.75 : 0.440506 (174/395)
+```
+＝預設開後沒教過字的新使用者仍是 44.1%，不劣化。
+
+**本版變更摘要**：
+- `EnableContextualWalk` default **true**；選單「情境化選字」（去實驗標）
+- §1.2 + §1.4 B 個人化（soft、7d、本機 cache）一併正式出貨
+- 兩個 plist **2.3.0 / 2286**
+- 25MB 表照舊內嵌
+
+**下一棒優先**：收實機回饋；表瘦身；L1 backoff 可選。

@@ -4,22 +4,27 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
-## [Unreleased]
+## [v2.3.0] - 2026-07-09
+
+**預設啟用情境化選字 + 個人化。** 新安裝／未改過偏好的使用者一開箱就走語料 bigram walk；手動選字會記住並軟影響之後同上下文的選字。個人化資料只存本機。
 
 ### 新增
 
+- **情境化選字預設開啟**：`EnableContextualWalk` 預設由 NO → **YES**。語料詞 bigram（`CorpusBigramContextModel`，λ=0.75）參與 `walk()` 路徑競爭。選單改稱「情境化選字」（拿掉「實驗」）。仍可在選單關閉。北極星 tw benchmark cold（空個人化 cache）walk ON **44.1%（174/395）**、walk OFF **41.5%（164/395）**——新使用者沒教過任何字也不會比 v2.2.x 差。
 - **cache LM 個人化（roadmap 第 4 步 B，§1.4 軟加分主導）**：使用者手動選字偏好以**軟加分**進入 `walk()` DP，不再靠全面 hard override 硬塞。優先序寫死：`當下手選（硬）> 個人偏好軟加分（count 門檻 + decay，非強制）> 全域 bigram (λ·PMI) > top unigram`。
-  - **為何改軟、不走硬覆寫**：硬覆寫會在錯上下文亂套（某句選過「再」就在該選「在」的句子也硬塞）。軟加分 + `C_min=2` + L0 精確 key（prev 值 × 讀音 × 字）才能「教過的上下文聽話、沒教的不亂套」。
-  - **先加後減（兩切片）**：切片 A 先把 `μ_user·userScore` 疊進 DP（與既有 hard suggest 並存、用合成 harness 證可翻）；切片 B 再把 post-walk hard suggest **限縮為僅 `forceHighScoreOverride`**（多字詞競爭例外），同 span 單字偏好交給軟分。拆開是為讓公式問題與拆硬副作用可獨立定位。
-  - **公式**：`userScore = min(4, log(1+count)) × decay`；`C_min=2`；L1 backoff 預留 `β1=0`（出貨只 L0）；`μ_user=4.0`（合成 harness 掃 2–6，升格守門員：k=C_min..+2 採納率 100%、誤觸率 0%）。
-  - **持久化**：`~/Library/Application Support/McBopomofo/user-override-cache.dat`（user data folder；`.gitignore`；不進 bundle、不外傳）。halflife **1.5hr → 7 天**（個人化要黏）。
-  - **Cold-cache 硬紅線**：空 cache 且未開情境化 walk 時 `setContextModel(nullptr)` 走快路徑——絕不掛零貢獻殼。tw Guard cold ON/OFF 逐位元不退（174/164）。
+  - **為何改軟、不走硬覆寫**：硬覆寫會在錯上下文亂套。軟加分 + `C_min=2` + L0 精確 key（prev 值 × 讀音 × 字）才能「教過的上下文聽話、沒教的不亂套」。
+  - **先加後減**：切片 A 先把 `μ_user·userScore` 疊進 DP；切片 B 再把 post-walk hard suggest **限縮為僅 `forceHighScoreOverride`**（多字詞競爭例外）。
+  - **公式**：`userScore = min(4, log(1+count)) × decay`；`C_min=2`；L1 backoff 預留 `β1=0`；`μ_user=4.0`。同上下文選同一字 **2 次以上**才開始加分；約 **7 天**半衰期衰減。
+  - **隱私**：`~/Library/Application Support/McBopomofo/user-override-cache.dat`（user data folder；`.gitignore`；**不進 bundle、不外傳**）。
 
 ### 修正
 
-- **§1.2 UOM context key 對齊修復**：`UserOverrideModel::FormObservationKey` 先前用節點靜態值（head＝top unigram、前後文＝`currentUnigram`）組 key。情境化 Walk 開啟時 DP 可把 context 節點翻成非 top（例：螢幕顯示「得」、節點 top 仍是「的」）卻不 mutate 節點，key 就讀到「的」→ 在「得」情境學到的偏好寫進「的」的 key，之後洩漏到無關的「的」情境。修法：key 改讀 `WalkResult::chosenValueAt(i)`（head 與前後文皆然；無 ContextModel 時 fallback 到 `node->value()`，預設路徑行為不變）。範圍只碰 UOM key 生成，不碰 DP、不碰個人化。
-  - 測試：`ObservationKeyUsesChosenValueWithContextModel`（修前紅：偏好從「得」情境洩漏到「的」；修後綠）＋對照 `ObservationKeyUsesNodeValueOnFastPath`。
-  - 北極星 benchmark 逐位元不退：walk ON λ0.75 **44.1%（174/395）**、walk OFF **41.5%（164/395）**。
+- **§1.2 UOM context key 對齊修復**：`FormObservationKey` 改讀 `WalkResult::chosenValueAt(i)`，與 contextual walk 螢幕顯示值對齊，避免 DP 翻字後髒學習外溢。
+
+### 備註
+
+- 25MB `word-bigrams.tsv` 照 v2.2.x 一樣內嵌出貨、本版不瘦身。
+- 若曾手動 `defaults write … EnableContextualWalk -bool NO`，升級後仍維持關閉（偏好已寫入的值優先於新預設）。
 
 ## [v2.2.1] - 2026-07-09
 

@@ -122,7 +122,7 @@ class McBopomofoInputMethodController: IMKInputController {
         neuralRerankItem.state = Preferences.enableGlobalNeuralRerank.state
 
         let contextualWalkItem = menu.addItem(
-            withTitle: NSLocalizedString("Contextual Walk (Experimental)", comment: ""),
+            withTitle: NSLocalizedString("Contextual Selection", comment: ""),
             action: #selector(toggleContextualWalkEnabled(_:)), keyEquivalent: "")
         contextualWalkItem.state = Preferences.enableContextualWalk.state
 

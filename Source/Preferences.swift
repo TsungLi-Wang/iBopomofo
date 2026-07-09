@@ -498,9 +498,9 @@ extension Preferences {
     }
 
     // 引擎層情境化 walk:語料詞 bigram ContextModel 讓上下文參與 walk 的路徑競爭
-    // (只重排既有候選,不生成)。實驗功能,預設關閉;需 bundle 內有
-    // word-bigrams.tsv 才會生效。
-    @UserDefault(key: kEnableContextualWalkKey, defaultValue: false)
+    // (只重排既有候選,不生成)。v2.3.0 起預設開啟;需 bundle 內有
+    // word-bigrams.tsv 才會生效。個人化 soft 分數與此開關獨立(有 cache 才掛)。
+    @UserDefault(key: kEnableContextualWalkKey, defaultValue: true)
     @objc static var enableContextualWalk: Bool
 
     @objc static func toggleContextualWalkEnabled() -> Bool {
