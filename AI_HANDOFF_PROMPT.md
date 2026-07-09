@@ -944,3 +944,20 @@ Johnny 拍板走「選項 1＝自建 TSV bigram ContextModel」，並要求同�
 
 **踩雷紀錄**:(a) 25MB 表若在 KeyHandler init 載＝測試爆慢,務必延遲載入。(b) `xcodebuild test` 尾端接 grep 的 exit code 不是 xcodebuild 的,背景通知的 exit 0 會騙人——認 `** TEST SUCCEEDED **` 字串。(c) DerivedData PCH 髒掉照舊 `rm -rf` 該專案快取重跑。(d) `~/Documents` 有 TCC 限制,但本批語料在 repo 內(`Source/Engine/eval/corpus/`,gitignored)無此問題;OpenCC 走隔離 venv 別動系統 python。
 
+
+### 2026-07-09T11:07:00+08:00 情境化 walk live e2e 通過 + 發佈 v2.2.0
+
+Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指標句「他跑得很快」＋「你可以再說一次」「你的報告寫得不錯」「請快點做決定」「我的手機沒電了」），無 wiring 問題。驗收認可後直接發版。
+
+**已發佈 v2.2.0（build 2284）**：
+- **版本 bump**：兩個 plist 都 2.1.1→2.2.0、2283→2284（`chore(release): v2.2.0` = commit `817b935`）。Johnny 原話說「tag 在 3196010」,但 3196010 的 plist 還是 2.1.1（會讓 About 顯示錯版本）,故照專案鐵則先補 bump commit,tag 打在 `817b935`（plist 已是 2.2.0）。功能碼在 `3196010`。
+- **master ff 併回**：`eefe623 → 817b935`,已 push origin。feature/contextual-walk-v1 也在 817b935。
+- **tag `v2.2.0` @ 817b935**,已 push origin。
+- **GitHub release v2.2.0（Latest）**：附 `LaoWangZhuyin.dmg`（31MB,含 25MB 語料表）。release notes 明載「預設關閉」＋兩種開啟法（選單三語項／`defaults write ... EnableContextualWalk -bool YES`）。
+- Johnny 機器上維持實驗 build（未還原 2.1.1,他要日常試用）。
+
+**下一棒優先**（發版後獨立事項,Johnny 指定留待下一版）：
+1. **25MB 語料表瘦身**：這版帶著出（進 git history 是永久 bloat）。選項:提高 min-abs-pmi/min-count 換一點 lift、或改「首次下載到 App Support」(比照 whisper/llama 模型,別內嵌)。
+2. 情境化 walk 語境覆蓋擴充:更大真實語料/升 trigram(此時才輪到 KenLM,延後非否決,見前條)。收 Johnny 真實錯選句進 benchmark。
+3. 兩個 eval jsonl(`example_llm_cases.jsonl`/`zhuyin_neural_rerank_poc_cases.jsonl`)已隨 ff 進 master(前棒在分支 commit 的);`em_reestimate.{py,cpp}`(壞的)、`run_tw_benchmark.py`(stub)、`kenlm-runtime/`(placeholder)仍未 commit。
+4. pbxproj 新檔 ID 從 **FACE0123+** 起。
