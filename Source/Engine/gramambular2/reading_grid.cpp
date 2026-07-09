@@ -237,11 +237,27 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
           nodeOverridden ? node->value() : std::string();
       const double overriddenScore = node->score();
 
+      // System readings (punctuation / letters) keep the score-ranked top
+      // unigram only. ContextModel must not re-pick among equal-score
+      // alternatives — that flipped Shift+, from ， to ︽ (and similar for
+      // 。/letters) when EnableContextualWalk is on (v2.3.0 regression).
+      // Unigrams are already score-sorted by ScoreRankedLanguageModel.
+      const std::string& nodeReading = node->reading();
+      const bool forceTopUnigramOnly =
+          !nodeOverridden &&
+          (nodeReading.rfind("_punctuation_", 0) == 0 ||
+           nodeReading.rfind("_half_punctuation_", 0) == 0 ||
+           nodeReading.rfind("_ctrl_punctuation_", 0) == 0 ||
+           nodeReading.rfind("_letter_", 0) == 0);
+
       std::unordered_map<std::string, Cell>& target = dp[i + spanLen];
       for (const auto& entry : dp[i]) {
         const std::string& prevWord = entry.first;
         const Cell& cell = entry.second;
         for (size_t ui = 0; ui < unigrams.size(); ++ui) {
+          if (forceTopUnigramOnly && ui != 0) {
+            break;
+          }
           const auto& u = unigrams[ui];
           if (nodeOverridden && u.value() != overriddenValue) {
             continue;
@@ -252,7 +268,7 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
           // via (prev="", reading, word). Models that ignore reading use the
           // default scoreWithReading → score path.
           double trans = contextModel_->scoreWithReading(
-              prevWord, node->reading(), u.value(), state);
+              prevWord, nodeReading, u.value(), state);
           double sc =
               cell.score + (nodeOverridden ? overriddenScore : u.score()) +
               trans;

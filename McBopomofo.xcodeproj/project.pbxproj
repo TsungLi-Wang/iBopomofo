@@ -91,6 +91,7 @@
 		FACE0114FACE0114FACE0114 /* InputMethodController+NeuralDeferred.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0115FACE0115FACE0115 /* InputMethodController+NeuralDeferred.swift */; };
 		FACE0110FACE0110FACE0110 /* AINeuralCandidateRescorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0111FACE0111FACE0111 /* AINeuralCandidateRescorerTests.swift */; };
 		FACE0116FACE0116FACE0116 /* NeuralDeferredBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0117FACE0117FACE0117 /* NeuralDeferredBridgeTests.swift */; };
+		FACE0129FACE0129FACE0129 /* ContextualWalkPunctuationRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */; };
 		FACE0081FACE0081FACE0081 /* AIAssistCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0080FACE0080FACE0080 /* AIAssistCoordinator.swift */; };
 		FACE0053FACE0053FACE0053 /* InputMethodController+AIAutoCorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0052FACE0052FACE0052 /* InputMethodController+AIAutoCorrection.swift */; };
 		FACE0041FACE0041FACE0041 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
@@ -276,6 +277,7 @@
 		FACE0115FACE0115FACE0115 /* InputMethodController+NeuralDeferred.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+NeuralDeferred.swift"; sourceTree = "<group>"; };
 		FACE0111FACE0111FACE0111 /* AINeuralCandidateRescorerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AINeuralCandidateRescorerTests.swift; sourceTree = "<group>"; };
 		FACE0117FACE0117FACE0117 /* NeuralDeferredBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeuralDeferredBridgeTests.swift; sourceTree = "<group>"; };
+		FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextualWalkPunctuationRegressionTests.swift; sourceTree = "<group>"; };
 		FACE0080FACE0080FACE0080 /* AIAssistCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistCoordinator.swift; sourceTree = "<group>"; };
 		FACE0052FACE0052FACE0052 /* InputMethodController+AIAutoCorrection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+AIAutoCorrection.swift"; sourceTree = "<group>"; };
 		FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuarantineHelper.swift; sourceTree = "<group>"; };
@@ -628,6 +630,7 @@
 				AC00DE0000000000000000F3 /* AICandidateRerankerTests.swift */,
 				FACE0111FACE0111FACE0111 /* AINeuralCandidateRescorerTests.swift */,
 				FACE0117FACE0117FACE0117 /* NeuralDeferredBridgeTests.swift */,
+				FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */,
 				AC00DE0000000000000000F5 /* AIAutoCorrectorTests.swift */,
 				AC00DE0000000000000000F1 /* AICorrectionPromptTests.swift */,
 				D436E23E2CD20B9E00C6155D /* AssociatedPhrasesTests.swift */,
@@ -1024,6 +1027,7 @@
 				AC00DE0000000000000000F4 /* AICandidateRerankerTests.swift in Sources */,
 				FACE0110FACE0110FACE0110 /* AINeuralCandidateRescorerTests.swift in Sources */,
 				FACE0116FACE0116FACE0116 /* NeuralDeferredBridgeTests.swift in Sources */,
+				FACE0129FACE0129FACE0129 /* ContextualWalkPunctuationRegressionTests.swift in Sources */,
 				AC00DE0000000000000000F6 /* AIAutoCorrectorTests.swift in Sources */,
 				AC00DE0000000000000000F2 /* AICorrectionPromptTests.swift in Sources */,
 				D436E23F2CD20BA700C6155D /* AssociatedPhrasesTests.swift in Sources */,

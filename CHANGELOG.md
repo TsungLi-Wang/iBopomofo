@@ -6,20 +6,17 @@
 
 ## [Unreleased]
 
-### 引擎（n-gram + RNN 混合主線 · 第一刀）
+### 引擎（n-gram + RNN 混合主線 · 尚未單獨發版）
 
-- **路徑級 reselect API**：`WalkResult::reselectUnigramValue` — RNN／後處理可在既有 unigram 內改選，只改 `selectedUnigramIndices`、不發明字、不強制污染 override。
-- **`chosenValueAt` 優先序**：node override（手選／post-walk 神經）> ContextModel DP 索引 > top unigram。修掉「情境化 walk 預設開時，延遲神經 soft override 改了 node 但畫面仍顯示 DP 選字」的組不起來問題。
-- **KeyHandler neural apply** 在 soft override 成功後同步 `reselectUnigramValue`。
-- 設計與殘餘數字：`docs/ngram-rnn-hybrid.md`。
+- **路徑級 reselect API**、`chosenValueAt` 優先序、Oracle 上界分析：見 `docs/ngram-rnn-hybrid.md`（已在 master，隨後續版本一併出貨）。
 
-### 分析工具
+## [v2.3.1] - 2026-07-09
 
-- **同路徑 Oracle 上界**（`Source/Engine/eval/benchmarks/same_path_oracle.cpp`）：bigram λ=0.75 的 221 miss 中，僅 **66（29.9%）** 可靠同路徑 unigram reselect 救回；**155** 需 path／切詞層。完整表與例子見 `docs/ngram-rnn-hybrid.md` §2.1。
+修復 v2.3.0 的功能性 bug：**開啟情境化選字後，Shift+, / Shift+. 等標點與部分字母會被誤翻**（例如逗號變成 ︽、句號變成 ︾）。已安裝 v2.3.0 的使用者請更新到 v2.3.1。
 
-### 文件 / 工具
+### 修正
 
-- **語料 bigram 表瘦身 harness 量測**（尚未替換出貨表、非主線）：`slim_word_bigram_table.py`；候選 `min_abs_pmi=2.0` → ~6.7MB、177/395。
+- **ContextModel DP 對標點／字母 reading 強制只走 top unigram**：`_punctuation_*`、`_half_punctuation_*`、`_ctrl_punctuation_*`、`_letter_*` 不參與多候選路徑重選。根因是同分多候選（如 `，〈《︿︽`）在 expanded DP 下可能選到非 top，導致預設開啟情境化後 Shift+, 打出 ︽ 而非 ，。Ctrl+, 因單候選而未中招。北極星 tw cold 不退：**164/395**（OFF）、**174/395**（ON λ=0.75）。
 
 ## [v2.3.0] - 2026-07-09
 
