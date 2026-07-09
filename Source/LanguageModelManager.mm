@@ -31,7 +31,9 @@
 @import OpenCCBridge;
 
 static const int kUserOverrideModelCapacity = 500;
-static const double kObservedOverrideHalflife = 5400.0; // 1.5 hr.
+// Personalization must stick across days; 1.5 hr was only suitable for
+// ephemeral hard-suggest memory. Soft DP personalization uses the same decay.
+static const double kObservedOverrideHalflife = 604800.0; // 7 days.
 
 static McBopomofo::McBopomofoLM gLanguageModelMcBopomofo;
 static McBopomofo::McBopomofoLM gLanguageModelPlainBopomofo;
@@ -135,6 +137,7 @@ static void LTLoadVariantAnnotatorData()
     gLanguageModelMcBopomofo.loadUserPhrases([self userPhrasesDataPathMcBopomofo].UTF8String, [self excludedPhrasesDataPathMcBopomofo].UTF8String);
     gLanguageModelPlainBopomofo.loadUserPhrases(userPhraseForPlainBopomofo ? [self userPhrasesDataPathPlainBopomofo].UTF8String : NULL,
         [self excludedPhrasesDataPathPlainBopomofo].UTF8String);
+    [self loadUserOverrideCache];
 }
 
 + (void)loadUserPhraseReplacement
@@ -448,6 +451,32 @@ static void LTLoadVariantAnnotatorData()
 + (NSString *)phraseReplacementDataPathMcBopomofo
 {
     return [[self dataFolderPath] stringByAppendingPathComponent:@"phrases-replacement.txt"];
+}
+
++ (NSString *)userOverrideCachePath
+{
+    // Private typing memory — never bundle, never ship, never commit.
+    return [[self dataFolderPath] stringByAppendingPathComponent:@"user-override-cache.dat"];
+}
+
++ (void)loadUserOverrideCache
+{
+    if (![self checkIfUserDataFolderExists]) {
+        return;
+    }
+    NSString *path = [self userOverrideCachePath];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        return;
+    }
+    gUserOverrideModel.load(path.UTF8String);
+}
+
++ (void)saveUserOverrideCache
+{
+    if (![self checkIfUserDataFolderExists]) {
+        return;
+    }
+    gUserOverrideModel.save([self userOverrideCachePath].UTF8String);
 }
 
 + (McBopomofo::McBopomofoLM *)languageModelMcBopomofo

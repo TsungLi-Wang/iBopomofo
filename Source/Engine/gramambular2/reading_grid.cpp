@@ -247,9 +247,12 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
             continue;
           }
           double state = 0.0;
-          double trans = prevWord.empty()
-                             ? 0.0
-                             : contextModel_->score(prevWord, u.value(), state);
+          // Always ask the model (including sentence start / empty prev).
+          // Corpus bigram returns 0 for empty prev; user soft may still score
+          // via (prev="", reading, word). Models that ignore reading use the
+          // default scoreWithReading → score path.
+          double trans = contextModel_->scoreWithReading(
+              prevWord, node->reading(), u.value(), state);
           double sc =
               cell.score + (nodeOverridden ? overriddenScore : u.score()) +
               trans;

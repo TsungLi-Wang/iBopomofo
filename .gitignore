@@ -25,3 +25,7 @@ DerivedData
 # Rescorer corpus/model artifacts are generated locally from external corpora.
 /Source/Engine/eval/corpus/
 /Source/Engine/eval/generated/
+
+# Per-user personalization cache (private typing memory — never commit).
+user-override-cache.dat
+**/user-override-cache.dat

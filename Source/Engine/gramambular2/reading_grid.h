@@ -248,7 +248,16 @@ class ReadingGrid {
    public:
     virtual ~ContextModel() = default;
     // Return log prob of the word given previous state, and update out state.
-    virtual double score(const std::string& prevWord, const std::string& word, double& state) = 0;
+    virtual double score(const std::string& prevWord, const std::string& word,
+                         double& state) = 0;
+    // Reading-aware scoring for personalization (prev + target reading + word).
+    // Default ignores reading and delegates to score().
+    virtual double scoreWithReading(const std::string& prevWord,
+                                    const std::string& reading,
+                                    const std::string& word, double& state) {
+      (void)reading;
+      return score(prevWord, word, state);
+    }
     virtual double beginState() = 0;
   };
 

@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #import "ConfusionPairDisambiguator.h"
+#import "CompositeContextModel.h"
 #import "CorpusBigramContextModel.h"
 #import "KeyHandler.h"
 #import "LanguageModelManager+Privates.h"
@@ -210,6 +211,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     Formosa::Gramambular2::ReadingGrid::NodePtr currentNode = *nodeIter;
     if (currentNode != nullptr && currentNode->currentUnigram().score() > -8) {
         _userOverrideModel->observe(prevWalk, _latestWalk, self.actualCandidateCursorIndex, [NSDate date].timeIntervalSince1970);
+        // Private per-user personalization cache (user data folder only).
+        [LanguageModelManager saveUserOverrideCache];
     }
 
     if (currentNode != nullptr && flag && Preferences.moveCursorAfterSelectingCandidate) {
@@ -736,11 +739,16 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
         _grid->insertReading(reading);
         [self _walk];
 
-        // get user override model suggestion
+        // User override model: soft personalization already participates inside
+        // walk() via CompositeContextModel (mu_user * userScore). Hard post-walk
+        // override is limited to forceHighScoreOverride only (multi-char phrase
+        // competition vs unigram sum — soft alone is not enough). Same-span
+        // single-char preferences rely on soft DP (§1.4 soft-primary).
         if (_inputMode != InputModePlainBopomofo) {
             McBopomofo::UserOverrideModel::Suggestion suggestion = _userOverrideModel->suggest(_latestWalk, self.actualCandidateCursorIndex, [NSDate date].timeIntervalSince1970);
-            if (!suggestion.empty()) {
-                Formosa::Gramambular2::ReadingGrid::Node::OverrideType type = suggestion.forceHighScoreOverride ? Formosa::Gramambular2::ReadingGrid::Node::OverrideType::kOverrideValueWithHighScore : Formosa::Gramambular2::ReadingGrid::Node::OverrideType::kOverrideValueWithScoreFromTopUnigram;
+            if (!suggestion.empty() && suggestion.forceHighScoreOverride) {
+                Formosa::Gramambular2::ReadingGrid::Node::OverrideType type =
+                    Formosa::Gramambular2::ReadingGrid::Node::OverrideType::kOverrideValueWithHighScore;
                 _grid->overrideCandidate(self.actualCandidateCursorIndex, suggestion.candidate, type);
                 [self _walk];
             }
@@ -2694,16 +2702,15 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
 
 - (void)_walk
 {
-    // Contextual walk (experimental): a corpus-derived word-bigram model lets
-    // context influence the actual path/choice competition inside walk(). It
-    // only re-picks among the unigrams already present in a node (never
-    // generates text, never changes a reading). When off, the grid uses the
-    // fast unigram walk, so shipping behavior is unchanged.
+    // Context model attachment (global corpus bigram and/or user soft
+    // personalization). Hard rule for tw Guard: when neither source is active,
+    // setContextModel(nullptr) so the unigram fast path stays bit-identical.
+    // Never attach a zero-contribution shell "just in case" — expanded DP with
+    // all-zero transitions can still differ from the fast path by tie-breaks.
     //
-    // The ~25 MB table is loaded lazily, once, and shared across KeyHandler
-    // instances (read-only after load; score() writes only its caller-owned
-    // state argument). Loading only happens the first time the feature is
-    // actually used, so the default-off path pays nothing at startup.
+    // Global table (~25 MB) is loaded lazily, once, and shared (read-only after
+    // load). User soft scores come from UserOverrideModel (persisted separately).
+    McBopomofo::CorpusBigramContextModel *globalModel = nullptr;
     if (Preferences.enableContextualWalk
         && _inputMode != InputModePlainBopomofo) {
         static McBopomofo::CorpusBigramContextModel *sharedContextModel = nullptr;
@@ -2720,8 +2727,28 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
             }
             sharedContextModel = model;
         });
-        _grid->setContextModel(sharedContextModel->isLoaded() ? sharedContextModel
-                                                              : nullptr);
+        if (sharedContextModel->isLoaded()) {
+            globalModel = sharedContextModel;
+        }
+    }
+
+    McBopomofo::UserOverrideModel *userModel = nullptr;
+    const double now = [NSDate date].timeIntervalSince1970;
+    if (_inputMode != InputModePlainBopomofo && _userOverrideModel != nullptr &&
+        _userOverrideModel->hasUsableSoftEvidence(now)) {
+        userModel = _userOverrideModel;
+    }
+
+    if (globalModel != nullptr || userModel != nullptr) {
+        static McBopomofo::CompositeContextModel *sharedComposite = nullptr;
+        static dispatch_once_t compositeOnce;
+        dispatch_once(&compositeOnce, ^{
+            sharedComposite = new McBopomofo::CompositeContextModel();
+        });
+        sharedComposite->configure(globalModel, userModel,
+                                   McBopomofo::UserOverrideModel::kDefaultMuUser,
+                                   now);
+        _grid->setContextModel(sharedComposite);
     } else {
         _grid->setContextModel(nullptr);
     }

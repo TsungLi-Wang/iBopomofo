@@ -21,6 +21,7 @@
 		FACE0100FACE0100FACE0100 /* ConfusionPairDisambiguator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FACE0101FACE0101FACE0101 /* ConfusionPairDisambiguator.cpp */; };
 		FACE0103FACE0103FACE0103 /* confusion-pairs.tsv in Resources */ = {isa = PBXBuildFile; fileRef = FACE0104FACE0104FACE0104 /* confusion-pairs.tsv */; };
 		FACE0118FACE0118FACE0118 /* CorpusBigramContextModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FACE0119FACE0119FACE0119 /* CorpusBigramContextModel.cpp */; };
+		FACE0123FACE0123FACE0123 /* CompositeContextModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FACE0124FACE0124FACE0124 /* CompositeContextModel.cpp */; };
 		FACE0121FACE0121FACE0121 /* word-bigrams.tsv in Resources */ = {isa = PBXBuildFile; fileRef = FACE0122FACE0122FACE0122 /* word-bigrams.tsv */; };
 		6A68C1C32EC7F2C0005284A0 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = 6A68C1C12EC7F2C0005284A0 /* Localizable.stringsdict */; };
 		6A6ED16B2797650A0012872E /* template-phrases-replacement.txt in Resources */ = {isa = PBXBuildFile; fileRef = 6A6ED1632797650A0012872E /* template-phrases-replacement.txt */; };
@@ -184,6 +185,8 @@
 		FACE0104FACE0104FACE0104 /* confusion-pairs.tsv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "confusion-pairs.tsv"; sourceTree = "<group>"; };
 		FACE0119FACE0119FACE0119 /* CorpusBigramContextModel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CorpusBigramContextModel.cpp; sourceTree = "<group>"; };
 		FACE0120FACE0120FACE0120 /* CorpusBigramContextModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CorpusBigramContextModel.h; sourceTree = "<group>"; };
+		FACE0124FACE0124FACE0124 /* CompositeContextModel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CompositeContextModel.cpp; sourceTree = "<group>"; };
+		FACE0125FACE0125FACE0125 /* CompositeContextModel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CompositeContextModel.h; sourceTree = "<group>"; };
 		FACE0122FACE0122FACE0122 /* word-bigrams.tsv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "word-bigrams.tsv"; sourceTree = "<group>"; };
 		6A68C1C22EC7F2C0005284A0 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = en; path = en.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
 		6A68C1C42EC7F6B7005284A0 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.stringsdict"; sourceTree = "<group>"; };
@@ -467,6 +470,8 @@
 				FACE0102FACE0102FACE0102 /* ConfusionPairDisambiguator.h */,
 				FACE0119FACE0119FACE0119 /* CorpusBigramContextModel.cpp */,
 				FACE0120FACE0120FACE0120 /* CorpusBigramContextModel.h */,
+				FACE0124FACE0124FACE0124 /* CompositeContextModel.cpp */,
+				FACE0125FACE0125FACE0125 /* CompositeContextModel.h */,
 				D41355D9278E6D17005E5CBD /* McBopomofoLM.cpp */,
 				D41355DA278E6D17005E5CBD /* McBopomofoLM.h */,
 				6ADF5B152BA513E000577D98 /* MemoryMappedFile.cpp */,
@@ -958,6 +963,7 @@
 				6A660A702EAF371000D53D7B /* ByteBlockBackedDictionary.cpp in Sources */,
 				FACE0100FACE0100FACE0100 /* ConfusionPairDisambiguator.cpp in Sources */,
 				FACE0118FACE0118FACE0118 /* CorpusBigramContextModel.cpp in Sources */,
+				FACE0123FACE0123FACE0123 /* CompositeContextModel.cpp in Sources */,
 				6A833E522F0A0FB30086AD0C /* VariantAnnotator.cpp in Sources */,
 				D4314F0D2ED3690F0071DD71 /* NumberInputHelper.swift in Sources */,
 				D4E569DC27A34D0E00AC2CEF /* KeyHandler.mm in Sources */,

@@ -1030,3 +1030,27 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 1. **§1.2 已修對**。Johnny 點頭後進 **第 4 步 B**：個人偏好軟加分接進 ContextModel DP（先提盤點+計畫再寫 code）。已裁定：走 B 軟加分（非 A 硬覆寫）；優先序 `當下手選（硬）> 個人偏好加分（軟、count 門檻+backoff）> 全域 bigram > top unigram`；資料放 user data folder（`user-override-cache.dat`）、gitignore、不進 bundle；cold cache 下 tw 逐位元不退 + 合成學習曲線 harness（學得會／重啟存活／衰減／不外溢 + mu_user 升格守門）。
 2. （擱置）EM 重估 unigram — 等口語語料。
 3. 25MB 表瘦身。
+
+### 2026-07-09T(晚) roadmap 第 4 步 B：軟加分個人化上線（§1.4，未發版）
+
+**§6 參數已拍板**：C_min=2；L0 only（β1=0）；userScore=min(4,log(1+count))×decay；μ=4.0；halflife 7d；hard suggest 先加後減兩切片。
+
+**切片 A（軟加分疊在 hard suggest 上）**：
+- `UserOverrideModel`：L0 soft index、`userScore` / `hasUsableSoftEvidence`、save/load 文字 v1、`noteSoftObservation`。
+- `CompositeContextModel`：`trans = (global? λ·PMI:0) + μ·userScore`；`ContextModel::scoreWithReading` + DP 句首也計 soft。
+- KeyHandler `_walk`：僅 global loaded **或** user 有可用 soft 時才 `setContextModel`；**cold 空绝不掛殼**。
+- 持久化：`user-override-cache.dat` 在 data folder；`.gitignore`；observe 後 save；halflife 604800s。
+- 合成 harness `CompositeContextModelTest`：S1 翻轉、S2 不外溢、S4 重啟、S5 衰減、S6 硬 override 仍勝、PromotionGate μ 掃（μ=4 → adoption 100% / spill 0%）。
+- tw Guard cold：OFF 164/395、ON λ0.75 174/395。
+
+**切片 B（緊接著限縮 hard suggest）**：
+- KeyHandler 選字後 hard `overrideCandidate` **僅當** `suggestion.forceHighScoreOverride`（多字詞競爭）；同 span 單字改靠軟 DP。
+- S7：force 旗標仍可記錄；tw Guard 再跑仍 164/174。
+
+**新檔 pbxproj**：`CompositeContextModel.{h,cpp}` = FACE0123/0124/0125；下一棒 **FACE0126+**。
+
+**下一棒優先**：
+1. 實機：手動選字 2+ 次後，同上下文是否軟翻（可開/關 contextual walk 各試）；確認 `user-override-cache.dat` 出現在 Application Support、重啟仍在。
+2. （可選）開 L1 backoff（β1>0）需先有不外溢合成集。
+3. （擱置）EM unigram；25MB 表瘦身。
+4. 未 push / 未發版——等 Johnny 點頭發版節奏。

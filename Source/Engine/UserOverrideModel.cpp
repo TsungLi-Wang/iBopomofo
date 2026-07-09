@@ -26,7 +26,11 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <list>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,25 +39,25 @@
 
 namespace McBopomofo {
 
-// Fully decay after about 20 generations.
-static constexpr double kDecayThreshold = 1.0 / 1048576.0;
-
 static constexpr char kEmptyNodeString[] = "()";
+static constexpr char kCacheMagic[] = "laowang-uom-cache-v1";
 
-// A scoring function that balances between "recent but infrequently observed"
-// and "old but frequently observed".
+// Hard-path suggest score (unchanged): balances recent-vs-frequent.
 static double Score(size_t eventCount, size_t totalCount, double eventTimestamp,
                     double timestamp, double lambda);
 
 // Form the observation key from a walk. Walks backward from head for up to
 // two preceding nodes. Values come from WalkResult::chosenValueAt so that a
-// ContextModel DP choice (stored only in selectedUnigramIndices, never written
-// back onto the node) is what the key sees — matching what the user saw on
-// screen. Without a ContextModel, chosenValueAt falls back to node->value().
+// ContextModel DP choice matches what the user saw (§1.2).
 static std::string FormObservationKey(
     const Formosa::Gramambular2::ReadingGrid::WalkResult& walk,
     std::vector<Formosa::Gramambular2::ReadingGrid::NodePtr>::const_iterator
         head);
+
+static std::string CombineReadingValue(const std::string& reading,
+                                       const std::string& value);
+static bool IsPunctuation(
+    const Formosa::Gramambular2::ReadingGrid::NodePtr& node);
 
 UserOverrideModel::UserOverrideModel(size_t capacity, double decayConstant)
     : capacity_(capacity) {
@@ -67,7 +71,6 @@ void UserOverrideModel::observe(
         walkBeforeUserOverride,
     const Formosa::Gramambular2::ReadingGrid::WalkResult& walkAfterUserOverride,
     size_t cursor, double timestamp) {
-  // Sanity check.
   if (walkBeforeUserOverride.nodes.empty() ||
       walkAfterUserOverride.nodes.empty()) {
     return;
@@ -78,24 +81,17 @@ void UserOverrideModel::observe(
     return;
   }
 
-  // We first infer what the user override is.
   size_t actualCursor = 0;
   auto currentNodeIt = walkAfterUserOverride.findNodeAt(cursor, &actualCursor);
   if (currentNodeIt == walkAfterUserOverride.nodes.cend()) {
     return;
   }
 
-  // Based on previous analysis, we found it meaningless to handle phrases
-  // over 3 characters.
   if ((*currentNodeIt)->spanningLength() > 3) {
     return;
   }
 
-  // Now we need to find the head node in the previous walk (that is, before
-  // the user override). Remember that actualCursor now is actually *past*
-  // the current node, so we need to decrement by 1.
   if (actualCursor == 0) {
-    // Shouldn't happen.
     return;
   }
   --actualCursor;
@@ -104,34 +100,8 @@ void UserOverrideModel::observe(
     return;
   }
 
-  // Now we have everything. We want to handle the following cases:
-  // (1) both prev and current head nodes represent an n-char phrase.
-  // (2) current head node is a 2-/3-char phrase but prev head node and
-  //     the nodes that lead to the prev head node are 1-char phrases.
-  // (3) current head node is a 1-char phrase but the prev head node is
-  //     a phrase of multi-char phrases.
-  //
-  // (1) is the simplest case. Our observation is based on the "walk before
-  // user override", and we don't need to recommend force-high-score
-  // overrides when we return such a suggestion. Example: overriding
-  // "他姓[中]" with "他姓[鍾]".
-  //
-  // (2) is a case that UOM historically didn't handle properly. The
-  // observation needs to be based on the walk before user override, but
-  // we also need to recommend force-high-score override when we make the
-  // suggestion, due to the fact (based on our data analysis) that many
-  // n-char (esp. 2-char) phrases need to compete with individual chars
-  // that together have higher score than the phrases themselves. Example:
-  // overriding "增加[自][會]" with "增加[字彙]". Here [自][會] together have
-  // higher score than the single unigram [字彙], and hence the boosting
-  // here.
-  //
-  // (3) is a very special case where we need to base our observation on
-  // the walk *after* user override. This is because when (3) happens, the
-  // user intent is to break up a long phrase. We don't want to recommend
-  // force-high-score overrides, which would cause the multi-char phrase
-  // to lose over the user override all the time. For example (a somewhat
-  // forced one): overriding "[三百元]" with "[參]百元".
+  // Cases (1)(2)(3): same as upstream UOM — which walk anchors the key and
+  // whether forceHighScoreOverride is recommended. See historical comments.
   const auto& currentNode = *currentNodeIt;
   const auto& prevHeadNode = *prevHeadNodeIt;
   bool forceHighScoreOverride =
@@ -144,8 +114,11 @@ void UserOverrideModel::observe(
   auto nodeIter = breakingUp ? currentNodeIt : prevHeadNodeIt;
 
   std::string key = FormObservationKey(keyWalk, nodeIter);
-  observe(key, currentNode->currentUnigram().value(), timestamp,
-          forceHighScoreOverride);
+  const std::string candidate = currentNode->currentUnigram().value();
+  // observe() rebuilds the L0 soft index from observation keys (prev value +
+  // head reading parsed out of the key + candidate). Do not also call
+  // noteSoftObservation here or counts would double.
+  observe(key, candidate, timestamp, forceHighScoreOverride);
 }
 
 UserOverrideModel::Suggestion UserOverrideModel::suggest(
@@ -170,16 +143,17 @@ void UserOverrideModel::observe(const std::string& key,
 
     lruList_.push_front(keyValuePair);
     auto listIter = lruList_.begin();
-    auto lruKeyValue =
+    lruMap_.insert(
         std::pair<std::string, std::list<KeyObservationPair>::iterator>(
-            key, listIter);
-    lruMap_.insert(lruKeyValue);
+            key, listIter));
 
     if (lruList_.size() > capacity_) {
       auto lastKeyValuePair = lruList_.end();
       --lastKeyValuePair;
-      lruMap_.erase(lastKeyValuePair->first);
+      const std::string evictedKey = lastKeyValuePair->first;
+      lruMap_.erase(evictedKey);
       lruList_.pop_back();
+      // Soft index is rebuilt below so eviction is reflected.
     }
   } else {
     auto listIter = mapIter->second;
@@ -189,6 +163,9 @@ void UserOverrideModel::observe(const std::string& key,
     Observation& observation = keyValuePair.second;
     observation.update(candidate, timestamp, forceHighScoreOverride);
   }
+
+  // Keep soft index coherent with LRU (handles eviction + multi-key overlap).
+  rebuildSoftIndex();
 }
 
 UserOverrideModel::Suggestion UserOverrideModel::suggest(const std::string& key,
@@ -223,6 +200,192 @@ UserOverrideModel::Suggestion UserOverrideModel::suggest(const std::string& key,
   return UserOverrideModel::Suggestion{candidate, forceHighScoreOverride};
 }
 
+void UserOverrideModel::noteSoftObservation(const std::string& prevValue,
+                                            const std::string& headReading,
+                                            const std::string& word,
+                                            double timestamp) {
+  if (headReading.empty() || word.empty()) {
+    return;
+  }
+  const std::string sk = SoftL0Key(prevValue, headReading, word);
+  SoftEntry& e = softL0_[sk];
+  e.count += 1;
+  e.timestamp = timestamp;
+}
+
+double UserOverrideModel::userScore(const std::string& prevValue,
+                                    const std::string& headReading,
+                                    const std::string& word,
+                                    double timestamp) const {
+  if (headReading.empty() || word.empty()) {
+    return 0.0;
+  }
+  // L0 exact.
+  auto it = softL0_.find(SoftL0Key(prevValue, headReading, word));
+  if (it != softL0_.end()) {
+    const SoftEntry& e = it->second;
+    if (e.count >= kMinSoftCount) {
+      double decay = DecayWeight(e.timestamp, timestamp, decayExponent_);
+      if (decay > 0.0) {
+        double raw = std::log(1.0 + static_cast<double>(e.count));
+        if (raw > kSoftScoreCap) {
+          raw = kSoftScoreCap;
+        }
+        return raw * decay;
+      }
+    }
+  }
+
+  // L1 backoff reserved (beta1 = 0): do not consult coarser keys.
+  (void)kBeta1;
+  return 0.0;
+}
+
+bool UserOverrideModel::hasUsableSoftEvidence(double timestamp) const {
+  for (const auto& entry : softL0_) {
+    const SoftEntry& e = entry.second;
+    if (e.count < kMinSoftCount) {
+      continue;
+    }
+    if (DecayWeight(e.timestamp, timestamp, decayExponent_) > 0.0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void UserOverrideModel::clear() {
+  lruList_.clear();
+  lruMap_.clear();
+  softL0_.clear();
+}
+
+bool UserOverrideModel::save(const std::string& path) const {
+  const std::string tmpPath = path + ".tmp";
+  std::ofstream out(tmpPath, std::ios::binary | std::ios::trunc);
+  if (!out) {
+    return false;
+  }
+  out << "# " << kCacheMagic << "\n";
+  out << "# capacity=" << capacity_ << "\n";
+  out << "# columns: key\\tcandidate\\tcand_count\\tobs_count\\ttimestamp\\t"
+         "force(0|1)\n";
+  out << "# LRU order: first data line = MRU\n";
+
+  for (const auto& pair : lruList_) {
+    const std::string& key = pair.first;
+    const Observation& obs = pair.second;
+    for (const auto& ov : obs.overrides) {
+      out << key << '\t' << ov.first << '\t' << ov.second.count << '\t'
+          << obs.count << '\t' << ov.second.timestamp << '\t'
+          << (ov.second.forceHighScoreOverride ? 1 : 0) << '\n';
+    }
+  }
+  out.close();
+  if (!out) {
+    return false;
+  }
+  if (std::rename(tmpPath.c_str(), path.c_str()) != 0) {
+    std::remove(tmpPath.c_str());
+    return false;
+  }
+  return true;
+}
+
+bool UserOverrideModel::load(const std::string& path) {
+  std::ifstream in(path);
+  if (!in) {
+    return false;
+  }
+  clear();
+
+  // Collect in file order (MRU first); insert so final list front = first line.
+  struct Row {
+    std::string key;
+    std::string candidate;
+    size_t candCount = 0;
+    size_t obsCount = 0;
+    double timestamp = 0;
+    bool force = false;
+  };
+  std::vector<Row> rows;
+  std::string line;
+  while (std::getline(in, line)) {
+    if (!line.empty() && line.back() == '\r') {
+      line.pop_back();
+    }
+    if (line.empty() || line[0] == '#') {
+      continue;
+    }
+    std::vector<std::string> cols;
+    std::string col;
+    std::istringstream ss(line);
+    while (std::getline(ss, col, '\t')) {
+      cols.push_back(col);
+    }
+    if (cols.size() < 6) {
+      continue;
+    }
+    Row r;
+    r.key = cols[0];
+    r.candidate = cols[1];
+    try {
+      r.candCount = static_cast<size_t>(std::stoul(cols[2]));
+      r.obsCount = static_cast<size_t>(std::stoul(cols[3]));
+      r.timestamp = std::stod(cols[4]);
+      r.force = (std::stoi(cols[5]) != 0);
+    } catch (...) {
+      continue;
+    }
+    if (r.key.empty() || r.candidate.empty() || r.candCount == 0) {
+      continue;
+    }
+    rows.push_back(std::move(r));
+  }
+
+  // Replay MRU→LRU into observe-like structure without soft double-count:
+  // build LRU then rebuildSoftIndex once.
+  // Inserting front for each MRU-first row would reverse order; so walk
+  // reverse (LRU first) and push_front, or walk MRU-first and push_back then
+  // fix. Easiest: process rows reverse and push_front.
+  for (auto it = rows.rbegin(); it != rows.rend(); ++it) {
+    const Row& r = *it;
+    auto mapIter = lruMap_.find(r.key);
+    if (mapIter == lruMap_.end()) {
+      KeyObservationPair kop(r.key, Observation());
+      kop.second.count = r.obsCount;
+      Override o;
+      o.count = r.candCount;
+      o.timestamp = r.timestamp;
+      o.forceHighScoreOverride = r.force;
+      kop.second.overrides[r.candidate] = o;
+      lruList_.push_front(std::move(kop));
+      lruMap_[r.key] = lruList_.begin();
+    } else {
+      auto listIter = mapIter->second;
+      // Touch toward front to preserve relative MRU among keys as we go.
+      lruList_.splice(lruList_.begin(), lruList_, listIter);
+      Observation& obs = listIter->second;
+      if (r.obsCount > obs.count) {
+        obs.count = r.obsCount;
+      }
+      Override& o = obs.overrides[r.candidate];
+      o.count = r.candCount;
+      o.timestamp = r.timestamp;
+      o.forceHighScoreOverride = r.force;
+    }
+    while (lruList_.size() > capacity_) {
+      auto last = lruList_.end();
+      --last;
+      lruMap_.erase(last->first);
+      lruList_.pop_back();
+    }
+  }
+
+  rebuildSoftIndex();
+  return true;
+}
+
 void UserOverrideModel::Observation::update(const std::string& candidate,
                                             double timestamp,
                                             bool forceHighScoreOverride) {
@@ -233,10 +396,110 @@ void UserOverrideModel::Observation::update(const std::string& candidate,
   o.forceHighScoreOverride = forceHighScoreOverride;
 }
 
+void UserOverrideModel::rebuildSoftIndex() {
+  softL0_.clear();
+  for (const auto& pair : lruList_) {
+    std::string prevValue;
+    std::string headReading;
+    if (!ParseObservationKey(pair.first, &prevValue, &headReading)) {
+      continue;
+    }
+    for (const auto& ov : pair.second.overrides) {
+      const std::string sk = SoftL0Key(prevValue, headReading, ov.first);
+      SoftEntry& e = softL0_[sk];
+      e.count += ov.second.count;
+      if (ov.second.timestamp > e.timestamp) {
+        e.timestamp = ov.second.timestamp;
+      }
+    }
+  }
+}
+
+std::string UserOverrideModel::SoftL0Key(const std::string& prevValue,
+                                         const std::string& headReading,
+                                         const std::string& word) {
+  return prevValue + "\t" + headReading + "\t" + word;
+}
+
+bool UserOverrideModel::ParseObservationKey(const std::string& key,
+                                            std::string* prevValue,
+                                            std::string* headReading) {
+  // Key = ant + "-" + prev + "-" + head, each "()" or "(reading,value)".
+  std::vector<std::string> parts;
+  size_t i = 0;
+  while (i < key.size() && parts.size() < 3) {
+    if (key.compare(i, 2, kEmptyNodeString) == 0) {
+      parts.emplace_back(kEmptyNodeString);
+      i += 2;
+    } else if (key[i] == '(') {
+      size_t end = key.find(')', i);
+      if (end == std::string::npos) {
+        return false;
+      }
+      parts.push_back(key.substr(i, end - i + 1));
+      i = end + 1;
+    } else {
+      return false;
+    }
+    if (i < key.size() && key[i] == '-') {
+      ++i;
+    }
+  }
+  if (parts.size() != 3) {
+    return false;
+  }
+  // prev = parts[1], head = parts[2]
+  auto parsePair = [](const std::string& p, std::string* reading,
+                      std::string* value) -> bool {
+    if (p == kEmptyNodeString) {
+      if (reading) {
+        reading->clear();
+      }
+      if (value) {
+        value->clear();
+      }
+      return true;
+    }
+    if (p.size() < 3 || p.front() != '(' || p.back() != ')') {
+      return false;
+    }
+    size_t comma = p.find(',');
+    if (comma == std::string::npos) {
+      return false;
+    }
+    if (reading) {
+      *reading = p.substr(1, comma - 1);
+    }
+    if (value) {
+      *value = p.substr(comma + 1, p.size() - comma - 2);
+    }
+    return true;
+  };
+
+  std::string prevReadingUnused;
+  if (!parsePair(parts[1], &prevReadingUnused, prevValue)) {
+    return false;
+  }
+  std::string headValueUnused;
+  if (!parsePair(parts[2], headReading, &headValueUnused)) {
+    return false;
+  }
+  return true;
+}
+
+double UserOverrideModel::DecayWeight(double eventTimestamp, double timestamp,
+                                      double decayExponent) {
+  double decay = exp((timestamp - eventTimestamp) * decayExponent);
+  if (decay < kDecayThreshold) {
+    return 0.0;
+  }
+  return decay;
+}
+
 static double Score(size_t eventCount, size_t totalCount, double eventTimestamp,
                     double timestamp, double lambda) {
   double decay = exp((timestamp - eventTimestamp) * lambda);
-  if (decay < kDecayThreshold) {
+  if (decay < UserOverrideModel::kDecayThreshold) {
     return 0.0;
   }
 
@@ -268,15 +531,9 @@ static std::string FormObservationKey(
   auto begin = walk.nodes.cbegin();
   size_t headIndex = static_cast<size_t>(std::distance(begin, head));
 
-  // Head + up to two preceding context nodes. Values must match what the user
-  // actually saw (chosenValueAt), not the node's static top/current unigram.
-  // When ContextModel DP has flipped a node, selectedUnigramIndices is the
-  // only place that records the display choice; node->value() stays at top.
   std::string headStr = CombineReadingValue((*head)->reading(),
                                             walk.chosenValueAt(headIndex));
 
-  // If a preceding node is punctuation, ignore reading/value and treat it as
-  // the beginning of the sentence (same as historical UOM behavior).
   std::string prevStr;
   bool prevIsPunctuation = false;
   if (head != begin) {

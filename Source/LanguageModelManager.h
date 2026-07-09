@@ -46,7 +46,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (class, readonly, nonatomic) NSString *excludedPhrasesDataPathMcBopomofo;
 @property (class, readonly, nonatomic) NSString *excludedPhrasesDataPathPlainBopomofo;
 @property (class, readonly, nonatomic) NSString *phraseReplacementDataPathMcBopomofo;
+@property (class, readonly, nonatomic) NSString *userOverrideCachePath;
 @property (class, assign, nonatomic) BOOL phraseReplacementEnabled;
+
+/// Load/save private personalization cache (user data folder only).
++ (void)loadUserOverrideCache;
++ (void)saveUserOverrideCache;
 
 @end
 
