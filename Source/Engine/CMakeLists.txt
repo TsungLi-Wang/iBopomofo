@@ -20,6 +20,8 @@ add_library(McBopomofoLMLib
         CompositeContextModel.cpp
         CharNGramPathScorer.h
         CharNGramPathScorer.cpp
+        NeuralLMPathScorer.h
+        NeuralLMPathScorer.cpp
         McBopomofoLM.cpp
         McBopomofoLM.h
         MemoryMappedFile.h

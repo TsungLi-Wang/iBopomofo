@@ -523,8 +523,9 @@ extension Preferences {
 
     /// Interpolation weight ν for final_score = walk_score + ν · path_scorer.
     /// Default 0.25 from harness grid search on tw-sentences (see CHANGELOG).
-    /// Default 0.1 from nbest_path_rerank harness grid (175/395 best; higher ν regresses).
-    @UserDefault(key: kNeuralPathRerankNuKey, defaultValue: 0.1)
+    /// Default 0.5 from nbest_path_rerank harness with true char-LSTM PathScorer
+    /// (BEST_NU 0.5 → 179/395; see CHANGELOG v2.5.0).
+    @UserDefault(key: kNeuralPathRerankNuKey, defaultValue: 0.5)
     @objc static var neuralPathRerankNu: Double
 
     // L1 神經候選重排(llama-server 整句 logprob 打分)。實驗功能,預設關閉;

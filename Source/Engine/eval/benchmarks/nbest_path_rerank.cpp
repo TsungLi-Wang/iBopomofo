@@ -4,8 +4,8 @@
 //   nbest_path_rerank <sentences.tsv> <data.txt> <word-bigrams.tsv>
 //                     <lambda> [path-char-ngrams.tsv] [nu]
 //
-// Without path-char-ngrams: prints n-best check (rank0 == walk top-1) + baseline.
-// With path-char-ngrams + nu: scores accuracy with fusion.
+// Without path-char-lstm.bin: prints n-best check (rank0 == walk top-1) + baseline.
+// With path-char-lstm.bin + nu: scores accuracy with fusion (true LSTM LM).
 // nu omitted → grid {0, 0.1, 0.25, 0.5, 0.75, 1.0}
 
 #include <chrono>
@@ -14,14 +14,14 @@
 #include <string>
 #include <vector>
 
-#include "CharNGramPathScorer.h"
 #include "CorpusBigramContextModel.h"
+#include "NeuralLMPathScorer.h"
 #include "ParselessLM.h"
 #include "gramambular2/reading_grid.h"
 
 using Formosa::Gramambular2::ReadingGrid;
-using McBopomofo::CharNGramPathScorer;
 using McBopomofo::CorpusBigramContextModel;
+using McBopomofo::NeuralLMPathScorer;
 using McBopomofo::ParselessLM;
 
 namespace {
@@ -98,12 +98,16 @@ int main(int argc, char** argv) {
   if (!cm.load(argv[3])) return 1;
   cm.setLambda(std::stod(argv[4]));
 
-  CharNGramPathScorer charScorer;
+  NeuralLMPathScorer neuralScorer;
   bool hasScorer = false;
   if (argc > 5 && argv[5][0] != '\0') {
-    hasScorer = charScorer.load(argv[5]);
+    hasScorer = neuralScorer.load(argv[5]);
     std::cout << "path scorer loaded=" << hasScorer
-              << " size=" << charScorer.size() << "\n";
+              << " params=" << neuralScorer.parameterCount()
+              << " emb=" << neuralScorer.embDim()
+              << " hidden=" << neuralScorer.hiddenDim()
+              << " layers=" << neuralScorer.layers()
+              << " vocab=" << neuralScorer.vocabSize() << "\n";
   }
 
   std::vector<double> nuGrid;
@@ -188,7 +192,7 @@ int main(int argc, char** argv) {
         g.setPathScorer(nullptr);
         g.setPathRerankNu(0.0);
       } else {
-        g.setPathScorer(&charScorer);
+        g.setPathScorer(&neuralScorer);
         g.setPathRerankNu(nu);
         g.setPathRerankNBest(10);
       }

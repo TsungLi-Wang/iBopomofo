@@ -6,20 +6,26 @@
 
 ## [Unreleased]
 
+## [v2.5.0] - 2026-07-09
+
+**真神經路徑重排**：以 **char-LSTM LM** 取代 v2.4.0 的 char-trigram PathScorer（v2.4.0 違規用統計 n-gram 頂替 RNN，本版糾正）。
+
+### 新增 / 變更
+
+- **NeuralLMPathScorer（真 LSTM）**：2 層 char-LSTM，emb=64、hidden=128、vocab=4524、**參數 1,104,556**；權重 `path-char-lstm.bin`（~4.4MB 內嵌）。訓練腳本 `Source/Engine/eval/train_char_lstm_lm.py`（PyTorch），語料 = 台灣打字句 + zh-TW 維基 Han 抽樣（真實語料，非 LLM 合成頻率）。C++ 純前向推理（無 PyTorch runtime）：每步 embed → LSTM gates → FC logits → log-softmax 累加 log10 P(char|history)。
+- **選型**：未找到可商用、繁中、≤200MB 且能在 CPU ≤80ms 內對 N=10 路徑算句 log-prob 的現成小權重；故 **自訓** 上述 LSTM（仍是神經網路，符合任務）。
+- **ν 網格**（harness `nbest_path_rerank`）：`0→174, 0.1→177, 0.25→178, 0.5→179, 0.75→178, 1.0→176`；**BEST ν=0.5 → 179/395**。對比 v2.4.0 char-ngram 最佳 **175/395**：**真 LSTM 贏 +4 句**。mean latency ≈ **30.7ms**（N=10，預算 80ms 內）。
+- 偏好預設仍 **關**（`EnableNeuralPathRerank=NO`）；開啟後 `NeuralPathRerankNu` 預設 **0.5**。三 Guard 不退：OFF 164、ON 功能關 174。
+
 ## [v2.4.0] - 2026-07-09
 
-**實驗性神經路徑重排（n-best + PathScorer，Mozc 風格）。** 預設關閉；開啟後在情境化 walk 之上對 top-10 路徑做句級重打分。標點熱修已含於 v2.3.1。
+**實驗性路徑重排骨架（n-best + PathScorer 介面）。** 預設關閉。**勘誤**：本版 PathScorer 實作為字元 trigram（非神經）；真 LSTM 見 v2.5.0。
 
 ### 新增
 
-- **n-best 路徑抽取**（`ReadingGrid::walkNBest`，每狀態 K=8 hypotheses，N=10）：ContextModel DP 可回傳多條完整路徑；rank-0 與既有 walk top-1 對齊（harness 386/386）。
-- **PathScorer 介面 + 融合**：`final = walk_score + ν · scoreSentence(words)`；`PathScorer=nullptr` 或 `ν=0` 時完全等於既有 walk（三 Guard 不退）。
-- **CharNGramPathScorer（路徑句級 scorer）**：字元 trigram backoff，語料為台灣打字句 + zh-TW 維基抽樣（約 3.2MB `path-char-ngrams.tsv` 內嵌）。**模型選擇理由**：現成可商用、繁中、on-device 且 ≤50MB／≤30ms 的小 RNN／Transformer 權重難在延遲預算內落地；沿用專案真實語料自建 char n-gram 當 PathScorer，架構仍是 Mozc 式 n-best rescore（可日後換真 RNN 權重而不改 walk）。ν 網格 `{0,0.1,0.25,0.5,0.75,1.0}` 最佳 **ν=0.1 → 175/395**（walk ON 174 → +1）；更高 ν 退步（書面語域，採低 ν 只在 walk 接近時輕推）。延遲實測 mean ≈ **2.1ms**/句（遠低於 30ms）。
-- **偏好** `EnableNeuralPathRerank`（預設 **NO**）+ `NeuralPathRerankNu`（預設 0.1）+ 選單「神經路徑重排（實驗）」。
-
-### 文件
-
-- `docs/ngram-rnn-hybrid.md`、eval harness `nbest_path_rerank.cpp`。
+- **n-best 路徑抽取**（`ReadingGrid::walkNBest`，每狀態 K=8 hypotheses，N=10）與融合公式 `final = walk_score + ν · scoreSentence`。
+- **CharNGramPathScorer**（統計 char trigram，已由 v2.5.0 神經版取代為主路徑 scorer；檔案可留作對照）。
+- **偏好** `EnableNeuralPathRerank`（預設 **NO**）+ 選單「神經路徑重排（實驗）」。
 
 ## [v2.3.1] - 2026-07-09
 

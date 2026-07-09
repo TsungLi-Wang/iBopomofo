@@ -21,8 +21,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-#import "CharNGramPathScorer.h"
 #import "ConfusionPairDisambiguator.h"
+#import "NeuralLMPathScorer.h"
 #import "CompositeContextModel.h"
 #import "CorpusBigramContextModel.h"
 #import "KeyHandler.h"
@@ -2761,17 +2761,17 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
         _grid->setContextModel(nullptr);
     }
 
-    // Mozc-style n-best + char n-gram PathScorer (experimental, default OFF).
+    // Mozc-style n-best + true char-LSTM PathScorer (experimental, default OFF).
     // When off / scorer null / nu==0, walk() is bit-identical to pre-rerank.
     if (Preferences.enableNeuralPathRerank &&
         _inputMode != InputModePlainBopomofo) {
-        static McBopomofo::CharNGramPathScorer *sharedPathScorer = nullptr;
+        static McBopomofo::NeuralLMPathScorer *sharedPathScorer = nullptr;
         static dispatch_once_t pathOnce;
         dispatch_once(&pathOnce, ^{
-            auto *s = new McBopomofo::CharNGramPathScorer();
+            auto *s = new McBopomofo::NeuralLMPathScorer();
             NSString *path = [[NSBundle bundleForClass:[self class]]
-                pathForResource:@"path-char-ngrams"
-                         ofType:@"tsv"];
+                pathForResource:@"path-char-lstm"
+                         ofType:@"bin"];
             if (path != nil) {
                 s->load(path.UTF8String);
             }

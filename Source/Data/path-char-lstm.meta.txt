@@ -1,0 +1,4 @@
+arch=CharLSTM layers=2 emb=64 hidden=128
+vocab=4524 params=1104556
+epochs=4 lr=0.001 seq_len=40
+corpus=generated/tw_corpus.txt wiki=corpus/zhwiki-latest-pages-articles.xml.bz2 max_wiki=800000

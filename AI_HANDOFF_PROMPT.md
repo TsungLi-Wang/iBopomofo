@@ -13,7 +13,7 @@
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 
-## 目前真相（v2.4.0 / build 2287 / tag `v2.3.1`（標點熱修；n-gram+RNN 主線仍在 master 未另開大版本））
+## 目前真相（v2.5.0 / build 2287 / tag `v2.3.1`（標點熱修；n-gram+RNN 主線仍在 master 未另開大版本））
 
 | 項目 | 狀態 |
 |------|------|
