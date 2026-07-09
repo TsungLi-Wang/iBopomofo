@@ -4,6 +4,15 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
+## [v2.2.1] - 2026-07-09
+
+修復 v2.2.0 的功能性 bug：**開啟 `EnableContextualWalk`（情境化 Walk）後無法手動選字**。已安裝 v2.2.0 且開了此實驗功能的使用者請更新到 v2.2.1。
+
+### 修正
+
+- **修好「開啟情境化 Walk 後選字上不了屏」**：v2.2.0 開啟 `EnableContextualWalk` 後，候選選單能開、能算候選，但從選單手動選字沒反應、選的字上不了屏。根因在 `walk()` 的 ContextModel DP：DP 依每個候選的原始 unigram 分數（`u.score()`）自行重挑路徑，**完全沒讀節點的使用者 override**（override 是靠 `node->score()` 回傳 `kOverridingScore` 生效的，只有無 ContextModel 的快路徑會讀），`chosenValueAt` 又回傳 DP 的選擇蓋掉使用者選的字，導致手動選字被靜默丟棄。修法：DP 遍歷候選時，若該節點被 override（`isOverridden()`）就只認被 override 的候選、計分改用 `node->score()`（與快路徑同一來源，正確 encode `kOverridingScore` 與各 override 型別），其餘候選跳過——讓 override 在快路徑與 DP 路徑行為一致。**沒有 override 的一般自動選字完全不受影響**：北極星 benchmark walk ON `lambda 0.75` 仍 **44.1%（174/395）**、walk OFF 仍 **41.5%（164/395）**，整條 lambda 曲線與 v2.2.0 逐點相同。
+  - **補上先前缺的測試缺口**：新增 `OverrideIsHonoredWithContextModel`（ContextModel 開啟時 override 必須被尊重，修前紅、修後綠）與對照 `OverrideIsHonoredOnFastPath`（快路徑本就尊重 override）。此 bug 先前 harness 與五句 e2e 都沒抓到，因為它們只驗「walk 自動選出的字對不對」，從不模擬「使用者手動覆蓋」×「ContextModel 開啟」。
+
 ## [v2.2.0] - 2026-07-09
 
 情境化 Walk（實驗功能，預設關閉）：引擎 `walk()` 首度讓上下文（真實語料詞 bigram）參與打字當下的路徑競爭。**預設關閉**，需自行開啟：輸入法選單「情境化 Walk（實驗）」，或 `defaults write org.openvanilla.inputmethod.McBopomofo EnableContextualWalk -bool YES`。

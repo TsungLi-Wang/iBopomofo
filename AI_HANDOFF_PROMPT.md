@@ -961,3 +961,27 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 2. 情境化 walk 語境覆蓋擴充:更大真實語料/升 trigram(此時才輪到 KenLM,延後非否決,見前條)。收 Johnny 真實錯選句進 benchmark。
 3. 兩個 eval jsonl(`example_llm_cases.jsonl`/`zhuyin_neural_rerank_poc_cases.jsonl`)已隨 ff 進 master(前棒在分支 commit 的);`em_reestimate.{py,cpp}`(壞的)、`run_tw_benchmark.py`(stub)、`kenlm-runtime/`(placeholder)仍未 commit。
 4. pbxproj 新檔 ID 從 **FACE0123+** 起。
+
+### 2026-07-09T(下午) 修復 v2.2.0 選字上不了屏 + 發佈 v2.2.1
+
+**症狀**：v2.2.0 開啟 `EnableContextualWalk` 後，候選選單能開、能算候選，但從選單手動選字沒反應、選的字上不了屏（重啟後穩定重現）。harness 與五句 live e2e 都沒抓到——它們只驗「walk 自動選出的字對不對」，從不模擬「使用者手動覆蓋 × ContextModel 開啟」。
+
+**根因（純引擎層，Johnny 真機交叉印證：關掉 `EnableContextualWalk` 選字即恢復）**：`walk()` 兩條路徑對使用者 override 的處置分歧。
+- 快路徑（無 ContextModel，`reading_grid.cpp:168`）用 `node->score()`——override 時回傳 `kOverridingScore`，選字生效。
+- DP 路徑（ContextModel 開啟）遍歷每個候選用**原始** `u.score()`、**完全沒讀 override**；`chosenValueAt` 又用 DP 的 `selectedUnigramIndices` 蓋掉 `node->value()`。使用者手動選擇被靜默丟棄。
+
+**修法（最小、對齊快路徑語義）**：`reading_grid.cpp` DP 迴圈，node `isOverridden()` 時只認被 override 的候選、計分改用 `node->score()`（正確 encode `kOverridingScore` 與各 override 型別），其餘候選 `continue`。非 override 的 node 完全走原邏輯（`u.score()`、不跳候選）——對自動選字零影響。
+
+**驗收（三項分列，全過）**：
+- override 測試對：`OverrideIsHonoredWithContextModel` 修前紅、修後綠；對照 `OverrideIsHonoredOnFastPath` 綠。**永久補上先前的 override×ContextModel 測試缺口**。
+- 全 suite：引擎 gtest `McBopomofoLMLibTest` 104 pass/2 skip、`gramambular2_test`（reading_grid 直屬）21/21、Xcode `** TEST SUCCEEDED **`（128 tests 0 failures）。
+- tw benchmark：walk ON `lambda 0.75` 仍 **44.1%（174/395）**、walk OFF 仍 **41.5%（164/395）**，整條 lambda 曲線與 v2.2.0 逐點相同——證明修法只在 `isOverridden()` 生效、對一般自動選字零波及。
+
+**已發佈 v2.2.1（build 2285）**：兩個 plist 2.2.0→2.2.1、2284→2285；tag 打在 bump commit；master ff；GitHub release 標 Latest，release notes 明載「修復 v2.2.0 開啟 EnableContextualWalk 後無法手動選字」提醒 v2.2.0 使用者更新。25MB 表照 v2.2.0 一樣帶著出、未瘦身（瘦身仍留未來）。**修復無新增檔，pbxproj 未動，新檔 ID 仍從 FACE0123+ 起。**
+
+**踩雷補充**：Xcode 首跑 exit 65 = DerivedData PCH `mtime changed` 陳舊（非程式問題），`rm -rf` 該專案 DerivedData 後 clean 重跑即 `** TEST SUCCEEDED **`（沿用踩雷紀錄 (c)）。
+
+**下一棒優先**（承 v2.2.0 未變）：
+1. roadmap 第 2 步 **EM 重估 unigram 正式化**（先盤點+提計畫+Johnny 點頭，別直衝改引擎）；驗收鐵則＝新 unigram 表 vs 現用表跑 tw benchmark 整句 top-1，walk ON 不退步（≥44.1%）才收，並貼 walk OFF 對照。
+2. 25MB 表瘦身（提高 min-abs-pmi/min-count，或改首次下載到 App Support）。
+3. 未 commit 工作區檔照舊（`em_reestimate.{py,cpp}` 壞的、`run_tw_benchmark.py` stub、`kenlm-runtime/` placeholder），要嘛修要嘛刪。

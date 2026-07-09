@@ -224,17 +224,35 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
       const auto& unigrams = node->unigrams();
       if (unigrams.empty()) continue;
 
+      // When the user has overridden this node (e.g. hand-picked a candidate
+      // from the menu), honor it exactly like the fast path does: only the
+      // overridden unigram is walkable, and it carries node->score(), which
+      // encodes kOverridingScore (or the top-unigram score) per the override
+      // type. Without this the DP would re-pick by raw per-unigram score and
+      // silently discard the user's selection (the v2.2.0 "selected candidate
+      // does not commit" bug). Nodes without an override are unaffected: they
+      // iterate every unigram with u.score() exactly as before.
+      const bool nodeOverridden = node->isOverridden();
+      const std::string overriddenValue =
+          nodeOverridden ? node->value() : std::string();
+      const double overriddenScore = node->score();
+
       std::unordered_map<std::string, Cell>& target = dp[i + spanLen];
       for (const auto& entry : dp[i]) {
         const std::string& prevWord = entry.first;
         const Cell& cell = entry.second;
         for (size_t ui = 0; ui < unigrams.size(); ++ui) {
           const auto& u = unigrams[ui];
+          if (nodeOverridden && u.value() != overriddenValue) {
+            continue;
+          }
           double state = 0.0;
           double trans = prevWord.empty()
                              ? 0.0
                              : contextModel_->score(prevWord, u.value(), state);
-          double sc = cell.score + u.score() + trans;
+          double sc =
+              cell.score + (nodeOverridden ? overriddenScore : u.score()) +
+              trans;
           ++evaluatedEdges;
           auto it = target.find(u.value());
           if (it == target.end() || sc > it->second.score) {

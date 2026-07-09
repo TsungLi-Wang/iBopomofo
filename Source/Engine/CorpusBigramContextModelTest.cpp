@@ -102,6 +102,26 @@ class CorpusBigramContextModelTest : public ::testing::Test {
     return grid.walk();
   }
 
+  // Builds the 他跑?很快 grid, optionally sets the context model, then
+  // simulates the user hand-picking a candidate from the menu at overrideLoc
+  // (this is exactly what KeyHandler's fixNodeWithReading does: overrideCandidate
+  // with the default kOverrideValueWithHighScore, then re-walk).
+  ReadingGrid::WalkResult walkWithOverride(bool useModel, double lambda,
+                                           size_t overrideLoc,
+                                           const std::string& overrideValue) {
+    ReadingGrid grid(std::make_shared<FakeLM>());
+    for (const std::string& reading :
+         {"ㄊㄚ", "ㄆㄠˇ", "ㄉㄜ˙", "ㄏㄣˇ", "ㄎㄨㄞˋ"}) {
+      grid.insertReading(reading);
+    }
+    if (useModel) {
+      model_.setLambda(lambda);
+      grid.setContextModel(&model_);
+    }
+    EXPECT_TRUE(grid.overrideCandidate(overrideLoc, overrideValue));
+    return grid.walk();
+  }
+
   CorpusBigramContextModel model_;
 };
 
@@ -147,6 +167,37 @@ TEST_F(CorpusBigramContextModelTest, WeakBigramDoesNotFlip) {
 
 TEST_F(CorpusBigramContextModelTest, ZeroLambdaReproducesUnigramWalk) {
   EXPECT_EQ(chosenJoined(walkWith(0.0, /*useModel=*/true)), "他跑的很快");
+}
+
+// Control: with no context model (the pre-v2.2.0 fast path), a user override is
+// honored. 的 is the top unigram of ㄉㄜ˙, so only the override can move the
+// choice onto 得. chosenValueAt falls back to node->value() (the overridden
+// unigram) because selectedUnigramIndices is empty on the fast path. This proves
+// the override machinery itself is sound; the divergence below is walk-specific.
+TEST_F(CorpusBigramContextModelTest, OverrideIsHonoredOnFastPath) {
+  ReadingGrid::WalkResult result =
+      walkWithOverride(/*useModel=*/false, /*lambda=*/0.0,
+                       /*overrideLoc=*/2, /*overrideValue=*/"得");
+  EXPECT_EQ(result.chosenValueAt(2), "得");
+  EXPECT_EQ(chosenJoined(result), "他跑得很快");
+}
+
+// Regression for the v2.2.0 "selected candidate does not commit" bug. With a
+// context model set (EnableContextualWalk ON), the DP recomputes
+// selectedUnigramIndices from raw per-unigram scores (u.score()) and never
+// consults the node's override, so chosenValueAt returns the DP's own pick and
+// the user's hand-picked candidate is silently discarded. lambda 0 makes the
+// context model contribute nothing, so the ONLY thing that could move the choice
+// off the top unigram (的) onto 得 is the override, which must be honored exactly
+// as it is on the fast path above.
+TEST_F(CorpusBigramContextModelTest, OverrideIsHonoredWithContextModel) {
+  ReadingGrid::WalkResult result =
+      walkWithOverride(/*useModel=*/true, /*lambda=*/0.0,
+                       /*overrideLoc=*/2, /*overrideValue=*/"得");
+  EXPECT_EQ(result.chosenValueAt(2), "得")
+      << "Contextual-walk DP ignored the user's candidate override and returned "
+         "its own pick instead.";
+  EXPECT_EQ(chosenJoined(result), "他跑得很快");
 }
 
 }  // namespace
