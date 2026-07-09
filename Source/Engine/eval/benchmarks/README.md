@@ -40,6 +40,12 @@ Shipped table (`Source/Data/word-bigrams.tsv`, built from zh-TW Wikipedia; see
 `他跑得很快` case flips correctly (the bigram makes the walk prefer the
 `他 / 跑得 / 很快` segmentation over `他 / 跑 / 的 / 很快`).
 
+**v2.3.0 shipping defaults:** `EnableContextualWalk` is **on** in the app
+(lambda 0.75, same numbers as above for a **cold empty personalization
+cache**). Soft user personalization must not change these cold-cache
+figures; only the bigram table + dictionary decide the north-star metric
+when the user cache is empty.
+
 ## Building the bigram table (real corpus only)
 
 Frequencies must come from real corpus text (no synthetic / LLM-generated

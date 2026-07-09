@@ -2,32 +2,66 @@
 
 你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
+**最後更新：2026-07-09T15:36:08+08:00**（v2.3.0 已發佈，本檔頂部為目前真相；下方交班日誌是歷史）。
+
 ## 先讀文件
 
 開始前必讀：
 
-1. `AGENTS.md`
-2. `algorithm.md`
-3. `Source/Data/AGENTS.md`
-4. 本檔
+1. `AGENTS.md`（含 commit 作者、DerivedData、e2e、隱私紅線）
+2. `CHANGELOG.md`（最新正式版條目）
+3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
+4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 
-## 目前架構狀態
+## 目前真相（v2.3.0 / build 2286 / tag `v2.3.0` @ `e33e9cb`）
+
+| 項目 | 狀態 |
+|------|------|
+| 發佈 | GitHub Release **Latest** = **v2.3.0**，附 `LaoWangZhuyin.dmg`（約 31MB，含 25MB `word-bigrams.tsv`） |
+| 版本來源 | `Source/McBopomofo-Info.plist` + `Source/Installer/Installer-Info.plist`（兩者必須一起 bump） |
+| master | 與 `origin/master` 同步於發版 commit `e33e9cb` |
+| 北極星 tw | cold 空 cache：walk ON **44.1%（174/395）**、walk OFF **41.5%（164/395）** |
+
+### 這版使用者可見行為
+
+1. **情境化選字預設開**（`EnableContextualWalk` default **YES**；選單「情境化選字」）。語料 bigram 進 `walk()` DP（λ=0.75）。仍可手動關。
+2. **個人化 soft 加分（§1.4）**：同上下文手動選同一字 **≥2 次** 才加分；`userScore = min(4, log(1+count))×decay`；`μ_user=4.0`；halflife **7 天**。優先序：`當下手選（硬）> 個人 soft > 全域 bigram > top unigram`。hard suggest 僅 `forceHighScoreOverride`。
+3. **隱私**：`~/Library/Application Support/McBopomofo/user-override-cache.dat` 只存本機；`.gitignore`；不進 bundle、不外傳。
+4. **§1.2**：UOM key 讀 `chosenValueAt`（對齊 contextual walk 顯示值）。
+5. 既有：L1 n-gram 候選重排、L2 句末自動校正（實驗預設關）、`⌘Return` AI 整句、在/再消歧（實驗預設關）、語音 whisper.cpp（連按兩下右 Shift）、AI 後端 Claude Opus / 本機 AI。
+
+### 引擎關鍵事實（下一棒必懂）
+
+- `WalkResult.chosenValueAt(i)`：ContextModel DP 的選字只在這裡；`node->value()` / `unigrams()[0]` **不反映** DP 選擇。
+- Cold 空 soft + 未開 contextual walk → `setContextModel(nullptr)` 快路徑；**禁止**掛零貢獻殼（會害 tw 差 1 句）。
+- 新檔 pbxproj ID 從 **FACE0126+** 起。
+- Commit 作者固定：`老王 LaoWang <laowang@users.noreply.github.com>`。
+- 不可在同一 DerivedData 目錄同時多個 build；`xcodebuild test` 不要 `| tail`。
+
+### 架構分層（簡）
+
+- **L0** 注音 lattice walk（不可繞 `KeyHandler` / `InputState`）。
+- **L0+** 情境化 walk + 個人 soft（v2.2→v2.3，**預設開**）。
+- **L1** 候選窗 n-gram 重排；神經重排仍實驗預設關。
+- **L2** `⌘Return` 整句 + 句末自動校正（實驗預設關）。
+- **L3** 語音 whisper.cpp 本機。
+
+## 目前架構狀態（歷史 Phase 標籤，仍有效）
 
 四層推理架構的實作進度：
 
-- L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。
-- L1 快速語義：候選重排接縫已存在；v1.7.5 起打字當下改用進程內 n-gram scorer,不再依賴 llama-server。
-- L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在，本次未重寫。
-- L3 語音輸入：**v2.0.0 起改為內嵌 whisper.cpp 本機辨識**(單一引擎;**連按兩下右 Shift** push-to-talk;模型首次使用下載 574MB)。v1.7~v1.7.4 的 Apple Speech 路徑與三來源選單已移除。IME 程序取麥克風的頭號風險早已排除(v1.7 驗證)。
-
-**目前發佈狀態:已發到 v2.0.0**(GitHub Release,Latest;build 2281,版本真實來源 = `Source/McBopomofo-Info.plist` 字面值;發版時 `Source/Installer/Installer-Info.plist` 也要一起 bump)。v2.0.0 = 架構精簡:語音輸入改內嵌 whisper.cpp 本機辨識(單一引擎,Apple 兩路徑與 OpenAI 雲端全砍)、AI 修正模型剩 Claude Opus+本機 AI 二選、「在/再」消歧表升級雙字元證據(我再說一次已翻對)。歷史脈絡見交班日誌,最後一條=最新狀態。以下為歷史版本摘要。v1.7.5 = L1 即時候選重排改成本機 n-gram scorer + eval/training harness;尚未內建外部語料模型。v1.7.4 = 語音「辨識來源」三選一(Apple 原生 / Apple+L2 修正 / OpenAI Whisper 雲端,使用者自備 OpenAI key);⚠️ Whisper 錄音上傳路徑尚待更廣泛實機驗證。v1.7.3 = 辨識器自行結束(非使用者停止)時補提示、README 新增語音使用說明、清除未使用字串。v1.7.2 = 語音首次授權流程、ABC fallback、AVAudioEngine tap crash 與停止通知重疊修正。v1.7.1 = 語音熱鍵由連按兩下 Control 改連按兩下右 Shift(避開系統聽寫衝突)+ 辨識回饋。v1.7 = 在 v1.6 基礎上新增 Phase 3 語音輸入(實驗功能)。v1.6 = Phase 1(L1 候選重排)+ Phase 2(句末自動校正,實驗預設關閉)+ 強化在/再、的/得/地 prompt。完整 `xcodebuild test` 122 tests / 10 suites 全綠。
+- L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。v2.3.0 起預設掛語料 bigram ContextModel + 可選 user soft。
+- L1 快速語義：候選重排接縫已存在；v1.7.5 起打字當下改用進程內 n-gram scorer，不再依賴 llama-server。
+- L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在；句末自動校正 MVP 實驗預設關。
+- L3 語音輸入：**v2.0.0 起改為內嵌 whisper.cpp 本機辨識**（**連按兩下右 Shift**；模型首次約 574MB）。
 
 Phase 狀態：
 
-- Phase 1：約 95% 完成。L1 候選重排 + debounce + 選單/偏好設定開關已完成；v1.7.5 起 scorer 改為本機 n-gram,不再等待 local model server。完整 `xcodebuild test` 已可穩定全綠並乾淨結束(見「測試狀態」),L1 觸發條件已收緊以降低過度觸發。
-- Phase 2：MVP 已落地並隨 v1.6 發佈(實驗功能,預設關閉)。句末標點自動觸發 L2,第一版只提示不 commit,Tab 採用;手動 `⌘Return` 行為不變。純邏輯測試已補。真機已由 Johnny 確認可動。
-- Phase 3：**完成並已隨 v1.7 / v1.7.1 / v1.7.2 / v1.7.3 發佈(實驗功能)**。實機驗證 IME 能取麥克風、能 on-device 辨識、能出字;push-to-talk(**連按兩下右 Shift** 開始/結束;v1.7 原為 Control,v1.7.1 改右 Shift 避開系統聽寫衝突)已實作。v1.7.2 補上首次授權兩段式流程、授權後輸入源恢復、CoreAudio tap 防 crash 與通知去重。v1.7.3 補上「辨識器自行結束時提示」(選項 b)、README 使用說明、清字串。**v1.7.4 加「辨識來源」三選一**:Apple 原生 / Apple+L2(等同「語音轉出後再過一次 L2」,已實作)/ OpenAI Whisper 雲端(使用者自備 key)。下一步可做:辨識準度/標點、選項 a 連續聆聽模式(isFinal 後自動重啟 request)、Whisper 實機驗證。詳見下方交班日誌。
-- Phase 4：未做。注音領域微調尚未實作。
+- Phase 1：L1 候選重排可用（n-gram）。
+- Phase 2：句末自動 L2 MVP 已發佈（實驗預設關）。
+- Phase 3：語音輸入可用（whisper.cpp）。
+- Phase 4：未做（注音領域微調）。
+- **路線圖引擎強化**：contextual walk + 個人化已於 **v2.3.0 預設出貨**；EM unigram 重估已試負結果擱置（見交班日誌）。
 
 ## 已完成的 Phase 1 工作
 
@@ -68,46 +102,61 @@ Phase 狀態：
 
 ## 測試狀態
 
-單元測試（`AICandidateRerankerTests`）涵蓋 prompt、解析、觸發條件、重排邏輯。
-
-建置：
+### 北極星（引擎選字）
 
 ```bash
-xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
+cd Source/Engine/eval/benchmarks
+./build-and-run.sh tw-sentences.tsv
+# → baseline 0.41519 (164/395)
+./build-and-run.sh tw-sentences.tsv ../../../Data/word-bigrams.tsv 0.75
+# → lambda=0.75 : 0.440506 (174/395)
 ```
 
-完整測試（122 tests / 10 suites,全綠並乾淨結束）：
+讀結果必須用 `chosenValueAt(i)`。個人化 cold cache 不得改變上述數字。
+
+### 合成個人化 harness
 
 ```bash
-xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug CODE_SIGNING_ALLOWED=NO
+cd Source/Engine/build-test && cmake -DENABLE_TEST=ON .. && cmake --build . --target McBopomofoLMLibTest
+./McBopomofoLMLibTest --gtest_filter='CompositeContextModelTest.*'
+# PromotionGate：μ=4 → adoption 100% / spill 0%
 ```
 
-過去「完整 `xcodebuild test` 卡住」已解決,原因有二,都已修正：
+### App 測試
 
-1. 測試以 McBopomofo.app 當 test host 啟動,`AppDelegate.applicationDidFinishLaunching` 會 spawn 內嵌 llama-server(載 2.9GB 模型)又連網檢查更新,模型載入與背景子程序讓測試無法結束。現以 `XCTestConfigurationFilePath` 偵測測試環境,跳過這兩個副作用。
-2. `VersionUpdateApiTests` 用 `withCheckedContinuation` 包 `VersionUpdateApi.check`,但本 fork 未設 `UpdateInfoEndpoint` → `check` 直接回傳 nil 而不呼叫 callback → continuation 永不 resume → 永久卡死。測試已改為判斷 `check` 回傳 nil(無端點)時視為通過。
+```bash
+# 使用獨立 DerivedData，勿與其他 build 共用目錄
+xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo \
+  -configuration Debug -derivedDataPath dd-test -destination 'platform=macOS'
+# 認字串 ** TEST SUCCEEDED **；不要 | tail
+```
 
-⚠️ `VersionUpdateApi.check` 在缺少更新端點時「回傳 nil 且不呼叫 callback」是上游既有的 API 行為,目前只在測試端規避,未改動正式程式。
+打字當下行為變更另跑 `./scripts/e2e-typing-check.sh`（見 `docs/e2e-typing-verification.md`）。
+
+過去 xcodebuild 卡住已修（測試環境跳過 spawn llama-server；VersionUpdate 測試不卡 continuation）。
 
 ## 下一步建議
 
-優先順序：
+優先順序（v2.3.0 已發後）：
 
-1. 觀察 L1 在真實輸入下的命中率;若仍過度觸發,進一步調整 `hasPhraseAlternativeCollision` 的「差一個音節」門檻或 `ambiguousCharacters` 範圍(`Source/AICandidateReranker.swift`)。
-2. （可選）把純邏輯測試抽成不依賴 host app 的 logic test target,讓單元測試完全脫離 IMK host;目前完整 `xcodebuild test` 已可穩定執行,此項非必要。
-3. Phase 3 收尾:辨識準度/標點/口語斷句調校;語音轉出後可選再過一次 L2;或常駐聆聽模式(目前只做 push-to-talk)。
-4. Rescorer 後續:補 20~50 筆 Johnny 真實錯選測資;找更貼近日常繁中輸入的可用語料,訓練外部 trigram TSV,但先不要把效果未驗證的模型包進正式版。
-
+1. **收實機回饋**：預設開情境化 + 個人化後的體感、誤翻、重啟後是否仍記得（`user-override-cache.dat`）。
+2. **25MB 語料表瘦身**（提高 min-abs-pmi/min-count，或改首次下載到 App Support）。
+3. （可選）L1 backoff β1>0——需先有不外溢合成集再開。
+4. （擱置）EM unigram 重估——等大量口語台灣打字語料。
+5. （可選）KenLM / trigram ContextModel——TSV 已有 lift 且需要 backoff/trigram 時再上。
+6. 舊掛件：L2 句末校正實機清單、神經重排實驗、語音準度。
 ## 後續 AI 回覆使用者時
 
 請用 PM 能理解的語言描述：
 
-- L0 是原本打字引擎。
+- L0 是原本打字引擎（現在預設會看前文選同音字，也會慢慢學你的選字偏好）。
 - L1 是邊打邊幫候選排序。
-- L2 是按快捷鍵後整句修正。
+- L2 是按快捷鍵後整句修正（另有實驗性句末提示）。
 - L3 是語音輸入。
 
-不要只說「已完成 Phase 1-4」。目前 Phase 1/L1 已可用,Phase 2/L2 句末自動校正 MVP 已發佈但仍是實驗預設關,Phase 3/L3 語音輸入已可用且仍可調校準度/標點,Phase 4 尚未開始。
+不要只說「已完成 Phase 1-4」。**目前正式版 = v2.3.0**：情境化選字與個人化已預設開；L2 句末校正與神經重排仍是實驗預設關；語音可用。
+
+**誠信**：數字必須真跑；交班三項狀態分列（app build / 測試 harness / 產物）；文件與改動同棒更新。
 
 ## 交班日誌
 
@@ -1031,7 +1080,9 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 2. （擱置）EM 重估 unigram — 等口語語料。
 3. 25MB 表瘦身。
 
-### 2026-07-09T(晚) roadmap 第 4 步 B：軟加分個人化上線（§1.4，未發版）
+### 2026-07-09T(晚) roadmap 第 4 步 B：軟加分個人化上線（§1.4）
+
+> 後續已隨 **v2.3.0** 發佈（見下條）。此條保留實作細節。
 
 **§6 參數已拍板**：C_min=2；L0 only（β1=0）；userScore=min(4,log(1+count))×decay；μ=4.0；halflife 7d；hard suggest 先加後減兩切片。
 
@@ -1049,11 +1100,7 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 
 **新檔 pbxproj**：`CompositeContextModel.{h,cpp}` = FACE0123/0124/0125；下一棒 **FACE0126+**。
 
-**下一棒優先**：
-1. 實機：手動選字 2+ 次後，同上下文是否軟翻（可開/關 contextual walk 各試）；確認 `user-override-cache.dat` 出現在 Application Support、重啟仍在。
-2. （可選）開 L1 backoff（β1>0）需先有不外溢合成集。
-3. （擱置）EM unigram；25MB 表瘦身。
-4. 未 push / 未發版——等 Johnny 點頭發版節奏。
+**下一棒優先**（當時）：實機驗證後發版——已完成，見 v2.3.0 條。
 
 ### 2026-07-09T 發佈 v2.3.0：預設開情境化選字 + 個人化
 
@@ -1069,7 +1116,11 @@ lambda=0.75 : 0.440506 (174/395)
 **本版變更摘要**：
 - `EnableContextualWalk` default **true**；選單「情境化選字」（去實驗標）
 - §1.2 + §1.4 B 個人化（soft、7d、本機 cache）一併正式出貨
-- 兩個 plist **2.3.0 / 2286**
+- 兩個 plist **2.3.0 / 2286**；tag `v2.3.0` @ `e33e9cb`；GitHub Latest + DMG
 - 25MB 表照舊內嵌
 
-**下一棒優先**：收實機回饋；表瘦身；L1 backoff 可選。
+**注意**：若本機曾 `defaults write … EnableContextualWalk -bool NO`（或偏好已寫 0），升級後仍關——需刪 key 或選單重開才吃新預設。
+
+### 2026-07-09T15:36:08+08:00 交班文件對齊 v2.3.0（告一段落）
+
+Johnny 要求告一段落並同步文件。已把本檔**頂部改為目前真相**；並更新 `AGENTS.md`、`README.md`、`Source/Engine/eval/benchmarks/README.md`。**下一棒優先**見頂部「下一步建議」。

@@ -4,10 +4,11 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## Project Overview
 
-LaoWang Zhuyin (老王注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds a productized AI sentence-correction path: users compose a sentence, press ⌘Return, and the app corrects homophones, retroflex/alveolar confusion, and adjacent-key mistakes. The project is built with Swift (UI/state management and AI integration), Objective-C++ (bridge layer), and C++ (core engine), using macOS Input Method Kit (IMK).
+LaoWang Zhuyin (老王注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds product features on top: **contextual selection** (corpus word-bigram inside `walk()`, **default on since v2.3.0**), **soft personalization** (user picks feed a private on-device cache into the DP), AI sentence correction (⌘Return), optional L1 n-gram candidate rerank, and on-device whisper.cpp voice input. The project is built with Swift (UI/state), Objective-C++ (bridge), and C++ (engine), using macOS Input Method Kit (IMK).
 
 The repository still intentionally keeps many upstream identifiers (`McBopomofo` target/module names, bundle id, input source ids, C++ namespaces) because they are tied to IMK registration, user data paths, and upstream merge cost. Prefer product-facing cleanup first; do not rename these internal identifiers without a migration plan.
 
+**Current release:** v2.3.0 (build 2286). Handoff truth lives in `AI_HANDOFF_PROMPT.md` (top section) and `CHANGELOG.md`.
 ## System Requirements
 
 **Runtime:** macOS 10.15 (Catalina) or later
@@ -115,8 +116,11 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 |------|---------|
 | `Source/InputMethodController.swift` | Main IMK entry point, coordinates candidate menus and preferences |
 | `Source/InputState.swift` | State machine base and all state implementations |
-| `Source/KeyHandler.mm` | Objective-C++ bridge between Swift events and C++ engine |
-| `Source/LanguageModelManager.mm` | Wraps C++ language model for Swift consumption |
+| `Source/KeyHandler.mm` | Objective-C++ bridge; `_walk` mounts CompositeContextModel |
+| `Source/LanguageModelManager.mm` | LM + UOM + load/save `user-override-cache.dat` |
+| `Source/Engine/UserOverrideModel.{h,cpp}` | Hard suggest + soft personalization index / persist |
+| `Source/Engine/CompositeContextModel.{h,cpp}` | `λ·PMI + μ·userScore` for walk DP |
+| `Source/Engine/CorpusBigramContextModel.{h,cpp}` | Shipped word-bigram PMI table scorer |
 | `Source/Engine/McBopomofoLM.cpp` | Core language model logic and unigram processing |
 | `Source/Engine/Mandarin/Mandarin.cpp` | Bopomofo syllable processing and keyboard layouts |
 | `Source/Engine/gramambular2/` | Text segmentation algorithms (HMM-based) |
@@ -147,8 +151,14 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
   - `docs(readme): update installation instructions`
   - `refactor(state): simplify state transition logic`
 - Keep descriptions concise and in present tense
+- **Commit author for this fork (fixed):** `老王 LaoWang <laowang@users.noreply.github.com>`
 - See: https://www.conventionalcommits.org/
 
+### Build / DerivedData
+
+- Do **not** run concurrent `xcodebuild` / CMake builds against the **same** DerivedData directory (PCH races). Prefer isolated paths such as `dd-test/`, `dd-rel/`, `build/dd-rel/`.
+- Do **not** pipe `xcodebuild test` to `| tail` (hides the real exit / `** TEST SUCCEEDED **` line).
+- New `project.pbxproj` file IDs for this fork start at **FACE0126+** (FACE0123–0125 used by `CompositeContextModel`).
 ### Swift & AppKit
 
 - Use `Preferences` static properties and property wrappers instead of direct `UserDefaults` access
@@ -178,6 +188,8 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 - Place code in existing namespaces: `McBopomofo`, `Formosa::Gramambular2`, `Formosa::Mandarin`
 - Reuse blob readers (`KeyValueBlobReader`, `ParselessPhraseDB`, `PhraseReplacementMap`)
 - Keep algorithms deterministic and side-effect free; logging stays in Objective-C++ layer
+- After a `ContextModel` walk, read path text only via `WalkResult::chosenValueAt(i)` (DP does not mutate nodes)
+- User personalization: soft scores in DP (`CompositeContextModel` + `UserOverrideModel::userScore`); private file `user-override-cache.dat` under the user data folder only — **never** bundle, never commit, never upload
 
 ### Testing
 
@@ -185,9 +197,10 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 - **C++ tests:** Add to `Source/Engine/CMakeLists.txt` in `McBopomofoLMLibTest` target, use GoogleTest
 - **Mixed tests:** Use Objective-C++ (`.mm`) with bridging header for Swift-C++ interop
 - Snapshot/restore `UserDefaults` in tests (see `PreferencesTests.swift`)
+- **North-star engine metric:** `Source/Engine/eval/benchmarks/build-and-run.sh` — cold cache must stay **164/395** (unigram) and **174/395** (λ=0.75 bigram). Personalization must not change cold numbers.
 - **Live end-to-end typing verification (no human needed):** after changing any
   typing-time behavior (L1 rerank, deferred neural rerank, disambiguator, key
-  handling), run `./scripts/e2e-typing-check.sh "<US key sequence>"` — it types
+  handling, contextual walk, personalization), run `./scripts/e2e-typing-check.sh "<US key sequence>"` — it types
   real virtual key codes into TextEdit through the installed IME and reports
   the committed text. Full method, bopomofo-to-key tables, and pitfalls (must
   use `key code`, never `keystroke`) in `docs/e2e-typing-verification.md`.
@@ -205,6 +218,8 @@ For dictionary data modifications, see [Wiki: 詞庫開發說明](https://github
 - Don't hardcode paths to user data; use preference APIs
 - Don't modify large dictionary blobs unless specifically targeting them
 - Don't add generic development practices or obvious instructions
+- Don't commit `user-override-cache.dat` or any per-user typing memory
+- Don't attach a zero-contribution ContextModel when both global table and user soft evidence are inactive (breaks bit-identical fast path)
 
 ## Local Packages
 

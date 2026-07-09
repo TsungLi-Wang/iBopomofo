@@ -2,19 +2,11 @@
 
 This file provides guidance specifically to Claude Code (claude.ai/code) when working with this repository.
 
-For comprehensive project documentation, architecture details, build instructions, and development guidelines, please refer to:
+**Current shipping version: v2.3.0** (contextual selection + soft personalization default on). Read these before coding:
 
-- **AGENTS.md** - Main project documentation for all AI coding assistants
-- **Source/Data/AGENTS.md** - Dictionary data-specific documentation for AI coding assistants
+1. **AI_HANDOFF_PROMPT.md** — top section is the current truth (status, next priorities)
+2. **AGENTS.md** — build, testing, commit author, privacy, engine rules
+3. **CHANGELOG.md** — what shipped
+4. **Source/Data/AGENTS.md** — dictionary data only when touching `Source/Data/`
 
-These files contain detailed information about:
-
-- Project overview and system requirements
-- Building and running the application
-- Architecture (Swift, Objective-C++, C++ layers)
-- State machine implementation
-- Development guidelines and best practices
-- Testing procedures
-- Dictionary data management
-
-Please consult AGENTS.md for all development tasks.
+Do not rename McBopomofo internal identifiers without a migration plan.

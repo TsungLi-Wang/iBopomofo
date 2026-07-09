@@ -1,21 +1,24 @@
 # 老王注音
 
-老王注音是 macOS 注音輸入法，基於 McBopomofo 的成熟注音引擎，加入「AI 整句修正」與產品化發佈流程。
+老王注音是 macOS 注音輸入法，基於 McBopomofo 的成熟注音引擎，加入**情境化選字**、**個人化**、「AI 整句修正」與產品化發佈流程。
 
-使用方式很單純：照平常打注音，在組字中的一句話按 **Command + Return**，老王注音會依上下文修正常見錯字，例如同音字、平翹舌混淆、鄰鍵手誤，然後把修正後的整句送回輸入區。
+使用方式很單純：照平常打注音即可。引擎會看前文幫你選同音字；你手動選過的字也會慢慢記住。需要整句校正時，在組字中按 **Command + Return**，老王注音會依上下文修正常見錯字（同音字、平翹舌混淆、鄰鍵手誤等），再把修正後的整句送回輸入區。
 
 預設後端是本機 AI：離線、免 API key、免安裝 Ollama。推理程式 `llama-server` 會打包在 app 內，模型第一次使用時自動下載一次，之後可離線使用。
+
+**目前正式版：v2.3.0**（[GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)）。
 
 ## 重點功能
 
 - 注音輸入：沿用 McBopomofo 的注音引擎、詞庫、候選字與使用者詞彙機制。
+- **情境化選字（v2.3.0 起預設開啟）**：真實語料詞 bigram 在打字當下參與路徑競爭，只在既有候選裡改選、不亂造字。可在輸入法選單「情境化選字」關閉。
+- **個人化（本機）**：同一上下文手動選同一字約 **2 次以上**，之後同類上下文會更偏好該字；約 **7 天**半衰期。資料只存在本機（見下方隱私），不外傳。
 - AI 整句修正：組字中按 **Command + Return** 觸發。
 - 語音輸入：**連按兩下右 Shift** 開始、再連按兩下結束出字，用內嵌 whisper.cpp 本機辨識（離線、免 API key）。用法見下方「語音輸入」一節。
 - 本機 AI 預設開啟：內建 `llama-server`，模型首次使用自動下載到使用者資料夾。
 - 雲端後端可切換：支援 Claude Opus。
 - 前文輔助判斷：修正時會讀取游標前方文字作為語意參考。
-- 發佈包輕量：DMG 不內含 2.9GB 模型，目前約 19MB。
-
+- 發佈包：DMG 約 **31MB**（含語料 bigram 表；不含 2.9GB AI 模型）。
 ## 系統需求
 
 | 項目 | 需求 |
@@ -56,6 +59,15 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/laowang-zhuyin/master/
 ```
 
 這個路徑暫時保留 `McBopomofo` 名稱，避免破壞既有輸入法資料與 macOS IMK 註冊行為。
+
+## 情境化選字與個人化
+
+| 項目 | 說明 |
+|---|---|
+| 情境化選字 | **預設開啟**。用內建語料 bigram 看前文選同音字。選單可關。 |
+| 個人化 | 手動選字會寫入本機 cache；同上下文選同一字 **≥2 次** 才開始加強；約 **7 天** 半衰期。 |
+| 隱私 | 個人化檔：`~/Library/Application Support/McBopomofo/user-override-cache.dat`。**只存本機、不進安裝包、不上傳。** |
+| 升級注意 | 若曾手動關閉「情境化 Walk／選字」，升級後仍維持關閉（已寫入的偏好優先於新預設）。刪除該偏好或選單重開即可恢復預設。 |
 
 ## AI 後端
 
@@ -104,14 +116,15 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/laowang-zhuyin/master/
 
 ## 目前限制
 
-- 本機小模型對純語意同音字仍有限制，例如「在 / 再」這類情境不一定能穩定判對。
-- 首次本機 AI 需下載 2.9GB 模型，下載失敗時需要連網重試。
+- 情境化選字與個人化能改善同音字，但不能保證每句都對；證據不足時維持引擎原判。
+- 本機小模型對純語意同音字仍有限制；「在 / 再」另有實驗性查表消歧（預設關）。
+- 首次本機 AI 需下載約 2.9GB 模型，下載失敗時需要連網重試。
 - 目前未 notarize，因此發佈包仍需要清除 quarantine。
 - 內部 target、bundle id、module、部分資料路徑仍保留 McBopomofo 命名；完整更名需要規劃使用者資料遷移。
 
 ## 版本更新歷程
 
-完整版本變更請見 [CHANGELOG.md](CHANGELOG.md)。正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
+最新正式版 **v2.3.0**：預設開啟情境化選字與本機個人化。完整變更見 [CHANGELOG.md](CHANGELOG.md)。下載：[GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
 ## 從原始碼建置
 

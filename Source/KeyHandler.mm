@@ -2703,10 +2703,10 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
 - (void)_walk
 {
     // Context model attachment (global corpus bigram and/or user soft
-    // personalization). Hard rule for tw Guard: when neither source is active,
-    // setContextModel(nullptr) so the unigram fast path stays bit-identical.
-    // Never attach a zero-contribution shell "just in case" — expanded DP with
-    // all-zero transitions can still differ from the fast path by tie-breaks.
+    // personalization). v2.3.0: EnableContextualWalk defaults ON. Hard rule for
+    // tw Guard: when neither source is active, setContextModel(nullptr) so the
+    // unigram fast path stays bit-identical. Never attach a zero-contribution
+    // shell — expanded DP with all-zero transitions can still differ by ties.
     //
     // Global table (~25 MB) is loaded lazily, once, and shared (read-only after
     // load). User soft scores come from UserOverrideModel (persisted separately).
