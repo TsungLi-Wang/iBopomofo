@@ -421,3 +421,38 @@ bash Source/Engine/eval/build-and-run.sh \
 先把 `example_llm_cases.jsonl` 複製一份當起點，逐步把真實錯選句填進去。PoC 跑出穩定數字後再決定是否值得動 bridge 讓 allowed 自動從引擎流出來。
 
 
+
+## EM Unigram Re-estimation (negative result — shelved 2026-07-09)
+
+`em_reestimate_unigram.py` re-estimates the engine unigram table (`data.txt`)
+from a real corpus via hard-EM over the engine-isomorphic Viterbi segmentation
+(reusing `build_word_bigram_table.py`), ruling A: only each surface value's
+marginal is re-estimated; polyphone reading proportions are kept from the old
+table; total mass over the re-estimated set is anchored to the old mass.
+
+Run (training corpus = zhwiki dump ONLY; the 395-sentence tw benchmark is the
+measuring stick and must never be fed as training data):
+
+```bash
+python3 em_reestimate_unigram.py --dump corpus/zhwiki-...xml.bz2 \
+    --data ../../Data/data.txt --out generated/data-em.txt \
+    --max-chars 150000000 --iters 2 --mu 0.7 --opencc s2twp
+```
+
+**Result: regressed across the board on the north-star tw benchmark; NOT
+adopted.** (138M-char zhwiki, mu=0.7, 2 iterations)
+
+| metric | shipped `data.txt` | EM `data-em.txt` |
+| --- | --- | --- |
+| walk OFF (pure unigram) | 41.5% (164/395) | 31.4% (124/395) |
+| walk ON, old PMI + new unigram, lambda 0.75 | 44.1% (174/395) | 36.5% (144/395) |
+| walk ON, new PMI (rebuilt on new unigram) + new unigram, lambda 0.75 | 44.1% (174/395) | 36.7% (145/395) |
+
+Root cause is **domain mismatch**: zhwiki is encyclopedic/written register, while
+the benchmark (and everyday input) is colloquial Taiwan typing. Re-estimating the
+unigram floor toward wiki frequencies shifts every homophone prior toward formal
+characters, so the geology (walk OFF) drops ~10pp and contextual walk can only
+claw part of it back. Hard-EM also did not converge (sum|delta| 45827 -> 47552).
+mu is not the culprit; a mu sweep would only confirm a dead end. Shelved until a
+large **colloquial** Taiwan-typing corpus exists; the shipped `data.txt` (built
+from a curated typing corpus) already out-performs wiki re-estimation.

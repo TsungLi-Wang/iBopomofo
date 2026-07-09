@@ -985,3 +985,23 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 1. roadmap 第 2 步 **EM 重估 unigram 正式化**（先盤點+提計畫+Johnny 點頭，別直衝改引擎）；驗收鐵則＝新 unigram 表 vs 現用表跑 tw benchmark 整句 top-1，walk ON 不退步（≥44.1%）才收，並貼 walk OFF 對照。
 2. 25MB 表瘦身（提高 min-abs-pmi/min-count，或改首次下載到 App Support）。
 3. 未 commit 工作區檔照舊（`em_reestimate.{py,cpp}` 壞的、`run_tw_benchmark.py` stub、`kenlm-runtime/` placeholder），要嘛修要嘛刪。
+
+### 2026-07-09T(傍晚) roadmap 第 2 步 EM 重估 unigram：已試、負結果、擱置
+
+**結論：維基語料 EM 重估 unigram 全面退步，判死擱置，data.txt 未動。** 盤點時先擋下交接檔「已跑過原型」的假前提——原 `em_reestimate.{py,cpp}` 兩支都是壞 stub（key 用讀音欄非字面值→漢字查詢全 miss；C++ 版根本沒跑 EM 只數字；2 欄非同構輸出），已刪。
+
+**做法（正確重寫）**：新 `Source/Engine/eval/em_reestimate_unigram.py`，重用 `build_word_bigram_table.py` 已驗證的引擎同構斷詞器做 hard-EM；M-step 走 Johnny 裁定的 (A)：只重估每個「值」的邊際、破音字讀音比例沿用舊表、re-estimated 集合總質量守恆（seen/unseen 同尺）。全程 log10（配 buildFreq.py 的 base）。E-step 訓練語料**只吃 zhwiki dump（138M 字），紅線守住——395 句 benchmark 只當最後的尺、絕沒進訓練**。
+
+**驗收數字（三個，全退步；mu=0.7、2 輪）**：
+| 測法 | 現用表 | EM 新表 |
+| --- | --- | --- |
+| walk OFF 純 unigram | 41.5%(164/395) | **31.4%(124/395)** |
+| walk ON 舊 PMI+新 unigram λ0.75 | 44.1%(174/395) | **36.5%(144/395)** |
+| walk ON 新 PMI+新 unigram λ0.75 | 44.1%(174/395) | **36.7%(145/395)** |
+
+**根因＝語域錯配**（維基書面語 vs 口語打字）：unigram 地基往維基頻率拉，每個同音先驗偏向正式字，walk OFF 掉 10pp，contextual walk 補不回。hard-EM 也沒收斂（sum|delta| 45827→47552）。**mu 不是主因**，掃 mu 只會確認死路——Johnny 拍板不掃、直接擱置。負結果與重跑指令記在 `Source/Engine/eval/README.md`「EM Unigram Re-estimation」節。腳本 `em_reestimate_unigram.py` 進 git 存檔。**待未來有大量口語台灣打字語料再議**；現 data.txt（curated 打字語料建的）已優於維基重估。
+
+**下一棒優先（改指第 4 步）**：
+1. **roadmap 第 4 步 cache LM 個人化（升級現有 UOM）**＝新的主線。先盤點+提計畫+Johnny 點頭再實作（別直衝）。難點＝個人化價值在「你自己的打字」但 tw benchmark 固定 395 句量不出，驗收方案要先想清（benchmark 不退步 + 個人化專屬小測試）。紅線：個人化資料不進 git、不外傳。
+2. （擱置）EM 重估 unigram — 等口語語料。
+3. 25MB 表瘦身。
