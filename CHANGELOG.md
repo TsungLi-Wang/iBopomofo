@@ -4,7 +4,9 @@
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
-## [Unreleased]
+## [v2.2.0] - 2026-07-09
+
+情境化 Walk（實驗功能，預設關閉）：引擎 `walk()` 首度讓上下文（真實語料詞 bigram）參與打字當下的路徑競爭。**預設關閉**，需自行開啟：輸入法選單「情境化 Walk（實驗）」，或 `defaults write org.openvanilla.inputmethod.McBopomofo EnableContextualWalk -bool YES`。
 
 ### 新增
 
