@@ -11,7 +11,9 @@ set -euo pipefail
 BENCH_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENGINE_DIR="$(cd "$BENCH_DIR/../.." && pwd)"
 DATA="$ENGINE_DIR/../Data/data.txt"
-CASES="${1:-$BENCH_DIR/tw-sentences.tsv}"
+# North-star default: tw538 (PTT lifestyle boards, human-reviewed).
+# Historical 395 set remains at tw-sentences.tsv for archive comparisons.
+CASES="${1:-$BENCH_DIR/tw538-northstar.tsv}"
 BIGRAM="${2:-}"
 LAMBDA="${3:-}"
 BIN="${TMPDIR:-/tmp}/tw_benchmark"

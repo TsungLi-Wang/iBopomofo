@@ -6,6 +6,22 @@
 
 ## [Unreleased]
 
+### 北極星切換（評測集）
+
+- **`tw538-northstar.tsv`（537 句）** 取代 `tw-sentences.tsv`（395）成為預設北極星。
+  - 來源：PTT 十個生活板實爬正文（Stock / PC_Shopping / Tech_Job / WomenTalk / movie / Food / Lifeismoney / Soft_Job / MobileComm / car）；**禁** Gossiping（訓練同源）與 C_Chat（圈內梗）。
+  - 過濾：大陸／港澳用語、板規殘片、政治、NSFW 等；Johnny 人工逐句終審。
+  - 舊 `tw-sentences.tsv` **保留存檔**（歷史對照），`build-and-run.sh` 預設改指 tw538。
+  - 新基準線數字見交班檔「tw538 基準線」節（本棒跑出後填入）。
+
+### 實驗 / 診斷（未發版）
+
+- **Zenzai 式約束重搜 + (i) CondConverter POC**（不發版、不改 `EnableNeuralPathRerank` 預設、不覆寫出貨 `path-char-lstm.bin`）：
+  - 架構：`overrideCandidate` + re-walk；讀音鐵律 code 強制；`READING_FIDELITY_FAIL=0`。
+  - **CondConverter**（`CondConverterScorer`）：(left_context, reading)→word 條件式 char-LSTM 解碼器；PTT+詞典最長匹配對齊訓練；params≈1.42M；bin≈5.5MB。
+  - 訓練腳本：`build_conversion_pairs.py`、`train_cond_converter.py`；harness：`zenzai_constrained_search.cpp`（mode=cond|fusion|neural|hybrid）。
+  - **舊 395 對照（歷史）**：walk **174**；口語 rerank **185**；約束 fusion **184**；**BREAKTHROUGH_GREEDY 仍 0**。詳見 `AI_HANDOFF_PROMPT.md` 交班。
+
 ## [v2.5.0] - 2026-07-09
 
 **真神經路徑重排**：以 **char-LSTM LM** 取代 v2.4.0 的 char-trigram PathScorer（v2.4.0 違規用統計 n-gram 頂替 RNN，本版糾正）。

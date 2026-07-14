@@ -2,7 +2,7 @@
 
 你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-07-09T15:36:08+08:00**（v2.3.0 已發佈，本檔頂部為目前真相；下方交班日誌是歷史）。
+**最後更新：2026-07-14**（v2.5.0 仍是最新發版 tag；下方含 Zenzai/CondConverter POC 交班）。
 
 ## 先讀文件
 
@@ -12,6 +12,21 @@
 2. `CHANGELOG.md`（最新正式版條目）
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
+
+## 三行同步狀態（2026-07-14）
+
+1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨 `path-char-lstm.bin` 未動。
+2. **北極星**：**`tw538-northstar.tsv`（537 句）** 為預設裁判；舊 `tw-sentences.tsv`（395）僅存檔。基準線見下「tw538 基準線」。
+3. **下一刀**：在 tw538 上重做方法選擇（舊 395 的 174/185 數字不可直接橫向比較）。
+
+### tw538 基準線（rebuild 後填入）
+
+| 系統 | correct/537 | 備註 |
+|------|-------------|------|
+| walk OFF | *(pending)* | 純 unigram |
+| walk ON λ=0.75 | *(pending)* | ContextModel bigram |
+| 口語 LSTM n-best rerank | *(pending)* | best ν + mean_ms |
+| 約束重搜 fusion | *(pending)* | zenzai harness |
 
 ## 目前真相（v2.5.0 / build 2287 / tag `v2.3.1`（標點熱修；n-gram+RNN 主線仍在 master 未另開大版本））
 

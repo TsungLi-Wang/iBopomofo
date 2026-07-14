@@ -4,21 +4,34 @@ Full-sentence top-1 character accuracy on clean Taiwan sentences: convert the
 reading key sequence with the engine `walk()` and compare the whole string to
 the expected text. This is the single objective judge for engine changes.
 
-- `tw-sentences.tsv`: `readings<TAB>expected_text`, 395 cases (no punctuation;
-  the C++ harness feeds BPMF syllables only).
+- **`tw538-northstar.tsv` (current north-star)**: `readings<TAB>expected_text`,
+  **537** cases. Real PTT lifestyle-board article bodies (not Gossiping /
+  C_Chat), mainland/Cantonese/jargon filtered, Johnny human-reviewed.
+  Default for `build-and-run.sh`.
+- `tw-sentences.tsv` (**archive only**): previous 395-case set. Kept for
+  historical comparison; do not use as the default judge for new work.
 - `tw_benchmark.cpp` / `build-and-run.sh`: compile against the real dictionary
   and print baseline accuracy. Results are read via `walk().chosenValueAt(i)`,
   the only correct way to read a walk that used a `ContextModel` (the DP records
   its choice in `selectedUnigramIndices` without mutating the nodes, so
   `valuesAsStrings()` / `node->value()` do not reflect it).
 
-## Baseline
+## Baseline (tw538)
 
 ```
 ./build-and-run.sh
+# or explicitly:
+./build-and-run.sh tw538-northstar.tsv ../../../Data/word-bigrams.tsv 0.75
 ```
 
-Unigram-only walk: **41.5% (164/395)**.
+Numbers are recorded in `CHANGELOG.md` / `AI_HANDOFF_PROMPT.md` after each
+rebuild on this set. Historical 395 baselines (for archive):
+
+```
+# archive only
+./build-and-run.sh tw-sentences.tsv
+# Unigram-only walk (395): 41.5% (164/395); contextual λ=0.75: 44.1% (174/395).
+```
 
 ## Same-path oracle upper bound
 
