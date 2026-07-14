@@ -13,32 +13,30 @@
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 
-## 三行同步狀態（2026-07-14）
+## 三行同步狀態（2026-07-14 晚）
 
-1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨 `path-char-lstm.bin` 未動。
-2. **北極星**：**`tw538-northstar.tsv`（537 句）** 為預設裁判；舊 `tw-sentences.tsv`（395）僅存檔。基準線見下「tw538 基準線」。
-3. **下一刀**：在 tw538 上重做方法選擇（舊 395 的 174/185 數字不可直接橫向比較）。
+1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨 `path-char-lstm.bin` **未動**（本棒不接 app）。
+2. **北極星**：**tw538（537）**；harness 新最佳 = **v2b spoken LSTM ν=0.75 → 374/537**（相對 v1 356 **+18**）。
+3. **下一刀**：用 v2b 重跑 A 類歸因；針對殘餘 MODEL_LOSS（單字同音）做特徵／對照表或對症重訓；B 類 path_locked 仍次要。
 
-### tw538 基準線（2026-07-14 重建，stdout 見本機 `/tmp/tw538_*`）
+### tw538 基準線（2026-07-14）
 
 | 系統 | correct/537 | 備註 |
 |------|-------------|------|
 | walk OFF | **296/537（55.1%）** | 純 unigram |
-| walk ON λ=0.75 | **333/537（62.0%）** | ContextModel bigram；+37 vs OFF |
-| 口語 LSTM n-best rerank | **356/537（66.3%）** | best **ν=0.5**；mean_ms≈64；ν 曲線 0→333,0.1→346,0.25→348,**0.5→356**,0.75→349,1→336 |
-| 約束重搜 fusion | **335/537（62.4%）** | CondConverter 提案 + fusion 選路；mean_ms≈301；**BREAKTHROUGH_GREEDY=3**；fidelity 0 |
+| walk ON λ=0.75 | **333/537（62.0%）** | ContextModel bigram |
+| 口語 LSTM v1 n-best | **356/537（66.3%）** | emb64/hid128；**ν=0.5**；mean_ms≈61 |
+| 口語 LSTM **v2a**（大語料同架構） | **362/537（67.4%）** | +6 語料量；ν=0.5；mean_ms≈81 |
+| 口語 LSTM **v2b**（大語料+放大） | **374/537（69.6%）** | **新最佳 ν=0.75**；mean_ms≈216；params 3.95M |
+| 約束重搜 fusion | **335/537（62.4%）** | 封存；本棒不碰 |
 
-**相對關係（tw538）**：walk ON 333 → 約束 fusion **+2** → 口語 n-best rerank **+23**（相對 walk ON）。  
-n-best 仍含正解率：470/537；池外 miss 67。舊 395 數字（174/185）**不可**與 tw538 橫向比較。
+### A 類歸因 + 融合探針 + 老師升級（本棒）
 
-### tw538 錯誤決策地圖（2026-07-14）
-
-- 產物：`Source/Engine/eval/analysis/tw538-error-map.tsv` + `classify_tw538_errors.py`
-- **A 類（池內 scorer 選錯）= 114**：單字同音 swap **77（67.5%）**、多字 swap **30（26.3%）** → 主戰場
-- **B 類（池外）= 67**：詞典判定 **path_locked 66 / missing_lexicon 0 / reading_mismatch 1**
-- N 掃描：N=10→470 池；N=20→475（+1 correct@0.5=357）；N=50→477 池仍 357。擴池收益薄。
-- ν 細掃（N=20）：最佳仍 **0.5 → 357**
-- 權重持久化：`Source/Engine/eval/models/path-char-lstm-spoken.bin` + SHA256
+- **T1**（v1 teacher）：A=114 → **FUSION_LOSS 28（24.6%）** / **MODEL_LOSS 86（75.4%）**。融合最多救 ~28 句。
+- **T2a**：fusion 變體天花板薄；`both_len_char ν=0.5` 僅 **357**。stdout 在 `eval/analysis/tw538-fusion-variants.*`。
+- **T2b**：Gossiping 擴量 **han≈77.8M**（禁評測十板+C_Chat）。(a)+6 / (b)+18。權重 `eval/models/path-char-lstm-spoken-v2{a,b}.bin`。
+- **錯誤地圖**（v1）：A=114 單字同音 67.5%；B=67 path_locked 66、缺詞 0。
+- N 擴池已判死刑（N=50 正解 +1）；固定 N=10。
 
 ## 目前真相（v2.5.0 / build 2287 / tag `v2.3.1`（標點熱修；n-gram+RNN 主線仍在 master 未另開大版本））
 

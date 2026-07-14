@@ -1,0 +1,113 @@
+corpus chars≈95408297 han≈77762073
+vocab=7875 emb=128 hidden=256 layers=2
+sequences=474322
+train_seqs=464836 val_seqs=9486
+dataset=StreamCharDataset samples=1307476
+device=mps
+parameters=3953475
+  ep1 batch 400/10215 loss=6.1601
+  ep1 batch 800/10215 loss=5.8385
+  ep1 batch 1200/10215 loss=5.5391
+  ep1 batch 1600/10215 loss=5.4646
+  ep1 batch 2000/10215 loss=5.3274
+  ep1 batch 2400/10215 loss=5.3097
+  ep1 batch 2800/10215 loss=5.1761
+  ep1 batch 3200/10215 loss=5.1566
+  ep1 batch 3600/10215 loss=5.1177
+  ep1 batch 4000/10215 loss=4.9823
+  ep1 batch 4400/10215 loss=5.0025
+  ep1 batch 4800/10215 loss=4.9988
+  ep1 batch 5200/10215 loss=4.9021
+  ep1 batch 5600/10215 loss=4.9521
+  ep1 batch 6000/10215 loss=4.8243
+  ep1 batch 6400/10215 loss=4.7620
+  ep1 batch 6800/10215 loss=4.7328
+  ep1 batch 7200/10215 loss=4.7438
+  ep1 batch 7600/10215 loss=4.7259
+  ep1 batch 8000/10215 loss=4.6655
+  ep1 batch 8400/10215 loss=4.7063
+  ep1 batch 8800/10215 loss=4.6381
+  ep1 batch 9200/10215 loss=4.6252
+  ep1 batch 9600/10215 loss=4.6178
+  ep1 batch 10000/10215 loss=4.6400
+epoch 1/4 train_loss=5.0587 train_ppl≈157.38 val_loss=4.6169 val_ppl≈101.18 *best
+  ep2 batch 400/10215 loss=4.5354
+  ep2 batch 800/10215 loss=4.6112
+  ep2 batch 1200/10215 loss=4.5937
+  ep2 batch 1600/10215 loss=4.4943
+  ep2 batch 2000/10215 loss=4.5894
+  ep2 batch 2400/10215 loss=4.5416
+  ep2 batch 2800/10215 loss=4.5020
+  ep2 batch 3200/10215 loss=4.5291
+  ep2 batch 3600/10215 loss=4.4710
+  ep2 batch 4000/10215 loss=4.5392
+  ep2 batch 4400/10215 loss=4.4266
+  ep2 batch 4800/10215 loss=4.5153
+  ep2 batch 5200/10215 loss=4.5078
+  ep2 batch 5600/10215 loss=4.4518
+  ep2 batch 6000/10215 loss=4.4593
+  ep2 batch 6400/10215 loss=4.4037
+  ep2 batch 6800/10215 loss=4.3992
+  ep2 batch 7200/10215 loss=4.4413
+  ep2 batch 7600/10215 loss=4.4666
+  ep2 batch 8000/10215 loss=4.4629
+  ep2 batch 8400/10215 loss=4.3909
+  ep2 batch 8800/10215 loss=4.4584
+  ep2 batch 9200/10215 loss=4.4114
+  ep2 batch 9600/10215 loss=4.4373
+  ep2 batch 10000/10215 loss=4.4375
+epoch 2/4 train_loss=4.5019 train_ppl≈90.19 val_loss=4.4353 val_ppl≈84.38 *best
+  ep3 batch 400/10215 loss=4.4560
+  ep3 batch 800/10215 loss=4.3721
+  ep3 batch 1200/10215 loss=4.4385
+  ep3 batch 1600/10215 loss=4.3274
+  ep3 batch 2000/10215 loss=4.3375
+  ep3 batch 2400/10215 loss=4.4569
+  ep3 batch 2800/10215 loss=4.3785
+  ep3 batch 3200/10215 loss=4.3498
+  ep3 batch 3600/10215 loss=4.3615
+  ep3 batch 4000/10215 loss=4.4082
+  ep3 batch 4400/10215 loss=4.3853
+  ep3 batch 4800/10215 loss=4.3855
+  ep3 batch 5200/10215 loss=4.3433
+  ep3 batch 5600/10215 loss=4.3547
+  ep3 batch 6000/10215 loss=4.3872
+  ep3 batch 6400/10215 loss=4.3840
+  ep3 batch 6800/10215 loss=4.3850
+  ep3 batch 7200/10215 loss=4.3857
+  ep3 batch 7600/10215 loss=4.3880
+  ep3 batch 8000/10215 loss=4.3080
+  ep3 batch 8400/10215 loss=4.4201
+  ep3 batch 8800/10215 loss=4.4057
+  ep3 batch 9200/10215 loss=4.3725
+  ep3 batch 9600/10215 loss=4.3411
+  ep3 batch 10000/10215 loss=4.3172
+epoch 3/4 train_loss=4.3856 train_ppl≈80.28 val_loss=4.3635 val_ppl≈78.53 *best
+  ep4 batch 400/10215 loss=4.3646
+  ep4 batch 800/10215 loss=4.3513
+  ep4 batch 1200/10215 loss=4.3125
+  ep4 batch 1600/10215 loss=4.3527
+  ep4 batch 2000/10215 loss=4.3014
+  ep4 batch 2400/10215 loss=4.3810
+  ep4 batch 2800/10215 loss=4.3544
+  ep4 batch 3200/10215 loss=4.3712
+  ep4 batch 3600/10215 loss=4.3683
+  ep4 batch 4000/10215 loss=4.3485
+  ep4 batch 4400/10215 loss=4.3405
+  ep4 batch 4800/10215 loss=4.3241
+  ep4 batch 5200/10215 loss=4.3334
+  ep4 batch 5600/10215 loss=4.2701
+  ep4 batch 6000/10215 loss=4.3374
+  ep4 batch 6400/10215 loss=4.3509
+  ep4 batch 6800/10215 loss=4.2938
+  ep4 batch 7200/10215 loss=4.3162
+  ep4 batch 7600/10215 loss=4.2818
+  ep4 batch 8000/10215 loss=4.3087
+  ep4 batch 8400/10215 loss=4.3115
+  ep4 batch 8800/10215 loss=4.3536
+  ep4 batch 9200/10215 loss=4.3657
+  ep4 batch 9600/10215 loss=4.3160
+  ep4 batch 10000/10215 loss=4.2817
+epoch 4/4 train_loss=4.3289 train_ppl≈75.86 val_loss=4.3233 val_ppl≈75.44 *best
+exported /tmp/ptt-gossip-expand/models/path-char-lstm-spoken-v2b.bin (15853304 bytes)
+meta /tmp/ptt-gossip-expand/models/path-char-lstm-spoken-v2b.meta.txt

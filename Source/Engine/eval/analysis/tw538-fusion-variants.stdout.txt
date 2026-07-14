@@ -1,0 +1,54 @@
+cases=537 lambda=0.75 nbest_n=10 params=1272852
+PREP_POOLS 537 mean_ms=63.0573
+VARIANT baseline_nu0.250000 correct 348/537 pick_mean_ms 0.000115456 (pool_prep_mean_ms included separately)
+VARIANT baseline_nu0.500000 correct 356/537 pick_mean_ms 7.07635e-05 (pool_prep_mean_ms included separately)
+VARIANT baseline_nu0.750000 correct 349/537 pick_mean_ms 6.51769e-05 (pool_prep_mean_ms included separately)
+VARIANT baseline_nu1.000000 correct 336/537 pick_mean_ms 6.33147e-05 (pool_prep_mean_ms included separately)
+TABLE baseline nu=0.25 correct 348/537
+TABLE baseline nu=0.5 correct 356/537
+TABLE baseline nu=0.75 correct 349/537
+TABLE len_char nu=0.25 correct 339/537
+TABLE len_word nu=0.25 correct 326/537
+TABLE len_char nu=0.5 correct 340/537
+TABLE len_word nu=0.5 correct 318/537
+TABLE len_char nu=0.75 correct 339/537
+TABLE len_word nu=0.75 correct 312/537
+TABLE len_char nu=1 correct 342/537
+TABLE len_word nu=1 correct 306/537
+TABLE len_char nu=2 correct 346/537
+TABLE len_word nu=2 correct 252/537
+TABLE len_char nu=4 correct 350/537
+TABLE len_word nu=4 correct 182/537
+TABLE len_char nu=8 correct 347/537
+TABLE len_word nu=8 correct 135/537
+TABLE len_char nu=16 correct 321/537
+TABLE len_word nu=16 correct 99/537
+TABLE both_len_char nu=0.25 correct 348/537
+TABLE both_len_char nu=0.5 correct 357/537
+TABLE both_len_char nu=0.75 correct 350/537
+TABLE both_len_char nu=1 correct 337/537
+TABLE both_len_char nu=2 correct 313/537
+TABLE both_len_char nu=4 correct 296/537
+TABLE zscore alpha=0.25 correct 349/537
+TABLE minmax alpha=0.25 correct 349/537
+TABLE zscore alpha=0.5 correct 350/537
+TABLE minmax alpha=0.5 correct 349/537
+TABLE zscore alpha=0.75 correct 351/537
+TABLE minmax alpha=0.75 correct 350/537
+TABLE zscore alpha=1 correct 349/537
+TABLE minmax alpha=1 correct 350/537
+TABLE zscore alpha=1.25 correct 345/537
+TABLE minmax alpha=1.25 correct 344/537
+TABLE zscore alpha=1.5 correct 347/537
+TABLE minmax alpha=1.5 correct 342/537
+TABLE zscore alpha=2 correct 339/537
+TABLE minmax alpha=2 correct 336/537
+TABLE zscore alpha=3 correct 323/537
+TABLE minmax alpha=3 correct 320/537
+TABLE zscore alpha=4 correct 309/537
+TABLE minmax alpha=4 correct 307/537
+TABLE zscore alpha=6 correct 297/537
+TABLE minmax alpha=6 correct 298/537
+TABLE zscore alpha=8 correct 294/537
+TABLE minmax alpha=8 correct 291/537
+DONE

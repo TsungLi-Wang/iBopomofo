@@ -1,0 +1,48 @@
+{
+  "out": "/tmp/ptt-gossip-expand/ptt_spoken_train_v2.txt",
+  "lines": 5271221,
+  "han_chars": 77762073,
+  "chars": 90137076,
+  "bytes": 255623021,
+  "counts": {
+    "kept": 5271221,
+    "han": 77762073,
+    "chars": 90137076,
+    "src_qa_txt": 418202,
+    "drop_short": 189801,
+    "drop_prc": 1371,
+    "drop_dupe": 418097,
+    "drop_empty": 8,
+    "src_qa_csv": 773036,
+    "drop_no_data": 1078,
+    "src_replies_pushes_only": 4689260
+  },
+  "banned_boards": [
+    "C_Chat",
+    "Food",
+    "Lifeismoney",
+    "MobileComm",
+    "PC_Shopping",
+    "Soft_Job",
+    "Stock",
+    "Tech_Job",
+    "WomenTalk",
+    "c_chat",
+    "car",
+    "movie",
+    "stock"
+  ],
+  "sources": {
+    "qa_csv": "/tmp/ptt-gossip-expand/Gossiping-QA-Dataset-2_0.csv",
+    "qa_txt": "/tmp/ptt-gossip/Gossiping-QA-Dataset.txt",
+    "extra_jsonl": [],
+    "extra_txt": [
+      "/tmp/ptt-gossip-expand/replies_pushes_only.txt"
+    ]
+  },
+  "lines_unpacked": 5271221,
+  "lines_packed": 474322,
+  "packed_path": "/tmp/ptt-gossip-expand/ptt_spoken_train_v2_packed.txt",
+  "source_description": "Gossiping-QA-Dataset-2_0.csv + Gossiping-QA-Dataset.txt + source_replies push Content (zake7749 PTT Gossiping corpus). No tw538 boards, no C_Chat.",
+  "banned_boards_enforced": true
+}

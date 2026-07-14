@@ -136,6 +136,36 @@ def collate(batch):
     return bx, by
 
 
+class StreamCharDataset(Dataset):
+    """Flat token stream cut into fixed-length windows (fast, no per-sample lists)."""
+
+    def __init__(self, sequences: list[list[int]], seq_len: int = 64):
+        flat: list[int] = []
+        for seq in sequences:
+            if len(seq) >= 3:
+                flat.extend(seq)
+        self.seq_len = seq_len
+        self.data = torch.tensor(flat, dtype=torch.long)
+        # non-overlapping windows for speed (still covers full corpus each epoch)
+        usable = max(0, self.data.numel() - 1)
+        self.n = usable // seq_len
+        if self.n < 1 and self.data.numel() >= 3:
+            self.n = 1
+
+    def __len__(self) -> int:
+        return self.n
+
+    def __getitem__(self, idx: int):
+        start = idx * self.seq_len
+        chunk = self.data[start : start + self.seq_len + 1]
+        if chunk.numel() < 3:
+            # pad edge case
+            pad = torch.zeros(self.seq_len + 1, dtype=torch.long)
+            pad[: chunk.numel()] = chunk
+            chunk = pad
+        return chunk[:-1], chunk[1:]
+
+
 class CharLSTM(nn.Module):
     def __init__(self, vocab: int, emb: int, hidden: int, layers: int):
         super().__init__()
@@ -162,8 +192,9 @@ def export_binary(path: Path, model: CharLSTM, itos: list[str], emb: int, hidden
             f.write(b)
 
         def dump(t: torch.Tensor):
-            arr = t.detach().cpu().contiguous().float().numpy()
-            f.write(arr.tobytes(order="C"))
+            t = t.detach().cpu().contiguous().to(torch.float32)
+            # torch 2.x: untyped_storage gives raw float32 bytes without numpy
+            f.write(bytes(t.untyped_storage()))
 
         dump(sd["emb.weight"])
         for li in range(layers):
@@ -174,6 +205,23 @@ def export_binary(path: Path, model: CharLSTM, itos: list[str], emb: int, hidden
         dump(sd["fc.weight"])
         dump(sd["fc.bias"])
     print(f"exported {path} ({path.stat().st_size} bytes)")
+
+
+@torch.no_grad()
+def eval_loss(model: CharLSTM, dl: DataLoader, device: torch.device, loss_fn) -> tuple[float, float]:
+    model.eval()
+    total = 0.0
+    tokens = 0
+    for bx, by in dl:
+        bx, by = bx.to(device), by.to(device)
+        logits = model(bx)
+        loss = loss_fn(logits.reshape(-1, logits.size(-1)), by.reshape(-1))
+        total += loss.item() * by.numel()
+        tokens += by.numel()
+    avg = total / max(1, tokens)
+    ppl = math.exp(min(20.0, avg))
+    model.train()
+    return avg, ppl
 
 
 def main() -> int:
@@ -190,13 +238,22 @@ def main() -> int:
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--seq-len", type=int, default=64)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--val-ratio", type=float, default=0.02,
+                    help="hold out fraction of sequences for val loss/ppl")
+    ap.add_argument("--device", type=str, default="auto",
+                    help="cpu|mps|auto")
+    ap.add_argument("--stream", action="store_true",
+                    help="use flat token stream dataset (faster on large corpora)")
+    ap.add_argument("--log-every", type=int, default=0,
+                    help="print mid-epoch progress every N batches (0=off)")
     args = ap.parse_args()
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
     text = load_text(args.corpus, args.wiki_dump, args.max_wiki_chars)
-    print(f"corpus chars≈{len(text)}")
+    han = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
+    print(f"corpus chars≈{len(text)} han≈{han}")
     itos, stoi = build_vocab(text, min_count=2)
     print(f"vocab={len(itos)} emb={args.emb} hidden={args.hidden} layers={args.layers}")
 
@@ -208,13 +265,35 @@ def main() -> int:
     random.shuffle(sequences)
     print(f"sequences={len(sequences)}")
 
-    ds = CharDataset(sequences, seq_len=args.seq_len)
+    n_val = max(1, int(len(sequences) * args.val_ratio)) if args.val_ratio > 0 else 0
+    val_seqs = sequences[:n_val] if n_val else []
+    train_seqs = sequences[n_val:] if n_val else sequences
+    print(f"train_seqs={len(train_seqs)} val_seqs={len(val_seqs)}")
+
+    DS = StreamCharDataset if args.stream else CharDataset
+    collate_fn = None if args.stream else collate
+    ds = DS(train_seqs, seq_len=args.seq_len)
     if len(ds) < 10:
         print("ERROR: too few training samples", file=sys.stderr)
         return 2
-    dl = DataLoader(ds, batch_size=args.batch, shuffle=True, collate_fn=collate)
+    print(f"dataset={DS.__name__} samples={len(ds)}", flush=True)
+    dl = DataLoader(ds, batch_size=args.batch, shuffle=True, collate_fn=collate_fn)
+    val_dl = None
+    if val_seqs:
+        val_ds = DS(val_seqs, seq_len=args.seq_len)
+        if len(val_ds) > 0:
+            val_dl = DataLoader(val_ds, batch_size=args.batch, shuffle=False,
+                                collate_fn=collate_fn)
 
-    device = torch.device("cpu")
+    if args.device == "auto":
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
+    else:
+        device = torch.device(args.device)
+    print(f"device={device}")
+
     model = CharLSTM(len(itos), args.emb, args.hidden, args.layers).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     loss_fn = nn.CrossEntropyLoss(ignore_index=0)
@@ -223,10 +302,12 @@ def main() -> int:
     print(f"parameters={n_params}")
 
     model.train()
+    best_val = float("inf")
     for ep in range(1, args.epochs + 1):
         total = 0.0
         tokens = 0
-        for bx, by in dl:
+        n_batches = len(dl)
+        for bi, (bx, by) in enumerate(dl, 1):
             bx, by = bx.to(device), by.to(device)
             opt.zero_grad()
             logits = model(bx)
@@ -236,10 +317,24 @@ def main() -> int:
             opt.step()
             total += loss.item() * by.numel()
             tokens += by.numel()
+            if args.log_every and bi % args.log_every == 0:
+                print(
+                    f"  ep{ep} batch {bi}/{n_batches} loss={loss.item():.4f}",
+                    flush=True,
+                )
         avg = total / max(1, tokens)
         ppl = math.exp(min(20.0, avg))
-        print(f"epoch {ep}/{args.epochs} loss={avg:.4f} ppl≈{ppl:.2f}")
+        msg = f"epoch {ep}/{args.epochs} train_loss={avg:.4f} train_ppl≈{ppl:.2f}"
+        if val_dl is not None:
+            vloss, vppl = eval_loss(model, val_dl, device, loss_fn)
+            msg += f" val_loss={vloss:.4f} val_ppl≈{vppl:.2f}"
+            if vloss < best_val:
+                best_val = vloss
+                msg += " *best"
+        print(msg, flush=True)
 
+    # export on CPU tensors
+    model.cpu()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     export_binary(args.out, model, itos, args.emb, args.hidden, args.layers)
     meta = args.out.with_suffix(".meta.txt")
@@ -247,7 +342,9 @@ def main() -> int:
         f"arch=CharLSTM layers={args.layers} emb={args.emb} hidden={args.hidden}\n"
         f"vocab={len(itos)} params={n_params}\n"
         f"epochs={args.epochs} lr={args.lr} seq_len={args.seq_len}\n"
-        f"corpus={args.corpus} wiki={args.wiki_dump} max_wiki={args.max_wiki_chars}\n",
+        f"corpus={args.corpus} wiki={args.wiki_dump} max_wiki={args.max_wiki_chars}\n"
+        f"han_chars≈{han} val_ratio={args.val_ratio} best_val_loss={best_val}\n"
+        f"device={device}\n",
         encoding="utf-8",
     )
     print(f"meta {meta}")

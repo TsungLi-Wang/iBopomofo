@@ -1,0 +1,12 @@
+=== tw538 A-class attribution (T1) ===
+config=walk ON λ=0.75 + spoken LSTM ν=0.5 N=10
+A_CLASS=114
+FUSION_LOSS=28 (24.6%)  # LSTM_gold > LSTM_chosen
+MODEL_LOSS=86 (75.4%)  # LSTM_gold <= LSTM_chosen
+FUSION mean(lstm_gold-chosen)=0.5879
+MODEL mean(lstm_chosen-gold)=1.7324
+FUSION_LOSS where walk_chosen>walk_gold=28/28
+Interpretation: ~3/4 of A-class is MODEL_LOSS (teacher ranks wrong path higher).
+Fusion formula can at most recover FUSION_LOSS (~28). Main firepower → stronger teacher.
+Raw stdout: tw538-a-attr.stdout.txt
+Per-sentence: tw538-a-attr.tsv

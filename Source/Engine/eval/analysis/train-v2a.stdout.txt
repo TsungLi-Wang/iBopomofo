@@ -1,0 +1,53 @@
+corpus chars≈95408297 han≈77762073
+vocab=7875 emb=64 hidden=128 layers=2
+sequences=474322
+train_seqs=464836 val_seqs=9486
+dataset=StreamCharDataset samples=1307476
+device=mps
+parameters=1751299
+  ep1 batch 500/5108 loss=6.2339
+  ep1 batch 1000/5108 loss=5.8640
+  ep1 batch 1500/5108 loss=5.6807
+  ep1 batch 2000/5108 loss=5.4702
+  ep1 batch 2500/5108 loss=5.3822
+  ep1 batch 3000/5108 loss=5.2252
+  ep1 batch 3500/5108 loss=5.1910
+  ep1 batch 4000/5108 loss=5.1542
+  ep1 batch 4500/5108 loss=5.0859
+  ep1 batch 5000/5108 loss=5.0709
+epoch 1/4 train_loss=5.5139 train_ppl≈248.11 val_loss=5.0460 val_ppl≈155.39 *best
+  ep2 batch 500/5108 loss=5.0221
+  ep2 batch 1000/5108 loss=4.9269
+  ep2 batch 1500/5108 loss=4.9325
+  ep2 batch 2000/5108 loss=4.9462
+  ep2 batch 2500/5108 loss=4.8878
+  ep2 batch 3000/5108 loss=4.8548
+  ep2 batch 3500/5108 loss=4.8841
+  ep2 batch 4000/5108 loss=4.8714
+  ep2 batch 4500/5108 loss=4.8253
+  ep2 batch 5000/5108 loss=4.7957
+epoch 2/4 train_loss=4.9176 train_ppl≈136.67 val_loss=4.8193 val_ppl≈123.88 *best
+  ep3 batch 500/5108 loss=4.7753
+  ep3 batch 1000/5108 loss=4.7316
+  ep3 batch 1500/5108 loss=4.7496
+  ep3 batch 2000/5108 loss=4.7469
+  ep3 batch 2500/5108 loss=4.7271
+  ep3 batch 3000/5108 loss=4.7297
+  ep3 batch 3500/5108 loss=4.7230
+  ep3 batch 4000/5108 loss=4.7168
+  ep3 batch 4500/5108 loss=4.7406
+  ep3 batch 5000/5108 loss=4.7003
+epoch 3/4 train_loss=4.7442 train_ppl≈114.92 val_loss=4.6921 val_ppl≈109.09 *best
+  ep4 batch 500/5108 loss=4.7162
+  ep4 batch 1000/5108 loss=4.6401
+  ep4 batch 1500/5108 loss=4.6182
+  ep4 batch 2000/5108 loss=4.6293
+  ep4 batch 2500/5108 loss=4.6536
+  ep4 batch 3000/5108 loss=4.6597
+  ep4 batch 3500/5108 loss=4.6900
+  ep4 batch 4000/5108 loss=4.6132
+  ep4 batch 4500/5108 loss=4.6158
+  ep4 batch 5000/5108 loss=4.5606
+epoch 4/4 train_loss=4.6466 train_ppl≈104.23 val_loss=4.6213 val_ppl≈101.62 *best
+exported /tmp/ptt-gossip-expand/models/path-char-lstm-spoken-v2a.bin (7044600 bytes)
+meta /tmp/ptt-gossip-expand/models/path-char-lstm-spoken-v2a.meta.txt

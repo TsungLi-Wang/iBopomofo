@@ -1,0 +1,6 @@
+arch=CharLSTM layers=2 emb=64 hidden=128
+vocab=7875 params=1751299
+epochs=4 lr=0.001 seq_len=64
+corpus=/tmp/ptt-gossip-expand/ptt_spoken_train_v2_packed.txt wiki=None max_wiki=3000000
+han_chars≈77762073 val_ratio=0.02 best_val_loss=4.6212507417409645
+device=mps

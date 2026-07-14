@@ -1,0 +1,9 @@
+cases=537 lambda=0.75 nu=0.5 nbest_n=10 params=1272852
+CORRECT 356/537
+IN_POOL 470/537
+A_CLASS 114
+FUSION_LOSS 28 (24.5614%)
+MODEL_LOSS 86 (75.4386%)
+POOL_MISS 67
+CHOSEN_PATH_FALLBACK 0
+OUT Source/Engine/eval/analysis/tw538-a-attr.tsv

@@ -33,18 +33,22 @@ rebuild on this set. Historical 395 baselines (for archive):
 # Unigram-only walk (395): 41.5% (164/395); contextual λ=0.75: 44.1% (174/395).
 ```
 
-## Reproduce spoken LSTM n-best **356/537** (ν=0.5, N=10)
+## Reproduce spoken LSTM n-best
 
-Weights (persistent, not `/tmp`):
+### Current best: **374/537** (ν=0.75, N=10) — v2b
 
-- `../models/path-char-lstm-spoken.bin` (~4.9MB, spoken PTT Gossiping char-LSTM)
-- SHA256: see `../models/path-char-lstm-spoken.sha256`
-- meta: `../models/path-char-lstm-spoken.meta.txt` (layers=2 emb=64 hidden=128 vocab=5396 params=1272852)
+Weights (persistent under `../models/`):
+
+| weight | arch | params | best on tw538 | SHA256 file |
+|--------|------|--------|---------------|-------------|
+| `path-char-lstm-spoken-v2b.bin` (~15MB) | emb128/hid256 | 3,953,475 | **374 @ ν=0.75** | `*.sha256` |
+| `path-char-lstm-spoken-v2a.bin` (~6.7MB) | emb64/hid128 | 1,751,299 | 362 @ ν=0.5 | `*.sha256` |
+| `path-char-lstm-spoken.bin` (~4.9MB) | emb64/hid128 | 1,272,852 | 356 @ ν=0.5 (v1 baseline) | `*.sha256` |
 
 ```bash
 # from Source/Engine/eval/benchmarks
 ENGINE=../..
-clang++ -std=c++20 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
+clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
   nbest_path_rerank.cpp \
   "$ENGINE/gramambular2/reading_grid.cpp" \
   "$ENGINE/CorpusBigramContextModel.cpp" \
@@ -54,17 +58,64 @@ clang++ -std=c++20 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
   "$ENGINE/MemoryMappedFile.cpp" \
   -o /tmp/nbest_neural
 
+# NEW BEST
+/tmp/nbest_neural tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 \
+  ../models/path-char-lstm-spoken-v2b.bin
+# expect: BEST_NU 0.75 correct 374/537 ; mean_ms≈216
+# walk OFF 296 / walk ON 333 (SLICE1_*)
+
+# v1 baseline 356
 /tmp/nbest_neural tw538-northstar.tsv ../../../Data/data.txt \
   ../../../Data/word-bigrams.tsv 0.75 \
   ../models/path-char-lstm-spoken.bin
 # expect: BEST_NU 0.5 correct 356/537
-# walk OFF 296 / walk ON 333 (SLICE1_*)
+```
+
+### Train spoken v2 weights (pollution-safe Gossiping ≥40M han)
+
+```bash
+# 1) Build corpus (Gossiping QA v2 + push replies; bans tw538 boards + C_Chat)
+python3 ../build_spoken_corpus.py \
+  --qa-csv /path/to/Gossiping-QA-Dataset-2_0.csv \
+  --qa-txt /path/to/Gossiping-QA-Dataset.txt \
+  --extra-txt /path/to/replies_pushes_only.txt \
+  --out /tmp/ptt_spoken_train_v2.txt \
+  --stats ../analysis/spoken-corpus-v2-stats.json
+# pack short lines optional for training speed (same han count)
+
+# 2) Train (requires PyTorch)
+# (a) same arch: --emb 64 --hidden 128
+# (b) larger:    --emb 128 --hidden 256
+python3 ../train_char_lstm_lm.py \
+  --corpus /tmp/ptt_spoken_train_v2_packed.txt \
+  --out ../models/path-char-lstm-spoken-v2b.bin \
+  --epochs 4 --emb 128 --hidden 256 --layers 2 \
+  --batch 128 --seq-len 64 --stream --device mps
+```
+
+Compare table: `../analysis/tw538-lstm-v2-compare.md`.
+
+### A-class attribution + fusion probes
+
+```bash
+# T1: FUSION_LOSS vs MODEL_LOSS on A-class 114 (v1 teacher)
+clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
+  tw538_a_class_attr.cpp ... -o /tmp/tw538_a_class_attr
+/tmp/tw538_a_class_attr tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 \
+  ../models/path-char-lstm-spoken.bin 0.5 10 \
+  ../analysis/tw538-a-attr.tsv
+# expect: FUSION_LOSS 28 / MODEL_LOSS 86
+
+# T2a: fusion variants (length-norm / z-score / minmax) harness-only
+# tw538_fusion_variants.cpp → both_len_char ν=0.5 → 357 (+1 only)
 ```
 
 Error decision map + A/B classification (see `../analysis/`):
 
 ```bash
-clang++ -std=c++20 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
+clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
   tw538_decision_map.cpp ...same sources as above... -o /tmp/tw538_decision_map
 /tmp/tw538_decision_map tw538-northstar.tsv ../../../Data/data.txt \
   ../../../Data/word-bigrams.tsv 0.75 \
@@ -79,7 +130,7 @@ python3 ../analysis/classify_tw538_errors.py \
   --out-a-detail ../analysis/tw538-a-class.tsv
 ```
 
-N / ν scan harness: `nbest_n_nu_scan.cpp`.
+N / ν scan harness: `nbest_n_nu_scan.cpp`. Helper: `eval_spoken_lstm.sh`.
 
 ## Same-path oracle upper bound
 
