@@ -19,14 +19,17 @@
 2. **北極星**：**`tw538-northstar.tsv`（537 句）** 為預設裁判；舊 `tw-sentences.tsv`（395）僅存檔。基準線見下「tw538 基準線」。
 3. **下一刀**：在 tw538 上重做方法選擇（舊 395 的 174/185 數字不可直接橫向比較）。
 
-### tw538 基準線（rebuild 後填入）
+### tw538 基準線（2026-07-14 重建，stdout 見本機 `/tmp/tw538_*`）
 
 | 系統 | correct/537 | 備註 |
 |------|-------------|------|
-| walk OFF | *(pending)* | 純 unigram |
-| walk ON λ=0.75 | *(pending)* | ContextModel bigram |
-| 口語 LSTM n-best rerank | *(pending)* | best ν + mean_ms |
-| 約束重搜 fusion | *(pending)* | zenzai harness |
+| walk OFF | **296/537（55.1%）** | 純 unigram |
+| walk ON λ=0.75 | **333/537（62.0%）** | ContextModel bigram；+37 vs OFF |
+| 口語 LSTM n-best rerank | **356/537（66.3%）** | best **ν=0.5**；mean_ms≈64；ν 曲線 0→333,0.1→346,0.25→348,**0.5→356**,0.75→349,1→336 |
+| 約束重搜 fusion | **335/537（62.4%）** | CondConverter 提案 + fusion 選路；mean_ms≈301；**BREAKTHROUGH_GREEDY=3**；fidelity 0 |
+
+**相對關係（tw538）**：walk ON 333 → 約束 fusion **+2** → 口語 n-best rerank **+23**（相對 walk ON）。  
+n-best 仍含正解率：470/537；池外 miss 67。舊 395 數字（174/185）**不可**與 tw538 橫向比較。
 
 ## 目前真相（v2.5.0 / build 2287 / tag `v2.3.1`（標點熱修；n-gram+RNN 主線仍在 master 未另開大版本））
 

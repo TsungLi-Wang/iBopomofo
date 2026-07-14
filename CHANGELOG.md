@@ -12,7 +12,7 @@
   - 來源：PTT 十個生活板實爬正文（Stock / PC_Shopping / Tech_Job / WomenTalk / movie / Food / Lifeismoney / Soft_Job / MobileComm / car）；**禁** Gossiping（訓練同源）與 C_Chat（圈內梗）。
   - 過濾：大陸／港澳用語、板規殘片、政治、NSFW 等；Johnny 人工逐句終審。
   - 舊 `tw-sentences.tsv` **保留存檔**（歷史對照），`build-and-run.sh` 預設改指 tw538。
-  - 新基準線數字見交班檔「tw538 基準線」節（本棒跑出後填入）。
+  - **tw538 基準線（2026-07-14）**：walk OFF **296/537**；walk ON **333/537**；口語 LSTM n-best best ν=0.5 **356/537**；約束重搜 fusion **335/537**（BREAKTHROUGH_GREEDY=3）。
 
 ### 實驗 / 診斷（未發版）
 
