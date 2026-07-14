@@ -1,0 +1,45 @@
+=== tw538 error classification summary ===
+config=walk ON λ=0.75 + spoken LSTM ν=0.5 N=10
+source_map=tw538-error-map.tsv
+lexicon=Source/Data/data.txt (programmatic longest-match + reading align DP)
+
+total=537
+correct=356 (66.3%)
+in_pool=470 (87.5%)
+A_pool_scorer_wrong=114 (21.2% of total; 24.3% of in-pool)
+B_pool_miss=67 (12.5% of total)
+anomaly_outpool_but_correct=0
+
+--- B class (pool miss, 67) — dictionary-checked ---
+B	path_locked	66	98.5% of B
+B	reading_mismatch	1	1.5% of B
+B	missing_lexicon	0	0.0% of B
+
+Interpretation: nearly all out-of-pool errors are path/segmentation locks
+(gold words exist in lexicon and can align to input readings), not missing
+dictionary entries. Fixing B needs lattice path diversity, not dictionary adds.
+
+--- A class (in-pool scorer wrong, 114) — pattern heuristics ---
+A	multi_char_swap(n=2)	24	21.1% of A
+A	multi_char_swap(n=3)	6	5.3% of A
+A	single_char_swap(版→板)	4	3.5% of A
+A	single_char_swap(期→其)	3	2.6% of A
+A	single_char_swap(以→已)	3	2.6% of A
+A	single_char_swap(不→部)	2	1.8% of A
+A	single_char_swap(時→實)	2	1.8% of A
+A	homophone_做作坐座(做→作)	2	1.8% of A
+A	single_char_swap(注→註)	2	1.8% of A
+A	single_char_swap(是→適)	2	1.8% of A
+A	single_char_swap(行→型)	2	1.8% of A
+A	(all other single_char_swap variants)	62	54.4% of A  (1 each typical)
+
+--- A super-categories ---
+A_super	single_char_swap	77	67.5% of A
+A_super	multi_char_swap	30	26.3% of A
+A_super	homophone_family	4	3.5% of A
+A_super	particle_family	2	1.8% of A
+A_super	len_diff_seg_phrase	1	0.9% of A
+
+Main battlefield: A-class single-char homophone confusions (scorer ranking).
+Scripts: classify_tw538_errors.py (re-runnable).
+Details: tw538-a-class.tsv, tw538-b-class.tsv

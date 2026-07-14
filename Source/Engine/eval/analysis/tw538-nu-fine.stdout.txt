@@ -1,0 +1,11 @@
+cases=537 params=1272852
+N 20 IN_POOL 475/537 scored_cases=537
+N 20 NU 0.3 correct 354/537 mean_ms 113.934
+N 20 NU 0.35 correct 355/537 mean_ms 112.743
+N 20 NU 0.4 correct 355/537 mean_ms 116.24
+N 20 NU 0.45 correct 354/537 mean_ms 114.815
+N 20 NU 0.5 correct 357/537 mean_ms 113.077
+N 20 NU 0.55 correct 352/537 mean_ms 114.896
+N 20 NU 0.6 correct 355/537 mean_ms 111.744
+N 20 NU 0.65 correct 351/537 mean_ms 115.021
+N 20 NU 0.7 correct 348/537 mean_ms 116.126

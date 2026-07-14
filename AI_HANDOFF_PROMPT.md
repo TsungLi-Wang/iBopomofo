@@ -31,6 +31,15 @@
 **相對關係（tw538）**：walk ON 333 → 約束 fusion **+2** → 口語 n-best rerank **+23**（相對 walk ON）。  
 n-best 仍含正解率：470/537；池外 miss 67。舊 395 數字（174/185）**不可**與 tw538 橫向比較。
 
+### tw538 錯誤決策地圖（2026-07-14）
+
+- 產物：`Source/Engine/eval/analysis/tw538-error-map.tsv` + `classify_tw538_errors.py`
+- **A 類（池內 scorer 選錯）= 114**：單字同音 swap **77（67.5%）**、多字 swap **30（26.3%）** → 主戰場
+- **B 類（池外）= 67**：詞典判定 **path_locked 66 / missing_lexicon 0 / reading_mismatch 1**
+- N 掃描：N=10→470 池；N=20→475（+1 correct@0.5=357）；N=50→477 池仍 357。擴池收益薄。
+- ν 細掃（N=20）：最佳仍 **0.5 → 357**
+- 權重持久化：`Source/Engine/eval/models/path-char-lstm-spoken.bin` + SHA256
+
 ## 目前真相（v2.5.0 / build 2287 / tag `v2.3.1`（標點熱修；n-gram+RNN 主線仍在 master 未另開大版本））
 
 | 項目 | 狀態 |

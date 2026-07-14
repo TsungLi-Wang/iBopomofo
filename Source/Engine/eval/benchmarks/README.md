@@ -33,6 +33,54 @@ rebuild on this set. Historical 395 baselines (for archive):
 # Unigram-only walk (395): 41.5% (164/395); contextual λ=0.75: 44.1% (174/395).
 ```
 
+## Reproduce spoken LSTM n-best **356/537** (ν=0.5, N=10)
+
+Weights (persistent, not `/tmp`):
+
+- `../models/path-char-lstm-spoken.bin` (~4.9MB, spoken PTT Gossiping char-LSTM)
+- SHA256: see `../models/path-char-lstm-spoken.sha256`
+- meta: `../models/path-char-lstm-spoken.meta.txt` (layers=2 emb=64 hidden=128 vocab=5396 params=1272852)
+
+```bash
+# from Source/Engine/eval/benchmarks
+ENGINE=../..
+clang++ -std=c++20 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
+  nbest_path_rerank.cpp \
+  "$ENGINE/gramambular2/reading_grid.cpp" \
+  "$ENGINE/CorpusBigramContextModel.cpp" \
+  "$ENGINE/NeuralLMPathScorer.cpp" \
+  "$ENGINE/ParselessLM.cpp" \
+  "$ENGINE/ParselessPhraseDB.cpp" \
+  "$ENGINE/MemoryMappedFile.cpp" \
+  -o /tmp/nbest_neural
+
+/tmp/nbest_neural tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 \
+  ../models/path-char-lstm-spoken.bin
+# expect: BEST_NU 0.5 correct 356/537
+# walk OFF 296 / walk ON 333 (SLICE1_*)
+```
+
+Error decision map + A/B classification (see `../analysis/`):
+
+```bash
+clang++ -std=c++20 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
+  tw538_decision_map.cpp ...same sources as above... -o /tmp/tw538_decision_map
+/tmp/tw538_decision_map tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 \
+  ../models/path-char-lstm-spoken.bin 0.5 10 \
+  ../analysis/tw538-error-map.tsv
+
+python3 ../analysis/classify_tw538_errors.py \
+  --map ../analysis/tw538-error-map.tsv \
+  --data ../../../Data/data.txt \
+  --out-summary ../analysis/tw538-error-summary.txt \
+  --out-b-detail ../analysis/tw538-b-class.tsv \
+  --out-a-detail ../analysis/tw538-a-class.tsv
+```
+
+N / ν scan harness: `nbest_n_nu_scan.cpp`.
+
 ## Same-path oracle upper bound
 
 For each bigram-miss sentence, ask whether the expected surface can be formed

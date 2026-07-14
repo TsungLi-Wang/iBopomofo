@@ -1,0 +1,8 @@
+cases=537 lambda=0.75 nu=0.5 nbest_n=10 params=1272852
+WALK_ON 333/537
+RERANK 356/537
+IN_POOL 470/537
+POOL_WRONG_SCORER 114
+POOL_MISS 67
+FEED_FAIL 0
+OUT Source/Engine/eval/analysis/tw538-error-map.tsv
