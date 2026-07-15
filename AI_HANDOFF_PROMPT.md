@@ -13,30 +13,26 @@
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 
-## 三行同步狀態（2026-07-15）
+## 三行同步狀態（2026-07-15 晚）
 
 1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨權重 **未動**。
-2. **北極星 tw538**；harness 新最佳 = **v2c emb256/hid512 ν=0.75 → 387/537**（相對 v1 356 **+31**；相對 v2b 374 **+13**）。mean_ms≈730。
-3. **下一刀**：**不要再放大 LSTM**（容量斜率遞減 6.7→2.2/Mparams；延遲爆炸）。打 A 類殘餘 **single_char_swap 68 句**（MODEL_LOSS 為主）— 對照表／特徵／小型 Transformer 擇一。
+2. **北極星 tw538**；harness 最佳仍 **v2c ν=0.75 → 387/537**。同量級 char-TF（8.81M）**失敗**：**332@0.25**（劣於 walk 333），single_char **94**（劣於 v2c 68）。
+3. **下一刀**：停通用 LM 架構競賽。打 **A 類 68 句 single_char**（v2c）：混淆對特徵／對照表／校準 ν 尺度／v2c 蒸餾小模型。
 
 ### tw538 基準線
 
 | 系統 | correct/537 | 備註 |
 |------|-------------|------|
-| walk OFF | **296** | |
-| walk ON λ=0.75 | **333** | |
-| 口語 LSTM v1 | **356 @ ν0.5** | 1.27M；~61ms |
-| v2a 大語料同架構 | **362 @ ν0.5** | +6 data；~81ms |
-| v2b emb128/hid256 | **374 @ ν0.75** | +12 cap；~226ms |
-| **v2c emb256/hid512** | **387 @ ν0.75** | **+13 cap**；~730ms；params **9.73M** |
-| 約束重搜 fusion | 335 | 封存 |
+| walk OFF / ON | 296 / **333** | |
+| v2c LSTM | **387 @ ν0.75** | 9.73M；~730ms；**現役最佳** |
+| char-TF 6L/256 | **332 @ ν0.25** | 8.81M；val_ppl 更低但融合無效 |
+| 約束 fusion | 335 | 封存 |
 
-### 關鍵診斷（2026-07-15）
+### 關鍵診斷
 
-- ν 右側（0.8–1.5）：v2b/v2c **無新峰**，最佳仍 0.75。
-- v2b 重歸因：A **96**（FUSION 15 / MODEL 81）；vs v1 RESCUE **44** / REGRESS **26**；single_char **68**。
-- 容量斜率表：`eval/analysis/tw538-capacity-slope.md`。
-- 權重：`path-char-lstm-spoken-v2c.bin` SHA 見 `*.sha256`。
+- REGRESS-26 under v2c：11 自癒 / 15 仍錯（80% single_char）。
+- TF 對照：`eval/analysis/tw538-tf-vs-v2c.md`。
+- 權重：`path-char-lstm-spoken-v2c.bin`、`path-char-tf-spoken.bin`。
 
 ## 目前真相（v2.5.0 / build 2287 / tag `v2.3.1`（標點熱修；n-gram+RNN 主線仍在 master 未另開大版本））
 

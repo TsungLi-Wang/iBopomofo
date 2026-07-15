@@ -1,0 +1,67 @@
+lexicon_words=152543
+map_rows=537
+=== tw538 error classification summary ===
+total=537
+correct=332 (61.8%)
+in_pool=470 (87.5%)
+A_pool_scorer_wrong=138 (25.7%)
+B_pool_miss=67 (12.5%)
+anomaly_outpool_but_correct=0
+
+--- B class (pool miss) ---
+B	path_locked	66	98.5%_of_B
+B	reading_mismatch	1	1.5%_of_B
+
+--- A class (in-pool scorer wrong) top patterns ---
+A	multi_char_swap(n=2)	28	20.3%_of_A
+A	single_char_swap(版→板)	4	2.9%_of_A
+A	multi_char_swap(n=3)	3	2.2%_of_A
+A	single_char_swap(封→風)	3	2.2%_of_A
+A	single_char_swap(必→畢)	2	1.4%_of_A
+A	single_char_swap(公→工)	2	1.4%_of_A
+A	single_char_swap(是→適)	2	1.4%_of_A
+A	homophone_做作坐座(作→做)	2	1.4%_of_A
+A	single_char_swap(今→金)	2	1.4%_of_A
+A	single_char_swap(不→部)	2	1.4%_of_A
+A	particle_在再(在→再)	2	1.4%_of_A
+A	single_char_swap(行→型)	2	1.4%_of_A
+A	single_char_swap(以→已)	2	1.4%_of_A
+A	single_char_swap(族→足)	1	0.7%_of_A
+A	pronoun_他她它(他→它)	1	0.7%_of_A
+A	single_char_swap(要→藥)	1	0.7%_of_A
+A	single_char_swap(清→輕)	1	0.7%_of_A
+A	single_char_swap(念→唸)	1	0.7%_of_A
+A	single_char_swap(營→盈)	1	0.7%_of_A
+A	single_char_swap(完→玩)	1	0.7%_of_A
+A	homophone_做作坐座(做→作)	1	0.7%_of_A
+A	single_char_swap(注→註)	1	0.7%_of_A
+A	single_char_swap(稅→睡)	1	0.7%_of_A
+A	single_char_swap(類→累)	1	0.7%_of_A
+A	single_char_swap(所→鎖)	1	0.7%_of_A
+A	single_char_swap(歌→哥)	1	0.7%_of_A
+A	single_char_swap(召→兆)	1	0.7%_of_A
+A	single_char_swap(與→語)	1	0.7%_of_A
+A	single_char_swap(應→英)	1	0.7%_of_A
+A	single_char_swap(較→叫)	1	0.7%_of_A
+A	single_char_swap(一→伊)	1	0.7%_of_A
+A	single_char_swap(香→箱)	1	0.7%_of_A
+A	single_char_swap(教→焦)	1	0.7%_of_A
+A	single_char_swap(頭→投)	1	0.7%_of_A
+A	single_char_swap(率→帥)	1	0.7%_of_A
+A	single_char_swap(會→匯)	1	0.7%_of_A
+A	single_char_swap(極→及)	1	0.7%_of_A
+A	single_char_swap(准→準)	1	0.7%_of_A
+A	single_char_swap(生→聲)	1	0.7%_of_A
+A	single_char_swap(矮→欸)	1	0.7%_of_A
+
+--- A super-categories ---
+A_super	single_char_swap	94	68.1%_of_A
+A_super	multi_char_swap	31	22.5%_of_A
+A_super	homophone_family	4	2.9%_of_A
+A_super	particle_family	4	2.9%_of_A
+A_super	pronoun_family	3	2.2%_of_A
+A_super	len_diff_seg_phrase	1	0.7%_of_A
+A_super	measure_word	1	0.7%_of_A
+wrote Source/Engine/eval/analysis/tw538-error-summary-tf.txt
+wrote Source/Engine/eval/analysis/tw538-b-class-tf.tsv
+wrote Source/Engine/eval/analysis/tw538-a-class-tf.tsv

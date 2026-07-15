@@ -1,0 +1,9 @@
+scorer=Transformer loaded=1 params=8811715 d=256 layers=6 heads=4 ffn=1024 max_ctx=128 vocab=7875
+SLICE1_OFF 296/537
+SLICE1_ON 333/537
+NU 0 correct 333/537 mean_ms 0.260138
+NU 0.25 correct 332/537 mean_ms 728.87
+NU 0.5 correct 329/537 mean_ms 720.024
+NU 0.75 correct 328/537 mean_ms 718.968
+NU 1 correct 330/537 mean_ms 718.075
+BEST_NU 0 correct 333/537

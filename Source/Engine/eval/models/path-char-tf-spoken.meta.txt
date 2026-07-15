@@ -1,0 +1,5 @@
+arch=CharTransformer n_layer=6 d_model=256 n_head=4 ffn=1024 max_ctx=128
+vocab=7875 params=8811715
+epochs=4 lr=0.0003 seq_len=128 dropout=0.1
+corpus=/tmp/ptt-gossip-expand/ptt_spoken_train_v2_packed.txt han_chars≈77762073 val_ratio=0.02 best_val_loss=4.073355487644833
+device=mps

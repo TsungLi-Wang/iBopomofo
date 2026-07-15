@@ -1,0 +1,7 @@
+scorer=TF params=8811715
+WALK_ON 333/537
+RERANK 332/537
+IN_POOL 470/537
+POOL_WRONG_SCORER 138
+POOL_MISS 67
+OUT Source/Engine/eval/analysis/tw538-error-map-tf.tsv

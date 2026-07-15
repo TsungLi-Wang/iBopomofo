@@ -14,22 +14,17 @@
   - 舊 `tw-sentences.tsv` **保留存檔**（歷史對照），`build-and-run.sh` 預設改指 tw538。
   - **tw538 基準線（2026-07-14）**：walk OFF **296/537**；walk ON **333/537**；口語 LSTM n-best best ν=0.5 **356/537**；約束重搜 fusion **335/537**（BREAKTHROUGH_GREEDY=3）。
 
-### 實驗 / 診斷（未發版）— A 類歸因 + scorer 升級 + 容量斜率（2026-07-14→15）
+### 實驗 / 診斷（未發版）— LSTM 階梯 + Transformer 對照（2026-07-14→15）
 
-- **T1 A 類 114 句歸因**（v1 spoken ν=0.5 N=10）：**FUSION_LOSS 28（24.6%）** / **MODEL_LOSS 86（75.4%）**。主戰場是老師選錯，不是融合公式。
-- **T2a 融合變體**：最佳僅 `both_len_char ν=0.5` → **357（+1）**。融合到頂。
-- **口語 LSTM 階梯**（Gossiping han≈77.8M，禁評測十板+C_Chat；N=10）：
-  | 檔 | params | best | ν | mean_ms |
-  |----|--------|------|---|---------|
-  | v1 | 1.27M | 356 | 0.5 | ~61 |
-  | v2a 同架構+大語料 | 1.75M | 362 | 0.5 | ~81 |
-  | v2b emb128/hid256 | 3.95M | 374 | 0.75 | ~226 |
-  | **v2c emb256/hid512** | **9.73M** | **387** | **0.75** | **~730** |
-- **ν 右側補掃**（v2b/v2c）：0.8–1.5 皆不優於 0.75；峰值貼邊但右側無新高。
-- **v2b 重歸因**：A=96（FUSION 15 / MODEL 81）；RESCUE 44 / REGRESS 26 / net+18；single_char 77→68。
-- **容量斜率**：+6.7 → +2.2 correct/M params（遞減）；延遲加速惡化。下一刀宜特徵/架構，非再放大 LSTM。
-- **新 harness 最佳**（flag OFF）：walk ON λ=0.75 + **v2c** ν=0.75 → **387/537**。
-- 權重：`eval/models/path-char-lstm-spoken-v2{a,b,c}.bin` + SHA256。
+- **口語 LSTM 階梯**（Gossiping han≈77.8M；N=10）：v1 **356** → v2a **362** → v2b **374** → **v2c 387@ν0.75**（9.73M，~730ms）。容量斜率遞減，停放大。
+- **REGRESS-26 驗屍**（v1 對、v2b 錯 → v2c）：**11/26 自癒**、**15 仍錯**（80% single_char，全 in-pool）。
+- **小型 char-Transformer 對照**（6L d256 h4 ffn1024 ctx128，**8.81M**，同語料）：
+  - val_ppl **58.8**（優於 v2c 64.7）
+  - tw538 最佳正 ν：**332@0.25**（**低於 walk ON 333**；ν∈{0.25..1} 全 ≤332）
+  - A=138、**single_char 殘餘 94**（**差於 v2c 的 68**）
+  - 結論：**注意力 LM 在 PathScorer 融合上未贏 LSTM**；ppl 優 ≠ 路徑排序優。
+  - 產物：`train_char_transformer_lm.py`、`NeuralTFPathScorer`、`path-char-tf-spoken.bin`。
+- **新 harness 最佳仍 v2c 387**（flag OFF）。
 - **Zenzai** 封存、本棒不碰。
 
 ## [v2.5.0] - 2026-07-09

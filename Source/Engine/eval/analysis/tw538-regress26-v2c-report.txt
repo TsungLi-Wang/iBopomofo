@@ -1,0 +1,29 @@
+=== T1 REGRESS-26 autopsy under v2c ν=0.75 N=10 ===
+input REGRESS (v1 correct, v2b wrong): 26
+v2c recovered (now correct): 11 / 26
+v2c still wrong: 15 / 26
+all still-wrong in_pool: 15/15
+
+| super | n | % of still-wrong |
+|-------|---|------------------|
+| single_char_swap | 12 | 80.0% |
+| multi_char_swap | 3 | 20.0% |
+
+| pattern | n |
+|---------|---|
+| multi_char_swap(n=2) | 3 |
+| single_char_swap(古→股) | 1 |
+| single_char_swap(他→它) | 1 |
+| single_char_swap(求→球) | 1 |
+| single_char_swap(勁→進) | 1 |
+| single_char_swap(所→鎖) | 1 |
+| single_char_swap(為→未) | 1 |
+| single_char_swap(伏→福) | 1 |
+| single_char_swap(納→那) | 1 |
+| single_char_swap(極→及) | 1 |
+| single_char_swap(示→是) | 1 |
+| single_char_swap(在→再) | 1 |
+| single_char_swap(制→置) | 1 |
+
+interpretation: 11/26 self-heal under v2c; residual 15 are 80% single_char_swap.
+stdout: tw538-regress26-v2c.stdout.txt | detail: tw538-regress26-v2c-detail.tsv

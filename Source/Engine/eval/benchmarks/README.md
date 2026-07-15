@@ -46,7 +46,8 @@ Weights (persistent under `../models/`):
 | `path-char-lstm-spoken-v2a.bin` (~6.7MB) | emb64/hid128 | 1,751,299 | 362 @ ν=0.5 | ~81 | `*.sha256` |
 | `path-char-lstm-spoken.bin` (~4.9MB) | emb64/hid128 | 1,272,852 | 356 @ ν=0.5 (v1) | ~61 | `*.sha256` |
 
-Capacity slope: `../analysis/tw538-capacity-slope.md`.
+Capacity slope: `../analysis/tw538-capacity-slope.md`.  
+Transformer vs v2c (negative result): `../analysis/tw538-tf-vs-v2c.md`.
 
 ```bash
 # from Source/Engine/eval/benchmarks
@@ -103,7 +104,26 @@ python3 ../train_char_lstm_lm.py \
 Note on `--stream`: each training line is encoded with `<s>…</s>` (BOS/EOS);
 flat concat keeps those boundary tokens between segments (no bare cross-doc splice).
 
-Compare: `../analysis/tw538-lstm-v2-compare.md`, `../analysis/tw538-capacity-slope.md`.
+### Char-Transformer (experimental; **not** better than v2c on tw538)
+
+```bash
+# train (~8.8M params: 6L d256 h4 ffn1024 ctx128)
+python3 ../train_char_transformer_lm.py \
+  --corpus /tmp/ptt_spoken_train_v2_packed.txt \
+  --out ../models/path-char-tf-spoken.bin \
+  --epochs 4 --stream --device mps
+
+# eval (auto-detects LWTFMR1 magic)
+clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
+  nbest_path_rerank_any.cpp NeuralTFPathScorer.cpp ...same engine objs... \
+  -o /tmp/nbest_any
+/tmp/nbest_any tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 ../models/path-char-tf-spoken.bin
+# recorded: best positive ν 0.25 → 332/537 (worse than walk ON 333)
+```
+
+Compare: `../analysis/tw538-lstm-v2-compare.md`, `../analysis/tw538-capacity-slope.md`,
+`../analysis/tw538-tf-vs-v2c.md`.
 
 ### A-class attribution + fusion probes
 

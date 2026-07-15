@@ -1,0 +1,8 @@
+cases=26 lambda=0.75 nu=0.75 nbest_n=10 params=9734083
+WALK_ON 11/26
+RERANK 11/26
+IN_POOL 26/26
+POOL_WRONG_SCORER 15
+POOL_MISS 0
+FEED_FAIL 0
+OUT Source/Engine/eval/analysis/tw538-regress26-v2c-map.tsv
