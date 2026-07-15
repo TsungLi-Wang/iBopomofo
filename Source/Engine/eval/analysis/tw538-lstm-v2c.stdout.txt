@@ -1,0 +1,13 @@
+path scorer loaded=1 params=9734083 emb=256 hidden=512 layers=2 vocab=7875
+SLICE1_OFF 296/537
+SLICE1_ON 333/537
+SLICE1_NBEST_RANK0_MATCH 537/537
+SLICE1_WALK_MEAN_US 306.365
+SLICE2_NU0_MATCH 537/537
+NU 0 correct 333/537 mean_ms 0.265447
+NU 0.1 correct 355/537 mean_ms 740.515
+NU 0.25 correct 375/537 mean_ms 725.454
+NU 0.5 correct 386/537 mean_ms 730.315
+NU 0.75 correct 387/537 mean_ms 739.924
+NU 1 correct 385/537 mean_ms 728.424
+BEST_NU 0.75 correct 387/537

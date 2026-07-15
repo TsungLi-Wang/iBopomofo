@@ -1,0 +1,9 @@
+cases=537 lambda=0.75 nbest_n=10 params=9734083 nus=0.75,0.8,0.9,1,1.25,1.5
+PREP_POOLS 537 mean_ms 726.938
+NU 0.75 correct 387/537 mean_ms 726.938
+NU 0.8 correct 386/537 mean_ms 726.938
+NU 0.9 correct 386/537 mean_ms 726.938
+NU 1 correct 385/537 mean_ms 726.938
+NU 1.25 correct 385/537 mean_ms 726.938
+NU 1.5 correct 383/537 mean_ms 726.938
+BEST_NU 0.75 correct 387/537

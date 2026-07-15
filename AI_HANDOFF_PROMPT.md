@@ -13,30 +13,30 @@
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 
-## 三行同步狀態（2026-07-14 晚）
+## 三行同步狀態（2026-07-15）
 
-1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨 `path-char-lstm.bin` **未動**（本棒不接 app）。
-2. **北極星**：**tw538（537）**；harness 新最佳 = **v2b spoken LSTM ν=0.75 → 374/537**（相對 v1 356 **+18**）。
-3. **下一刀**：用 v2b 重跑 A 類歸因；針對殘餘 MODEL_LOSS（單字同音）做特徵／對照表或對症重訓；B 類 path_locked 仍次要。
+1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨權重 **未動**。
+2. **北極星 tw538**；harness 新最佳 = **v2c emb256/hid512 ν=0.75 → 387/537**（相對 v1 356 **+31**；相對 v2b 374 **+13**）。mean_ms≈730。
+3. **下一刀**：**不要再放大 LSTM**（容量斜率遞減 6.7→2.2/Mparams；延遲爆炸）。打 A 類殘餘 **single_char_swap 68 句**（MODEL_LOSS 為主）— 對照表／特徵／小型 Transformer 擇一。
 
-### tw538 基準線（2026-07-14）
+### tw538 基準線
 
 | 系統 | correct/537 | 備註 |
 |------|-------------|------|
-| walk OFF | **296/537（55.1%）** | 純 unigram |
-| walk ON λ=0.75 | **333/537（62.0%）** | ContextModel bigram |
-| 口語 LSTM v1 n-best | **356/537（66.3%）** | emb64/hid128；**ν=0.5**；mean_ms≈61 |
-| 口語 LSTM **v2a**（大語料同架構） | **362/537（67.4%）** | +6 語料量；ν=0.5；mean_ms≈81 |
-| 口語 LSTM **v2b**（大語料+放大） | **374/537（69.6%）** | **新最佳 ν=0.75**；mean_ms≈216；params 3.95M |
-| 約束重搜 fusion | **335/537（62.4%）** | 封存；本棒不碰 |
+| walk OFF | **296** | |
+| walk ON λ=0.75 | **333** | |
+| 口語 LSTM v1 | **356 @ ν0.5** | 1.27M；~61ms |
+| v2a 大語料同架構 | **362 @ ν0.5** | +6 data；~81ms |
+| v2b emb128/hid256 | **374 @ ν0.75** | +12 cap；~226ms |
+| **v2c emb256/hid512** | **387 @ ν0.75** | **+13 cap**；~730ms；params **9.73M** |
+| 約束重搜 fusion | 335 | 封存 |
 
-### A 類歸因 + 融合探針 + 老師升級（本棒）
+### 關鍵診斷（2026-07-15）
 
-- **T1**（v1 teacher）：A=114 → **FUSION_LOSS 28（24.6%）** / **MODEL_LOSS 86（75.4%）**。融合最多救 ~28 句。
-- **T2a**：fusion 變體天花板薄；`both_len_char ν=0.5` 僅 **357**。stdout 在 `eval/analysis/tw538-fusion-variants.*`。
-- **T2b**：Gossiping 擴量 **han≈77.8M**（禁評測十板+C_Chat）。(a)+6 / (b)+18。權重 `eval/models/path-char-lstm-spoken-v2{a,b}.bin`。
-- **錯誤地圖**（v1）：A=114 單字同音 67.5%；B=67 path_locked 66、缺詞 0。
-- N 擴池已判死刑（N=50 正解 +1）；固定 N=10。
+- ν 右側（0.8–1.5）：v2b/v2c **無新峰**，最佳仍 0.75。
+- v2b 重歸因：A **96**（FUSION 15 / MODEL 81）；vs v1 RESCUE **44** / REGRESS **26**；single_char **68**。
+- 容量斜率表：`eval/analysis/tw538-capacity-slope.md`。
+- 權重：`path-char-lstm-spoken-v2c.bin` SHA 見 `*.sha256`。
 
 ## 目前真相（v2.5.0 / build 2287 / tag `v2.3.1`（標點熱修；n-gram+RNN 主線仍在 master 未另開大版本））
 

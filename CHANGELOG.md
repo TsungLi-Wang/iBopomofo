@@ -14,16 +14,23 @@
   - 舊 `tw-sentences.tsv` **保留存檔**（歷史對照），`build-and-run.sh` 預設改指 tw538。
   - **tw538 基準線（2026-07-14）**：walk OFF **296/537**；walk ON **333/537**；口語 LSTM n-best best ν=0.5 **356/537**；約束重搜 fusion **335/537**（BREAKTHROUGH_GREEDY=3）。
 
-### 實驗 / 診斷（未發版）— A 類歸因 + scorer 升級（2026-07-14）
+### 實驗 / 診斷（未發版）— A 類歸因 + scorer 升級 + 容量斜率（2026-07-14→15）
 
-- **T1 A 類 114 句歸因**（v1 spoken ν=0.5 N=10）：**FUSION_LOSS 28（24.6%）** / **MODEL_LOSS 86（75.4%）**。主戰場是老師選錯，不是融合公式。產物：`eval/analysis/tw538-a-attr.tsv`、`tw538_a_class_attr.cpp`。
-- **T2a 融合變體**（不動模型）：length-norm / z-score / minmax 全量掃；最佳僅 `both_len_char ν=0.5` → **357/537（+1）**。便宜融合天花板薄。stdout：`tw538-fusion-variants.stdout.txt`。
-- **T2b 更強老師**（Gossiping 擴量 **han≈77.8M**，禁 tw538 十板+C_Chat）：
-  - **(a)** 同架構 emb64/hid128 + 大語料 → **362/537 @ ν=0.5**（語料量貢獻 **+6**）。
-  - **(b)** emb128/hid256 + 大語料 → **374/537 @ ν=0.75**（語料+容量 **+18** vs 356）。mean_ms≈216。
-  - 權重：`eval/models/path-char-lstm-spoken-v2a.bin` / `v2b.bin` + SHA256；訓練腳本 `train_char_lstm_lm.py --stream`、`build_spoken_corpus.py`。
-- **新 harness 最佳**（未接 app / flag 仍 OFF）：walk ON λ=0.75 + **v2b** ν=0.75 N=10 → **374/537**。
-- **Zenzai 式約束重搜 + (i) CondConverter POC**（封存、不發版）：tw538 fusion 335；本棒不碰。
+- **T1 A 類 114 句歸因**（v1 spoken ν=0.5 N=10）：**FUSION_LOSS 28（24.6%）** / **MODEL_LOSS 86（75.4%）**。主戰場是老師選錯，不是融合公式。
+- **T2a 融合變體**：最佳僅 `both_len_char ν=0.5` → **357（+1）**。融合到頂。
+- **口語 LSTM 階梯**（Gossiping han≈77.8M，禁評測十板+C_Chat；N=10）：
+  | 檔 | params | best | ν | mean_ms |
+  |----|--------|------|---|---------|
+  | v1 | 1.27M | 356 | 0.5 | ~61 |
+  | v2a 同架構+大語料 | 1.75M | 362 | 0.5 | ~81 |
+  | v2b emb128/hid256 | 3.95M | 374 | 0.75 | ~226 |
+  | **v2c emb256/hid512** | **9.73M** | **387** | **0.75** | **~730** |
+- **ν 右側補掃**（v2b/v2c）：0.8–1.5 皆不優於 0.75；峰值貼邊但右側無新高。
+- **v2b 重歸因**：A=96（FUSION 15 / MODEL 81）；RESCUE 44 / REGRESS 26 / net+18；single_char 77→68。
+- **容量斜率**：+6.7 → +2.2 correct/M params（遞減）；延遲加速惡化。下一刀宜特徵/架構，非再放大 LSTM。
+- **新 harness 最佳**（flag OFF）：walk ON λ=0.75 + **v2c** ν=0.75 → **387/537**。
+- 權重：`eval/models/path-char-lstm-spoken-v2{a,b,c}.bin` + SHA256。
+- **Zenzai** 封存、本棒不碰。
 
 ## [v2.5.0] - 2026-07-09
 

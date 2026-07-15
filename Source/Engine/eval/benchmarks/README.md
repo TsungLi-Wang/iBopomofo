@@ -35,15 +35,18 @@ rebuild on this set. Historical 395 baselines (for archive):
 
 ## Reproduce spoken LSTM n-best
 
-### Current best: **374/537** (ν=0.75, N=10) — v2b
+### Current best: **387/537** (ν=0.75, N=10) — v2c
 
 Weights (persistent under `../models/`):
 
-| weight | arch | params | best on tw538 | SHA256 file |
-|--------|------|--------|---------------|-------------|
-| `path-char-lstm-spoken-v2b.bin` (~15MB) | emb128/hid256 | 3,953,475 | **374 @ ν=0.75** | `*.sha256` |
-| `path-char-lstm-spoken-v2a.bin` (~6.7MB) | emb64/hid128 | 1,751,299 | 362 @ ν=0.5 | `*.sha256` |
-| `path-char-lstm-spoken.bin` (~4.9MB) | emb64/hid128 | 1,272,852 | 356 @ ν=0.5 (v1 baseline) | `*.sha256` |
+| weight | arch | params | best on tw538 | mean_ms | SHA256 file |
+|--------|------|--------|---------------|---------|-------------|
+| `path-char-lstm-spoken-v2c.bin` (~37MB) | emb256/hid512 | 9,734,083 | **387 @ ν=0.75** | ~730 | `*.sha256` |
+| `path-char-lstm-spoken-v2b.bin` (~15MB) | emb128/hid256 | 3,953,475 | 374 @ ν=0.75 | ~226 | `*.sha256` |
+| `path-char-lstm-spoken-v2a.bin` (~6.7MB) | emb64/hid128 | 1,751,299 | 362 @ ν=0.5 | ~81 | `*.sha256` |
+| `path-char-lstm-spoken.bin` (~4.9MB) | emb64/hid128 | 1,272,852 | 356 @ ν=0.5 (v1) | ~61 | `*.sha256` |
+
+Capacity slope: `../analysis/tw538-capacity-slope.md`.
 
 ```bash
 # from Source/Engine/eval/benchmarks
@@ -58,19 +61,23 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
   "$ENGINE/MemoryMappedFile.cpp" \
   -o /tmp/nbest_neural
 
-# NEW BEST
+# NEW BEST (v2c)
 /tmp/nbest_neural tw538-northstar.tsv ../../../Data/data.txt \
   ../../../Data/word-bigrams.tsv 0.75 \
-  ../models/path-char-lstm-spoken-v2b.bin
-# expect: BEST_NU 0.75 correct 374/537 ; mean_ms≈216
+  ../models/path-char-lstm-spoken-v2c.bin
+# expect: BEST_NU 0.75 correct 387/537 ; mean_ms≈730
 # walk OFF 296 / walk ON 333 (SLICE1_*)
 
+# v2b 374
+/tmp/nbest_neural ... ../models/path-char-lstm-spoken-v2b.bin
+# expect: BEST_NU 0.75 correct 374/537
+
 # v1 baseline 356
-/tmp/nbest_neural tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 \
-  ../models/path-char-lstm-spoken.bin
+/tmp/nbest_neural ... ../models/path-char-lstm-spoken.bin
 # expect: BEST_NU 0.5 correct 356/537
 ```
+
+ν right-side scan harness: `tw538_nu_right_scan.cpp` (pool once, many ν).
 
 ### Train spoken v2 weights (pollution-safe Gossiping ≥40M han)
 
@@ -85,16 +92,18 @@ python3 ../build_spoken_corpus.py \
 # pack short lines optional for training speed (same han count)
 
 # 2) Train (requires PyTorch)
-# (a) same arch: --emb 64 --hidden 128
-# (b) larger:    --emb 128 --hidden 256
+# (a) emb64/hid128  (b) emb128/hid256  (c) emb256/hid512
 python3 ../train_char_lstm_lm.py \
   --corpus /tmp/ptt_spoken_train_v2_packed.txt \
-  --out ../models/path-char-lstm-spoken-v2b.bin \
-  --epochs 4 --emb 128 --hidden 256 --layers 2 \
+  --out ../models/path-char-lstm-spoken-v2c.bin \
+  --epochs 4 --emb 256 --hidden 512 --layers 2 \
   --batch 128 --seq-len 64 --stream --device mps
 ```
 
-Compare table: `../analysis/tw538-lstm-v2-compare.md`.
+Note on `--stream`: each training line is encoded with `<s>…</s>` (BOS/EOS);
+flat concat keeps those boundary tokens between segments (no bare cross-doc splice).
+
+Compare: `../analysis/tw538-lstm-v2-compare.md`, `../analysis/tw538-capacity-slope.md`.
 
 ### A-class attribution + fusion probes
 

@@ -1,0 +1,61 @@
+=== tw538 error classification summary ===
+total=537
+correct=374 (69.6%)
+in_pool=470 (87.5%)
+A_pool_scorer_wrong=96 (17.9%)
+B_pool_miss=67 (12.5%)
+anomaly_outpool_but_correct=0
+
+--- B class (pool miss) ---
+B	path_locked	66	98.5%_of_B
+B	reading_mismatch	1	1.5%_of_B
+
+--- A class (in-pool scorer wrong) top patterns ---
+A	multi_char_swap(n=2)	19	19.8%_of_A
+A	single_char_swap(勁→進)	3	3.1%_of_A
+A	single_char_swap(版→板)	2	2.1%_of_A
+A	particle_在再(在→再)	2	2.1%_of_A
+A	single_char_swap(古→股)	1	1.0%_of_A
+A	single_char_swap(族→足)	1	1.0%_of_A
+A	pronoun_他她它(他→它)	1	1.0%_of_A
+A	single_char_swap(要→藥)	1	1.0%_of_A
+A	single_char_swap(容→熔)	1	1.0%_of_A
+A	single_char_swap(佈→布)	1	1.0%_of_A
+A	single_char_swap(念→唸)	1	1.0%_of_A
+A	single_char_swap(保→飽)	1	1.0%_of_A
+A	single_char_swap(營→盈)	1	1.0%_of_A
+A	homophone_是事市(事→士)	1	1.0%_of_A
+A	single_char_swap(所→鎖)	1	1.0%_of_A
+A	single_char_swap(召→兆)	1	1.0%_of_A
+A	single_char_swap(是→適)	1	1.0%_of_A
+A	single_char_swap(與→語)	1	1.0%_of_A
+A	single_char_swap(讀→獨)	1	1.0%_of_A
+A	single_char_swap(為→未)	1	1.0%_of_A
+A	single_char_swap(碰→椪)	1	1.0%_of_A
+A	single_char_swap(鄉→箱)	1	1.0%_of_A
+A	single_char_swap(伏→福)	1	1.0%_of_A
+A	single_char_swap(頭→投)	1	1.0%_of_A
+A	single_char_swap(娜→那)	1	1.0%_of_A
+A	single_char_swap(會→匯)	1	1.0%_of_A
+A	single_char_swap(極→及)	1	1.0%_of_A
+A	single_char_swap(准→準)	1	1.0%_of_A
+A	single_char_swap(期→其)	1	1.0%_of_A
+A	single_char_swap(生→聲)	1	1.0%_of_A
+A	single_char_swap(才→材)	1	1.0%_of_A
+A	multi_char_swap(n=3)	1	1.0%_of_A
+A	single_char_swap(富→赴)	1	1.0%_of_A
+A	single_char_swap(不→部)	1	1.0%_of_A
+A	single_char_swap(言→研)	1	1.0%_of_A
+A	single_char_swap(示→是)	1	1.0%_of_A
+A	single_char_swap(級→集)	1	1.0%_of_A
+A	single_char_swap(一→宜)	1	1.0%_of_A
+A	single_char_swap(是→式)	1	1.0%_of_A
+A	single_char_swap(進→近)	1	1.0%_of_A
+
+--- A super-categories ---
+A_super	single_char_swap	68	70.8%_of_A
+A_super	multi_char_swap	20	20.8%_of_A
+A_super	homophone_family	3	3.1%_of_A
+A_super	pronoun_family	2	2.1%_of_A
+A_super	particle_family	2	2.1%_of_A
+A_super	len_diff_seg_phrase	1	1.0%_of_A
