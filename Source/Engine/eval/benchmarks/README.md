@@ -180,6 +180,14 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
 Full breakdown + the 4 recovered / 3 vetoed sentences:
 `../analysis/cond-proposer-constrained-search-tw538.md`.
 
+The same binary sweeps pool-external **acceptance** variants (cached pools, one
+run): (A) pool-external walk downweight α, (B) neural two-vote (v2c AND cond
+must both prefer the external path by margin m). Best = **two-vote m=1.0 →
+401/537** (+1 over the conservative 400; α-downweight collapses = precision-
+recall wall). Residual map: of 67 B-class only **7 are reached** by the
+proposer, 60 never — the ceiling is now proposal reach, not acceptance.
+Table + wall analysis: `../analysis/cond-proposer-acceptance-sweep-tw538.md`.
+
 ### A-class attribution + fusion probes
 
 ```bash

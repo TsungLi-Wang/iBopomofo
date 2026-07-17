@@ -13,11 +13,11 @@
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 
-## 三行同步狀態（2026-07-17 晚）
+## 三行同步狀態（2026-07-17 深夜）
 
 1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨權重／app **未動**（CondConverter + 約束重搜皆純研究，未接線）。
-2. **北極星 tw538**：harness 最佳 = **CondProposer 約束重搜 → 400/537**。基線 = 三項混合 `walk + 0.5·v2c + 0.25·cond`（397，rerank 到頂）；把 CondConverter v2 當提案器接進 Zenzai 約束重搜，**吃掉 B 類 67 句中的 4 句**（net +3；gains 4/regress 1；READING_FIDELITY 0 違規）——rerank 結構上碰不到的池外正解首次移動。細節 `analysis/cond-proposer-constrained-search-tw538.md`；rerank 階梯 `analysis/cond-converter-v2-tw538.md`。
-3. **下一刀（優先序）**：① **放寬池外採納準則**——約束重搜「到達」7 句 B 類但保守三項選路只採納 4（walk 項否決另 3：擋片/點擊/豔紅色）。下一棒調「pool-external 路徑更信任 cond」的採納,吃回那 3+ 句而不引入退步(這是選路 tuning,非重架構) → ② A/B 類的延遲債（3.7s/case 研究配置；蒸餾/量化）→ ③ CondConverter 乾淨 2-epoch 重訓（已封存,蒸餾或轉長期主力時再補）。
+2. **北極星 tw538**：harness 最佳 = **CondProposer 約束重搜 + 神經雙票採納 → 401/537**。階梯:walk 333 → v2c rerank 387 → 三項 mix 397(A 類到頂)→ 約束重搜三項保守採納 400 → **雙票 m=1.0 採納 401**(吃回 5/7 到達的 B 類,退步 1)。細節 `analysis/cond-proposer-acceptance-sweep-tw538.md`。
+3. **下一刀（優先序）**：① **提案到達是新天花板**——B 類 67 句只有 **7 句被提案到達**(採納已近極限 5-7),**60 句從未到達**。B 類長期戰要攻**提案器**:多位置/beam 探索、或更強 conditional decoder,不是採納規則。② 池外採納已刻畫 precision-recall 牆(walk 降權 α≤0.75 全崩:recall 滿但 +145 退步;雙票 m=1 才穿過)——採納這條大致收斂。③ 延遲債(3.7s/case 研究配置,蒸餾/量化)。④ CondConverter 乾淨 2-epoch 重訓(封存)。
 
 ### tw538 基準線
 
