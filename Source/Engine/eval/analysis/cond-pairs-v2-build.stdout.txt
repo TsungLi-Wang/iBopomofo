@@ -1,0 +1,13 @@
+loading dict Source/Data/data.txt
+dict_words=152543 readings=133149
+lines_in=474322
+lines_kept=473250
+lines_mainland_dropped=1072
+pairs=43489599
+han_chars_in_targets≈69620822
+drop_reasons:
+  ambig_reading=4304421
+  short_run=524291
+  seg_fail=16870
+  mainland_line=1072
+wrote /tmp/ptt-gossip-expand/cond/conversion_pairs_v2.tsv

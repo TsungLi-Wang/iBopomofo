@@ -30,6 +30,18 @@ class NeuralLMPathScorer
   // Sum of log10 next-char probabilities under the LSTM LM (higher = better).
   double scoreSentence(const std::vector<std::string>& words) override;
 
+  // Per-character log10 P(char_t | history) for disagreement detection
+  // (Zenzai-style constraint placement). Size equals flattened UTF-8 char count.
+  // Empty if not loaded / empty input. Does not invent text.
+  std::vector<double> scoreCharsLog10(const std::vector<std::string>& words);
+
+  // Conversion-style proposal score: log10 P(nextWord chars | prefixWords).
+  // Teacher-forced over prefix, then scores each char of nextWord in order.
+  // Higher = more likely continuation. Does not invent text outside vocab
+  // (OOV chars use <unk>). Empty prefix is allowed (BOS only).
+  double scoreContinuation(const std::vector<std::string>& prefixWords,
+                           const std::string& nextWord);
+
  private:
   bool loaded_ = false;
   int emb_ = 0;

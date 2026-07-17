@@ -6,7 +6,6 @@
 #include <cmath>
 #include <cstring>
 #include <fstream>
-#include <numeric>
 
 namespace McBopomofo {
 
@@ -140,7 +139,6 @@ void NeuralLMPathScorer::lstmStep(int layer, const float* x,
   const auto& bih = b_ih_[static_cast<size_t>(layer)];
   const auto& bhh = b_hh_[static_cast<size_t>(layer)];
 
-  // gates: i, f, g, o  each size H; PyTorch packs as [4H, in]
   std::vector<float> gates(static_cast<size_t>(4 * H), 0.f);
   for (int g = 0; g < 4 * H; ++g) {
     float s = bih[static_cast<size_t>(g)] + bhh[static_cast<size_t>(g)];
@@ -172,21 +170,17 @@ void NeuralLMPathScorer::forwardLogits(const std::vector<int>& ids,
                                        std::vector<float>& logits,
                                        std::vector<float>& h,
                                        std::vector<float>& c) const {
-  // h,c layout: layers * H
   const int H = hidden_;
   const int L = layers_;
   h.assign(static_cast<size_t>(L * H), 0.f);
   c.assign(static_cast<size_t>(L * H), 0.f);
   logits.assign(static_cast<size_t>(vocab_), 0.f);
-
   if (ids.empty()) return;
-
-  int last = ids.back();
-  // Run full sequence to get logits for next token after last id
-  // Actually scoreSentence needs log p of each next token; we step per char.
-  (void)last;
+  (void)ids.back();
 }
 
+// Shared teacher-forced pass. includeEos=true → BOS..chars..EOS (sentence
+// score). includeEos=false → BOS..chars only, one log10 per content char.
 double NeuralLMPathScorer::scoreSentence(
     const std::vector<std::string>& words) {
   if (!loaded_ || words.empty()) return 0.0;
@@ -206,21 +200,15 @@ double NeuralLMPathScorer::scoreSentence(
   const int L = layers_;
   std::vector<float> h(static_cast<size_t>(L * H), 0.f);
   std::vector<float> c(static_cast<size_t>(L * H), 0.f);
-  std::vector<float> h2(static_cast<size_t>(L * H), 0.f);
-  std::vector<float> c2(static_cast<size_t>(L * H), 0.f);
-  std::vector<float> x(static_cast<size_t>(emb_));
-  std::vector<float> layer_in(static_cast<size_t>(std::max(emb_, hidden_)));
   std::vector<float> logits(static_cast<size_t>(vocab_));
 
   double log10e = 1.0 / std::log(10.0);
   double sumLog10 = 0.0;
   int scored = 0;
 
-  // Teacher forcing: for t = 0..T-2, condition on ids[t], score ids[t+1]
   for (size_t t = 0; t + 1 < ids.size(); ++t) {
     int id = ids[t];
     if (id < 0 || id >= vocab_) id = unk_id_;
-    // embed
     const float* e =
         emb_w_.data() + static_cast<size_t>(id) * static_cast<size_t>(emb_);
     std::vector<float> cur(static_cast<size_t>(emb_));
@@ -231,15 +219,12 @@ double NeuralLMPathScorer::scoreSentence(
     for (int li = 0; li < L; ++li) {
       float* hp = h.data() + static_cast<size_t>(li * H);
       float* cp = c.data() + static_cast<size_t>(li * H);
-      const float* xin = cur.data();
-      lstmStep(li, xin, hp, cp, next_h.data(), next_c.data());
+      lstmStep(li, cur.data(), hp, cp, next_h.data(), next_c.data());
       std::copy(next_h.begin(), next_h.end(), hp);
       std::copy(next_c.begin(), next_c.end(), cp);
-      // next layer input is this layer's new h (size H)
       cur.assign(next_h.begin(), next_h.end());
     }
 
-    // logits from top layer h
     const float* ht = h.data() + static_cast<size_t>((L - 1) * H);
     float maxv = -1e30f;
     for (int v = 0; v < vocab_; ++v) {
@@ -250,19 +235,169 @@ double NeuralLMPathScorer::scoreSentence(
       logits[static_cast<size_t>(v)] = s;
       if (s > maxv) maxv = s;
     }
-    // log-softmax of target
     double sumExp = 0.0;
     for (int v = 0; v < vocab_; ++v) {
-      sumExp += std::exp(static_cast<double>(logits[static_cast<size_t>(v)] - maxv));
+      sumExp +=
+          std::exp(static_cast<double>(logits[static_cast<size_t>(v)] - maxv));
     }
     int target = ids[t + 1];
     if (target < 0 || target >= vocab_) target = unk_id_;
-    double logp = static_cast<double>(logits[static_cast<size_t>(target)] - maxv) -
-                  std::log(sumExp);
+    double logp =
+        static_cast<double>(logits[static_cast<size_t>(target)] - maxv) -
+        std::log(sumExp);
     sumLog10 += logp * log10e;
     ++scored;
   }
 
+  return scored > 0 ? sumLog10 : 0.0;
+}
+
+std::vector<double> NeuralLMPathScorer::scoreCharsLog10(
+    const std::vector<std::string>& words) {
+  std::vector<double> out;
+  if (!loaded_ || words.empty()) return out;
+
+  auto chars = flattenChars(words);
+  if (chars.empty()) return out;
+
+  // BOS + content only (no EOS): one score per content char.
+  std::vector<int> ids;
+  ids.push_back(bos_id_);
+  for (const auto& ch : chars) {
+    auto it = stoi_.find(ch);
+    ids.push_back(it == stoi_.end() ? unk_id_ : it->second);
+  }
+
+  const int H = hidden_;
+  const int L = layers_;
+  std::vector<float> h(static_cast<size_t>(L * H), 0.f);
+  std::vector<float> c(static_cast<size_t>(L * H), 0.f);
+  std::vector<float> logits(static_cast<size_t>(vocab_));
+  double log10e = 1.0 / std::log(10.0);
+
+  for (size_t t = 0; t + 1 < ids.size(); ++t) {
+    int id = ids[t];
+    if (id < 0 || id >= vocab_) id = unk_id_;
+    const float* e =
+        emb_w_.data() + static_cast<size_t>(id) * static_cast<size_t>(emb_);
+    std::vector<float> cur(static_cast<size_t>(emb_));
+    std::copy(e, e + emb_, cur.begin());
+    std::vector<float> next_h(static_cast<size_t>(H));
+    std::vector<float> next_c(static_cast<size_t>(H));
+
+    for (int li = 0; li < L; ++li) {
+      float* hp = h.data() + static_cast<size_t>(li * H);
+      float* cp = c.data() + static_cast<size_t>(li * H);
+      lstmStep(li, cur.data(), hp, cp, next_h.data(), next_c.data());
+      std::copy(next_h.begin(), next_h.end(), hp);
+      std::copy(next_c.begin(), next_c.end(), cp);
+      cur.assign(next_h.begin(), next_h.end());
+    }
+
+    const float* ht = h.data() + static_cast<size_t>((L - 1) * H);
+    float maxv = -1e30f;
+    for (int v = 0; v < vocab_; ++v) {
+      float s = fc_b_[static_cast<size_t>(v)];
+      const float* w =
+          fc_w_.data() + static_cast<size_t>(v) * static_cast<size_t>(H);
+      for (int j = 0; j < H; ++j) s += w[j] * ht[j];
+      logits[static_cast<size_t>(v)] = s;
+      if (s > maxv) maxv = s;
+    }
+    double sumExp = 0.0;
+    for (int v = 0; v < vocab_; ++v) {
+      sumExp +=
+          std::exp(static_cast<double>(logits[static_cast<size_t>(v)] - maxv));
+    }
+    int target = ids[t + 1];
+    if (target < 0 || target >= vocab_) target = unk_id_;
+    double logp =
+        static_cast<double>(logits[static_cast<size_t>(target)] - maxv) -
+        std::log(sumExp);
+    out.push_back(logp * log10e);
+  }
+  return out;
+}
+
+double NeuralLMPathScorer::scoreContinuation(
+    const std::vector<std::string>& prefixWords, const std::string& nextWord) {
+  if (!loaded_ || nextWord.empty()) return 0.0;
+
+  // Build id stream: BOS + prefix chars + nextWord chars.
+  // Score only the nextWord portion (predictions of those targets).
+  std::vector<std::string> prefixChars = flattenChars(prefixWords);
+  std::vector<std::string> nextChars = flattenChars({nextWord});
+  if (nextChars.empty()) return 0.0;
+
+  std::vector<int> ids;
+  ids.push_back(bos_id_);
+  for (const auto& ch : prefixChars) {
+    auto it = stoi_.find(ch);
+    ids.push_back(it == stoi_.end() ? unk_id_ : it->second);
+  }
+  const size_t prefixIdCount = ids.size();  // includes BOS
+  for (const auto& ch : nextChars) {
+    auto it = stoi_.find(ch);
+    ids.push_back(it == stoi_.end() ? unk_id_ : it->second);
+  }
+
+  const int H = hidden_;
+  const int L = layers_;
+  std::vector<float> h(static_cast<size_t>(L * H), 0.f);
+  std::vector<float> c(static_cast<size_t>(L * H), 0.f);
+  std::vector<float> logits(static_cast<size_t>(vocab_));
+  double log10e = 1.0 / std::log(10.0);
+  double sumLog10 = 0.0;
+  int scored = 0;
+
+  // t indexes the conditioning id; we score ids[t+1].
+  // Only accumulate when the target is part of nextWord
+  // (t+1 >= prefixIdCount).
+  for (size_t t = 0; t + 1 < ids.size(); ++t) {
+    int id = ids[t];
+    if (id < 0 || id >= vocab_) id = unk_id_;
+    const float* e =
+        emb_w_.data() + static_cast<size_t>(id) * static_cast<size_t>(emb_);
+    std::vector<float> cur(static_cast<size_t>(emb_));
+    std::copy(e, e + emb_, cur.begin());
+    std::vector<float> next_h(static_cast<size_t>(H));
+    std::vector<float> next_c(static_cast<size_t>(H));
+
+    for (int li = 0; li < L; ++li) {
+      float* hp = h.data() + static_cast<size_t>(li * H);
+      float* cp = c.data() + static_cast<size_t>(li * H);
+      lstmStep(li, cur.data(), hp, cp, next_h.data(), next_c.data());
+      std::copy(next_h.begin(), next_h.end(), hp);
+      std::copy(next_c.begin(), next_c.end(), cp);
+      cur.assign(next_h.begin(), next_h.end());
+    }
+
+    // Only score targets that belong to nextWord.
+    if (t + 1 < prefixIdCount) continue;
+
+    const float* ht = h.data() + static_cast<size_t>((L - 1) * H);
+    float maxv = -1e30f;
+    for (int v = 0; v < vocab_; ++v) {
+      float s = fc_b_[static_cast<size_t>(v)];
+      const float* w =
+          fc_w_.data() + static_cast<size_t>(v) * static_cast<size_t>(H);
+      for (int j = 0; j < H; ++j) s += w[j] * ht[j];
+      logits[static_cast<size_t>(v)] = s;
+      if (s > maxv) maxv = s;
+    }
+    double sumExp = 0.0;
+    for (int v = 0; v < vocab_; ++v) {
+      sumExp +=
+          std::exp(static_cast<double>(logits[static_cast<size_t>(v)] - maxv));
+    }
+    int target = ids[t + 1];
+    if (target < 0 || target >= vocab_) target = unk_id_;
+    double logp =
+        static_cast<double>(logits[static_cast<size_t>(target)] - maxv) -
+        std::log(sumExp);
+    sumLog10 += logp * log10e;
+    ++scored;
+  }
   return scored > 0 ? sumLog10 : 0.0;
 }
 

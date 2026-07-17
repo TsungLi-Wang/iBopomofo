@@ -1,0 +1,31 @@
+{
+  "source_corpus": "/tmp/ptt-gossip-expand/ptt_spoken_train_v2_packed.txt",
+  "source_board": "Gossiping only (spoken corpus v2)",
+  "banned_boards_confirmed": [
+    "Stock",
+    "PC_Shopping",
+    "Tech_Job",
+    "WomenTalk",
+    "movie",
+    "Food",
+    "Lifeismoney",
+    "Soft_Job",
+    "MobileComm",
+    "car",
+    "C_Chat"
+  ],
+  "lines_in": 474322,
+  "lines_kept": 473250,
+  "lines_mainland_dropped": 1072,
+  "pairs": 43489599,
+  "han_chars_in_targets": 69620822,
+  "drop_reasons": {
+    "ambig_reading": 4304421,
+    "short_run": 524291,
+    "seg_fail": 16870,
+    "mainland_line": 1072
+  },
+  "ambig_gap": 0.5,
+  "ctx_chars": 16,
+  "method": "longest-match segment + top reading if score gap>=0.5 else drop"
+}
