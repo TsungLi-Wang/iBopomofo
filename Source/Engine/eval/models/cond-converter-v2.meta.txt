@@ -1,0 +1,6 @@
+arch=CondConverter layers=1 emb=256 hidden=512
+char_vocab=7261 rd_vocab=1239 params=11681373
+epochs=1 (crashed on post-epoch-1 meta write, since fixed) lr=0.001 batch=1024 device=mps
+pairs_train=42938923 pairs_val=635856
+best_val_ppl≈1.25
+corpus_pairs=~/laowang-data/conversion_pairs_v2.tsv

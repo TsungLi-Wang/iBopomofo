@@ -13,11 +13,11 @@
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 
-## 三行同步狀態（2026-07-15 晚）
+## 三行同步狀態（2026-07-17）
 
-1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨權重 **未動**。
-2. **北極星 tw538**；harness 最佳仍 **v2c ν=0.75 → 387/537**。同量級 char-TF（8.81M）**失敗**：**332@0.25**（劣於 walk 333），single_char **94**（劣於 v2c 68）。
-3. **下一刀**：停通用 LM 架構競賽。打 **A 類 68 句 single_char**（v2c）：混淆對特徵／對照表／校準 ν 尺度／v2c 蒸餾小模型。
+1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨權重／app **未動**（CondConverter 純研究，未接線）。
+2. **北極星 tw538**：harness 最佳 = **三項混合 `walk + 0.5·v2c + 0.25·cond` → 397/537（+10 over v2c 387）**。CondConverter v2（conditional，讀音硬約束，11.68M，1 epoch，全量 42.9M 對）與通用 LM **互補**——翻案成功（通用 LM 換架構 TF 輸 332，conditional 疊加贏）。+10 全來自 A 類（83→73）；B 類 67 不變（reranker 碰不到池外）；single_char_swap 69→65。細節見 `Source/Engine/eval/analysis/cond-converter-v2-tw538.md`。
+3. **下一刀（優先序）**：① CondConverter **乾淨 2-epoch 重訓**（epoch-1 因 meta bug 中斷,已修；plateau 故預期邊際）看能否再推高 → ② 把 cond 接進 **Zenzai 約束重搜當提案器**打 **B 類 67 句 path_locked**（唯一碰得到池外的路線,現已有驗證過刀鋒的 conditional 模型）→ ③ 397 config 的延遲債（2.2s/case,蒸餾/量化）。
 
 ### tw538 基準線
 

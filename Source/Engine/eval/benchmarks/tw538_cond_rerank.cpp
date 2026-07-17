@@ -124,6 +124,7 @@ int main(int argc, char** argv) {
   std::vector<std::vector<PoolItem>> allPools;
   allPools.reserve(cases.size());
   std::vector<std::string> expecteds;
+  std::vector<std::string> keptReadings;
   long long prepUs = 0;
   int walkOn = 0;
 
@@ -152,6 +153,7 @@ int main(int argc, char** argv) {
                   .count();
     allPools.push_back(std::move(pool));
     expecteds.push_back(c.expected);
+    keptReadings.push_back(c.readings);
   }
   double meanMs = allPools.empty()
                       ? 0.0
@@ -219,6 +221,38 @@ int main(int argc, char** argv) {
         std::cout << "MIX nu_lstm=" << nu << " kappa_cond=" << kappa
                   << " correct " << correct << "/" << cases.size()
                   << " mean_ms " << meanMs << std::endl;
+      }
+    }
+
+    // Error dump for A-class single_char_swap attribution (classified in
+    // Python). Dumps wrong cases for two configs on the SAME cached pools:
+    //   (a) v2c-only  walk + 0.75*lstm      (reproduces the 387 baseline)
+    //   (b) best mix  walk + 0.5*lstm + 0.25*cond
+    // Fields: DUMP <tag> <reading> <expected> <chosen> <inpool 0/1>
+    auto pickMix = [](const std::vector<PoolItem>& pool, double nuL,
+                      double kCond) -> std::string {
+      if (pool.empty()) return "";
+      size_t bi = 0;
+      double best = -std::numeric_limits<double>::infinity();
+      for (size_t i = 0; i < pool.size(); ++i) {
+        double s = pool[i].walk + nuL * pool[i].lstm + kCond * pool[i].cond;
+        if (s > best) { best = s; bi = i; }
+      }
+      return pool[bi].text;
+    };
+    auto inPool = [](const std::vector<PoolItem>& pool,
+                     const std::string& exp) -> bool {
+      for (const auto& it : pool) if (it.text == exp) return true;
+      return false;
+    };
+    struct Cfg { const char* tag; double nuL; double kCond; };
+    for (Cfg cfg : {Cfg{"V2C", 0.75, 0.0}, Cfg{"MIX", 0.5, 0.25}}) {
+      for (size_t i = 0; i < allPools.size(); ++i) {
+        std::string chosen = pickMix(allPools[i], cfg.nuL, cfg.kCond);
+        if (chosen == expecteds[i]) continue;
+        std::cout << "DUMP " << cfg.tag << "\t" << keptReadings[i] << "\t"
+                  << expecteds[i] << "\t" << chosen << "\t"
+                  << (inPool(allPools[i], expecteds[i]) ? 1 : 0) << std::endl;
       }
     }
   }

@@ -125,6 +125,35 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
 Compare: `../analysis/tw538-lstm-v2-compare.md`, `../analysis/tw538-capacity-slope.md`,
 `../analysis/tw538-tf-vs-v2c.md`.
 
+### CondConverter v2 (conditional reranker — **beats v2c via mix → 397/537**)
+
+Conditional P(han | reading, context) with reading as a hard conditioning
+input (zenz-style), **not** a general LM. Unlike the char-Transformer (general
+LM, lost at 332), the conditional form is *complementary* to v2c: the 3-way
+mix beats both.
+
+| weight | arch | params | best on tw538 | SHA256 |
+|---|---|---|---|---|
+| `../models/cond-converter-v2.bin` (~47MB) | emb256/hid512/L1 | 11,681,373 | cond-only 383 @ ν0.75; **mix 397** | `bbddad36f3cf03cfd497626bde5124360a22bfc961a0d3e76ef13ab7118880c3` |
+
+```bash
+# eval: cond-only ν scan + v2c control + 3-way mix + A-class dump
+clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
+  tw538_cond_rerank.cpp "$ENGINE/CondPathScorer.cpp" "$ENGINE/CondConverterScorer.cpp" \
+  "$ENGINE/gramambular2/reading_grid.cpp" "$ENGINE/CorpusBigramContextModel.cpp" \
+  "$ENGINE/NeuralLMPathScorer.cpp" "$ENGINE/ParselessLM.cpp" \
+  "$ENGINE/ParselessPhraseDB.cpp" "$ENGINE/MemoryMappedFile.cpp" -o /tmp/tw538_cond_rerank
+/tmp/tw538_cond_rerank tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 \
+  ../models/cond-converter-v2.bin ../models/path-char-lstm-spoken-v2c.bin
+# expect: LSTM_ONLY NU 0.75 → 387 ; MIX nu_lstm=0.5 kappa_cond=0.25 → 397
+```
+
+Corpus + 42.9M conversion pairs rebuilt from public zake7749 corpus
+(drift <1%): see `../analysis/cond-corpus-v2-rebuild-drift.json` (with SHA256
+of the persistent ~/laowang-data assets). Full result table + A-class
+attribution: `../analysis/cond-converter-v2-tw538.md`.
+
 ### A-class attribution + fusion probes
 
 ```bash

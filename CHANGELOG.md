@@ -18,6 +18,13 @@
 
 - **口語 LSTM 階梯**（Gossiping han≈77.8M；N=10）：v1 **356** → v2a **362** → v2b **374** → **v2c 387@ν0.75**（9.73M，~730ms）。容量斜率遞減，停放大。
 - **REGRESS-26 驗屍**（v1 對、v2b 錯 → v2c）：**11/26 自癒**、**15 仍錯**（80% single_char，全 in-pool）。
+
+### 實驗 / 診斷（未發版）— CondConverter v2：conditional 重排翻案（2026-07-17）
+
+- **形態**：conditional P(漢字 | 讀音, 上下文)，讀音為硬約束編碼輸入（zenz 式），非通用 LM。emb256/hid512/L1 = **11.68M params**，全量 **42.9M 對齊對**（重建自公開 zake7749 語料,漂移 <1%,見 `analysis/cond-corpus-v2-rebuild-drift.json`）,1 epoch,val_ppl≈1.25。
+- **tw538**：cond 單獨最佳 **383@ν0.75**（僅差 v2c 4 句）；**三項混合 `walk + 0.5·v2c + 0.25·cond` → 397/537（+10 over 387）**。conditional 與通用 LM **互補**——與同量級 char-TF（通用 LM）換架構失敗（332）形成對照。
+- **歸因**：+10 全 A 類（in-pool 83→73）；B 類池外 **67 兩者不變**（reranker 定位）；single_char_swap 69→65。
+- 權重 `models/cond-converter-v2.bin`；復現與完整表見 `analysis/cond-converter-v2-tw538.md`。app／flag／出貨權重未動。
 - **小型 char-Transformer 對照**（6L d256 h4 ffn1024 ctx128，**8.81M**，同語料）：
   - val_ppl **58.8**（優於 v2c 64.7）
   - tw538 最佳正 ν：**332@0.25**（**低於 walk ON 333**；ν∈{0.25..1} 全 ≤332）
