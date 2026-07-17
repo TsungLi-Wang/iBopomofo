@@ -99,6 +99,129 @@ class PairDataset(Dataset):
         return left_ids, rd_ids, tgt
 
 
+import zlib
+from torch.utils.data import IterableDataset, get_worker_info
+
+
+def _is_val(line: str, val_mod: int) -> bool:
+    # Deterministic content-hash holdout (stable across runs / workers).
+    return (zlib.crc32(line.encode("utf-8")) % val_mod) == 0
+
+
+def stream_vocab(path: Path, min_freq: int, val_mod: int):
+    """One streaming pass over the pairs file → (char_v, rd_v, n_train, n_val).
+    Counts only TRAIN lines for the frequency threshold (no val leakage)."""
+    char_cnt: Counter = Counter()
+    rd_cnt: Counter = Counter()
+    n_train = n_val = 0
+    with path.open(encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            line = line.rstrip("\n")
+            parts = line.split("\t")
+            if len(parts) != 3:
+                continue
+            if _is_val(line, val_mod):
+                n_val += 1
+                continue
+            n_train += 1
+            left, rd, word = parts
+            for c in left:
+                char_cnt[c] += 1
+            for c in word:
+                char_cnt[c] += 1
+            for t in rd.split("-"):
+                if t:
+                    rd_cnt[t] += 1
+    char_v, rd_v = Vocab(), Vocab()
+    for c, n in char_cnt.items():
+        if n >= min_freq:
+            char_v.add(c)
+    for t, n in rd_cnt.items():
+        if n >= min_freq:
+            rd_v.add(t)
+    return char_v, rd_v, n_train, n_val
+
+
+def _encode_pair(left, rd, word, char_v, rd_v, max_ctx, max_word):
+    lchars = utf8_chars(left)[-max_ctx:]
+    rtoks = split_reading(rd)
+    wchars = utf8_chars(word)[:max_word]
+    if not wchars or not rtoks:
+        return None
+    left_ids = [char_v.get(c) for c in lchars]
+    rd_ids = [rd_v.get(t) for t in rtoks]
+    tgt = [BOS] + [char_v.get(c) for c in wchars] + [EOS]
+    return left_ids, rd_ids, tgt
+
+
+class StreamPairDataset(IterableDataset):
+    """Streams TRAIN pairs from disk (no full load → fits 16GB for 43M pairs).
+    Per-worker line sharding + a bounded shuffle buffer. Re-reads file each
+    epoch (DataLoader re-iterates)."""
+
+    def __init__(self, path, char_v, rd_v, max_ctx, max_word, val_mod,
+                 shuffle_buf=200_000, seed=0):
+        self.path = path
+        self.char_v = char_v
+        self.rd_v = rd_v
+        self.max_ctx = max_ctx
+        self.max_word = max_word
+        self.val_mod = val_mod
+        self.shuffle_buf = shuffle_buf
+        self.seed = seed
+        self.epoch = 0
+
+    def set_epoch(self, e):
+        self.epoch = e
+
+    def __iter__(self):
+        wi = get_worker_info()
+        nshard = wi.num_workers if wi else 1
+        sid = wi.id if wi else 0
+        rng = random.Random(self.seed + self.epoch * 1000 + sid)
+        buf = []
+        with self.path.open(encoding="utf-8", errors="ignore") as f:
+            for i, line in enumerate(f):
+                if (i % nshard) != sid:
+                    continue
+                line = line.rstrip("\n")
+                parts = line.split("\t")
+                if len(parts) != 3 or _is_val(line, self.val_mod):
+                    continue
+                enc = _encode_pair(parts[0], parts[1], parts[2],
+                                   self.char_v, self.rd_v,
+                                   self.max_ctx, self.max_word)
+                if enc is None:
+                    continue
+                if len(buf) < self.shuffle_buf:
+                    buf.append(enc)
+                    continue
+                j = rng.randrange(len(buf))
+                yield buf[j]
+                buf[j] = enc
+            rng.shuffle(buf)
+            for enc in buf:
+                yield enc
+
+
+def load_val(path: Path, char_v, rd_v, max_ctx, max_word, val_mod, cap):
+    """Materialize a bounded held-out val set (hash holdout, cap examples)."""
+    items = []
+    with path.open(encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            line = line.rstrip("\n")
+            parts = line.split("\t")
+            if len(parts) != 3 or not _is_val(line, val_mod):
+                continue
+            enc = _encode_pair(parts[0], parts[1], parts[2], char_v, rd_v,
+                               max_ctx, max_word)
+            if enc is not None:
+                items.append(enc)
+                if len(items) >= cap:
+                    break
+    return items
+
+
 def collate(batch):
     lefts, rds, tgts = zip(*batch)
     def pad(seqs, pad_id=PAD):
@@ -244,48 +367,79 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--device", type=str, default="auto", help="cpu|mps|auto")
     ap.add_argument("--log-every", type=int, default=500)
+    # streaming (for corpora too large to load into 16GB RAM)
+    ap.add_argument("--stream", action="store_true",
+                    help="stream pairs from disk instead of full in-memory load")
+    ap.add_argument("--num-workers", type=int, default=4)
+    ap.add_argument("--shuffle-buf", type=int, default=200_000)
+    ap.add_argument("--val-cap", type=int, default=30_000)
+    ap.add_argument("--val-mod", type=int, default=64,
+                    help="content-hash holdout: crc32(line)%%mod==0 → val")
     args = ap.parse_args()
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    print(f"loading pairs {args.pairs}", flush=True)
-    pairs = load_pairs(args.pairs, args.max_pairs)
-    print(f"pairs_loaded={len(pairs)}", flush=True)
-    if len(pairs) < 1000:
-        print("too few pairs", file=sys.stderr)
-        return 1
+    stream_ds = None
+    if args.stream:
+        print(f"[stream] vocab pass over {args.pairs}", flush=True)
+        char_v, rd_v, n_train, n_val = stream_vocab(
+            args.pairs, args.min_freq, args.val_mod)
+        print(f"char_vocab={len(char_v)} rd_vocab={len(rd_v)}", flush=True)
+        print(f"train={n_train} val={n_val} (hash holdout mod={args.val_mod})",
+              flush=True)
+        stream_ds = StreamPairDataset(
+            args.pairs, char_v, rd_v, args.max_ctx, args.max_word,
+            args.val_mod, shuffle_buf=args.shuffle_buf, seed=args.seed)
+        # persistent_workers=False so workers respawn each epoch and capture
+        # the updated stream_ds.epoch → epoch-varying shuffle.
+        train_dl = DataLoader(
+            stream_ds, batch_size=args.batch, collate_fn=collate,
+            num_workers=args.num_workers)
+        val_items = load_val(args.pairs, char_v, rd_v, args.max_ctx,
+                             args.max_word, args.val_mod, args.val_cap)
+        val_dl = DataLoader(val_items, batch_size=args.batch, shuffle=False,
+                            collate_fn=collate)
+        est_batches = max(1, n_train // args.batch)
+    else:
+        print(f"loading pairs {args.pairs}", flush=True)
+        pairs = load_pairs(args.pairs, args.max_pairs)
+        print(f"pairs_loaded={len(pairs)}", flush=True)
+        if len(pairs) < 1000:
+            print("too few pairs", file=sys.stderr)
+            return 1
 
-    # build vocab from pairs
-    char_cnt: Counter = Counter()
-    rd_cnt: Counter = Counter()
-    for left, rd, word in pairs:
-        for c in utf8_chars(left) + utf8_chars(word):
-            char_cnt[c] += 1
-        for t in split_reading(rd):
-            rd_cnt[t] += 1
+        # build vocab from pairs
+        char_cnt: Counter = Counter()
+        rd_cnt: Counter = Counter()
+        for left, rd, word in pairs:
+            for c in utf8_chars(left) + utf8_chars(word):
+                char_cnt[c] += 1
+            for t in split_reading(rd):
+                rd_cnt[t] += 1
 
-    char_v, rd_v = Vocab(), Vocab()
-    for c, n in char_cnt.items():
-        if n >= args.min_freq:
-            char_v.add(c)
-    for t, n in rd_cnt.items():
-        if n >= args.min_freq:
-            rd_v.add(t)
-    print(f"char_vocab={len(char_v)} rd_vocab={len(rd_v)}", flush=True)
+        char_v, rd_v = Vocab(), Vocab()
+        for c, n in char_cnt.items():
+            if n >= args.min_freq:
+                char_v.add(c)
+        for t, n in rd_cnt.items():
+            if n >= args.min_freq:
+                rd_v.add(t)
+        print(f"char_vocab={len(char_v)} rd_vocab={len(rd_v)}", flush=True)
 
-    random.shuffle(pairs)
-    n_val = max(500, int(len(pairs) * args.val_ratio))
-    val_pairs = pairs[:n_val]
-    train_pairs = pairs[n_val:]
-    print(f"train={len(train_pairs)} val={len(val_pairs)}", flush=True)
+        random.shuffle(pairs)
+        n_val = max(500, int(len(pairs) * args.val_ratio))
+        val_pairs = pairs[:n_val]
+        train_pairs = pairs[n_val:]
+        print(f"train={len(train_pairs)} val={len(val_pairs)}", flush=True)
 
-    train_ds = PairDataset(train_pairs, char_v, rd_v, args.max_ctx, args.max_word)
-    val_ds = PairDataset(val_pairs, char_v, rd_v, args.max_ctx, args.max_word)
-    train_dl = DataLoader(
-        train_ds, batch_size=args.batch, shuffle=True, collate_fn=collate
-    )
-    val_dl = DataLoader(val_ds, batch_size=args.batch, shuffle=False, collate_fn=collate)
+        train_ds = PairDataset(train_pairs, char_v, rd_v, args.max_ctx, args.max_word)
+        val_ds = PairDataset(val_pairs, char_v, rd_v, args.max_ctx, args.max_word)
+        train_dl = DataLoader(
+            train_ds, batch_size=args.batch, shuffle=True, collate_fn=collate
+        )
+        val_dl = DataLoader(val_ds, batch_size=args.batch, shuffle=False, collate_fn=collate)
+        est_batches = len(train_dl)
 
     if args.device == "auto":
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -321,7 +475,9 @@ def main() -> int:
     for ep in range(1, args.epochs + 1):
         model.train()
         total_loss, ntok = 0.0, 0
-        n_batches = len(train_dl)
+        if stream_ds is not None:
+            stream_ds.set_epoch(ep)
+        n_batches = est_batches
         for bi, (L, Ll, R, Rl, T, Tl) in enumerate(train_dl, 1):
             L, Ll, R, Rl, T = L.to(device), Ll.to(device), R.to(device), Rl.to(device), T.to(device)
             logits = model(L, Ll, R, Rl, T)  # [B,S-1,V]
