@@ -281,10 +281,22 @@ struct CandPath {
   int conversionProposed = 0;  // entered via top-K conversion rank
 };
 
+// Cached per-candidate scores → variant acceptance criteria are swept in
+// main() over these (pool building is the only expensive part; do it once).
+struct CandInfo {
+  std::string text;
+  double walk = 0.0;
+  double neural = 0.0;  // v2c LSTM sentence score
+  double cond = 0.0;    // CondConverter path score
+  bool external = false;  // not in the original n-best (pool-external)
+};
+
 struct SearchResult {
   std::string text;
   std::string draftText;
   std::string base397Text;  // argmax three-way over {draft ∪ nbest} = 397 pick
+  std::vector<CandInfo> pool;        // snapshot for variant sweep
+  bool expectedReachedExternal = false;  // expected produced as a pool-external path
   double fusionScore = 0.0;
   double neuralScore = 0.0;
   int pathChanged = 0;       // final != draft
@@ -451,8 +463,26 @@ SearchResult constrainedSearch(
     sr.pickMode = sr.changedVs397 ? "threeway_research" : "threeway_base";
   };
 
+  // Snapshot the scored pool for the variant sweep in main().
+  auto populatePool = [&]() {
+    sr.pool.clear();
+    sr.pool.reserve(pool.size());
+    for (auto& kv : pool) {
+      CandInfo ci;
+      ci.text = kv.second.text;
+      ci.walk = kv.second.walkScore;
+      ci.neural = kv.second.neuralScore;
+      ci.cond = kv.second.pathCond;
+      ci.external = (nbestSet.count(kv.second.text) == 0);
+      if (ci.external && kv.second.text == expected)
+        sr.expectedReachedExternal = true;
+      sr.pool.push_back(std::move(ci));
+    }
+  };
+
   if (!trigger) {
     sr.triggered = 0;
+    populatePool();
     finalize(base397);
     return sr;
   }
@@ -598,6 +628,7 @@ SearchResult constrainedSearch(
   // are in the pool, a research path wins only if its three-way beats every
   // 397 candidate → conservative accept, no regression vs 397 by construction.
   scoreThreeWay();
+  populatePool();
   finalize(argmaxThreeWay());
   return sr;
 }
@@ -699,6 +730,15 @@ int main(int argc, char** argv) {
   std::vector<Ex> oracleEx;
   std::vector<Ex> improvedEx;  // fixed vs walk draft
 
+  // Cached per-case pools for the acceptance-variant sweep.
+  struct CaseCache {
+    std::vector<CandInfo> pool;
+    std::string expected;
+    bool expectedInNBest = false;
+  };
+  std::vector<CaseCache> caches;
+  caches.reserve(cases.size());
+
   for (const auto& c : cases) {
     auto syls = splitSyllables(c.readings);
 
@@ -754,6 +794,8 @@ int main(int argc, char** argv) {
     if (sr.explored.count(c.expected)) ++exploredHitExpected;
     candSum += sr.candCount;
     researchCandSum += sr.researchCandCount;
+
+    caches.push_back({std::move(sr.pool), c.expected, expectedInNBest});
 
     if (sr.text == c.expected) {
       ++zenzaiCorrect;
@@ -840,5 +882,112 @@ int main(int argc, char** argv) {
     std::cout << "OEX" << i << " pick=" << e.zenzai << "\n";
     std::cout << "OEX" << i << " expected_in_explored=" << e.expected << "\n";
   }
+
+  // ================= Acceptance-variant sweep (cached pools) =================
+  // Pool building was the only expensive step; all variants below re-select
+  // from the cached per-case pools, so this is ~free.
+  auto three = [&](const CandInfo& c, double alpha) {
+    double a = c.external ? alpha : 1.0;
+    return a * c.walk + nuV2c * c.neural + kCond * c.cond;
+  };
+  std::vector<std::string> base397Pick(caches.size());
+  int nbestMiss = 0, reachedB = 0;
+  for (size_t i = 0; i < caches.size(); ++i) {
+    const auto& cc = caches[i];
+    const CandInfo* b = nullptr;
+    for (const auto& c : cc.pool) {
+      if (c.external) continue;
+      if (!b || three(c, 1.0) > three(*b, 1.0)) b = &c;
+    }
+    base397Pick[i] = b ? b->text : "";
+    if (!cc.expectedInNBest) {
+      ++nbestMiss;
+      for (const auto& c : cc.pool)
+        if (c.external && c.text == cc.expected) { ++reachedB; break; }
+    }
+  }
+  int base397correct = 0;
+  for (size_t i = 0; i < caches.size(); ++i)
+    if (base397Pick[i] == caches[i].expected) ++base397correct;
+
+  auto evalAlpha = [&](double alpha, bool dumpVeto) {
+    int correct = 0, gains = 0, regress = 0, bclass = 0, vetoed = 0;
+    std::vector<std::string> vetoList;
+    for (size_t i = 0; i < caches.size(); ++i) {
+      const auto& cc = caches[i];
+      const CandInfo* best = nullptr;
+      for (const auto& c : cc.pool)
+        if (!best || three(c, alpha) > three(*best, alpha)) best = &c;
+      std::string pick = best ? best->text : "";
+      bool ok = (pick == cc.expected);
+      bool base_ok = (base397Pick[i] == cc.expected);
+      if (ok) ++correct;
+      if (!base_ok && ok) ++gains;
+      if (base_ok && !ok) ++regress;
+      if (ok && !cc.expectedInNBest) ++bclass;
+      if (!cc.expectedInNBest) {
+        bool reached = false;
+        for (const auto& c : cc.pool)
+          if (c.external && c.text == cc.expected) { reached = true; break; }
+        if (reached && !ok) {
+          ++vetoed;
+          if (dumpVeto && vetoList.size() < 20)
+            vetoList.push_back(cc.expected + "  (got: " + pick + ")");
+        }
+      }
+    }
+    std::cout << "VARIANT alpha=" << alpha << " correct " << correct << "/"
+              << cases.size() << " net " << (correct - base397correct)
+              << " gains " << gains << " regress " << regress
+              << " bclass_fixed " << bclass << "/" << nbestMiss << " vetoed "
+              << vetoed << "\n";
+    for (size_t k = 0; k < vetoList.size(); ++k)
+      std::cout << "  VETO" << k << " " << vetoList[k] << "\n";
+  };
+
+  auto evalTwoVote = [&](double m) {
+    int correct = 0, gains = 0, regress = 0, bclass = 0;
+    for (size_t i = 0; i < caches.size(); ++i) {
+      const auto& cc = caches[i];
+      const CandInfo* base = nullptr;
+      for (const auto& c : cc.pool) {
+        if (c.external) continue;
+        if (!base || three(c, 1.0) > three(*base, 1.0)) base = &c;
+      }
+      std::string pick = base ? base->text : "";
+      if (base) {
+        const CandInfo* bestExt = nullptr;
+        for (const auto& c : cc.pool) {
+          if (!c.external) continue;
+          // both neural votes must prefer the pool-external path by margin m.
+          if (c.neural > base->neural + m && c.cond > base->cond + m) {
+            if (!bestExt || (c.neural + c.cond) > (bestExt->neural + bestExt->cond))
+              bestExt = &c;
+          }
+        }
+        if (bestExt) pick = bestExt->text;
+      }
+      bool ok = (pick == cc.expected);
+      bool base_ok = (base397Pick[i] == cc.expected);
+      if (ok) ++correct;
+      if (!base_ok && ok) ++gains;
+      if (base_ok && !ok) ++regress;
+      if (ok && !cc.expectedInNBest) ++bclass;
+    }
+    std::cout << "VARIANT twovote m=" << m << " correct " << correct << "/"
+              << cases.size() << " net " << (correct - base397correct)
+              << " gains " << gains << " regress " << regress
+              << " bclass_fixed " << bclass << "/" << nbestMiss << "\n";
+  };
+
+  std::cout << "SWEEP_BASE397 " << base397correct << "/" << cases.size()
+            << " nbest_miss " << nbestMiss << " reached_bclass " << reachedB
+            << " never_reached " << (nbestMiss - reachedB) << "\n";
+  std::cout << "SWEEP_VARIANT_A pool-external walk downweight (alpha):\n";
+  for (double a : {1.0, 0.75, 0.5, 0.25, 0.0}) evalAlpha(a, false);
+  std::cout << "SWEEP_VARIANT_B neural two-vote (v2c AND cond prefer, margin m):\n";
+  for (double m : {0.0, 0.25, 0.5, 1.0, 2.0}) evalTwoVote(m);
+  std::cout << "SWEEP_RESIDUAL veto list @ alpha=1.0 (the 400 config):\n";
+  evalAlpha(1.0, true);
   return 0;
 }
