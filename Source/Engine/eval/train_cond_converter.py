@@ -401,6 +401,7 @@ def main() -> int:
         val_dl = DataLoader(val_items, batch_size=args.batch, shuffle=False,
                             collate_fn=collate)
         est_batches = max(1, n_train // args.batch)
+        n_train_pairs, n_val_pairs = n_train, n_val
     else:
         print(f"loading pairs {args.pairs}", flush=True)
         pairs = load_pairs(args.pairs, args.max_pairs)
@@ -440,6 +441,7 @@ def main() -> int:
         )
         val_dl = DataLoader(val_ds, batch_size=args.batch, shuffle=False, collate_fn=collate)
         est_batches = len(train_dl)
+        n_train_pairs, n_val_pairs = len(train_pairs), len(val_pairs)
 
     if args.device == "auto":
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -538,7 +540,7 @@ def main() -> int:
                 f"arch=CondConverter layers={args.layers} emb={args.emb} hidden={args.hidden}\n"
                 f"char_vocab={len(char_v)} rd_vocab={len(rd_v)} params={nparams}\n"
                 f"epochs={ep} lr={args.lr} batch={args.batch} device={device}\n"
-                f"pairs_train={len(train_pairs)} pairs_val={len(val_pairs)}\n"
+                f"pairs_train={n_train_pairs} pairs_val={n_val_pairs}\n"
                 f"best_val_ppl≈{best_val:.4f}\n"
                 f"corpus_pairs={args.pairs}\n",
                 encoding="utf-8",
