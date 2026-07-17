@@ -25,6 +25,13 @@
 - **tw538**：cond 單獨最佳 **383@ν0.75**（僅差 v2c 4 句）；**三項混合 `walk + 0.5·v2c + 0.25·cond` → 397/537（+10 over 387）**。conditional 與通用 LM **互補**——與同量級 char-TF（通用 LM）換架構失敗（332）形成對照。
 - **歸因**：+10 全 A 類（in-pool 83→73）；B 類池外 **67 兩者不變**（reranker 定位）；single_char_swap 69→65。
 - 權重 `models/cond-converter-v2.bin`；復現與完整表見 `analysis/cond-converter-v2-tw538.md`。app／flag／出貨權重未動。
+
+### 實驗 / 診斷（未發版）— CondProposer 約束重搜打 B 類（2026-07-17）
+
+- **問題**：397 的 +10 全在 A 類（池內），B 類 67 句 path_locked 正解在 N=10 池外,rerank 結構上碰不到。唯一能改切詞/路徑 = Zenzai 約束重搜。
+- **做法**：CondConverter v2 當**提案器**（非通用打分器）——draft 差節點逐候選算 `P(字|讀音,左文)` → prefix-lock override → 再 walk() 重搜 → 讀音鐵律+節點 unigram 檢查 → 入池 → 對全池取三項 `walk+0.5·v2c+0.25·cond` argmax（保守採納,防退步）。
+- **tw538**（`5 8 0.5 0.25 0.5 -2.5`）：BASE397 控制 **397**（精確重現）→ **ZENZAI 400（net +3；gains 4/regress 1）**；**B_CLASS_FIXED 4/67**（果之→果汁、耐衰→耐摔、灣到的灣度→彎道的彎度、很好其→很好奇）；**READING_FIDELITY_FAIL 0/537**。到達 7 句 B 類、保守選路採納 4（另 3 被 walk 項否決:擋片/點擊/豔紅色）。網格更高覆蓋不改善（瓶頸在選路非提案）。
+- 復現 `analysis/cond-proposer-constrained-search-tw538.md`。app／flag／權重未動。
 - **小型 char-Transformer 對照**（6L d256 h4 ffn1024 ctx128，**8.81M**，同語料）：
   - val_ppl **58.8**（優於 v2c 64.7）
   - tw538 最佳正 ν：**332@0.25**（**低於 walk ON 333**；ν∈{0.25..1} 全 ≤332）

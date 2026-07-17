@@ -154,6 +154,32 @@ Corpus + 42.9M conversion pairs rebuilt from public zake7749 corpus
 of the persistent ~/laowang-data assets). Full result table + A-class
 attribution: `../analysis/cond-converter-v2-tw538.md`.
 
+### CondProposer constrained search (B-class path_locked → 400/537)
+
+The 397 mix's +10 is all A-class (in-pool); B-class (67 pool-external) needs
+lattice re-search, not reranking. `zenzai_constrained_search.cpp` uses the
+CondConverter as the **proposer**: draft → cond scores lattice candidates at
+worst nodes → prefix-lock override → re-walk → reading-fidelity check → add
+pool → argmax three-way `walk+0.5·v2c+0.25·cond` over the full pool
+(conservative accept; the n-best 397 candidates are in the pool).
+
+```bash
+clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
+  zenzai_constrained_search.cpp "$ENGINE/CondConverterScorer.cpp" \
+  "$ENGINE/gramambular2/reading_grid.cpp" "$ENGINE/CorpusBigramContextModel.cpp" \
+  "$ENGINE/NeuralLMPathScorer.cpp" "$ENGINE/ParselessLM.cpp" \
+  "$ENGINE/ParselessPhraseDB.cpp" "$ENGINE/MemoryMappedFile.cpp" -o /tmp/zenzai_cond
+/tmp/zenzai_cond tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 \
+  ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
+  5 8 0.5 0.25 0.5 -2.5
+# expect: BASE397_CONTROL 397 · ZENZAI_CORRECT 400 · B_CLASS_FIXED 4/67
+#         READING_FIDELITY_FAIL 0/537 ; args = max_bad max_props nuV2c kCond margin logp_thr
+```
+
+Full breakdown + the 4 recovered / 3 vetoed sentences:
+`../analysis/cond-proposer-constrained-search-tw538.md`.
+
 ### A-class attribution + fusion probes
 
 ```bash
