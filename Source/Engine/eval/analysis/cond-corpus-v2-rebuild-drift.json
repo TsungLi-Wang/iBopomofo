@@ -1,0 +1,33 @@
+{
+  "note": "CondConverter v2 baton: corpus + conversion-pairs rebuilt from re-downloaded public zake7749 Gossiping-Chinese-Corpus (the original /tmp assets were lost). Drift gate = <1% (clause 2). Both gates passed.",
+  "source_public": {
+    "repo": "https://github.com/zake7749/Gossiping-Chinese-Corpus",
+    "clone_path": "~/laowang-data/raw/Gossiping-Chinese-Corpus (shallow, GIT_LFS_SKIP_SMUDGE)",
+    "files": {
+      "Gossiping-QA-Dataset.txt":     {"bytes": 34079536,  "sha256": "cf5ef0a931a8a14444a9854aa13cf6e7516b3ec4922b7cde5d45d13ed825ae79"},
+      "Gossiping-QA-Dataset-2_0.csv": {"bytes": 61356419,  "sha256": "1f3689826277cf6a34e10ff633c6fec9a2cebb5985daec5a37f8a4f87dc87a88"},
+      "source_replies/reply.7z":      {"bytes": 91009226,  "sha256": "16e739754f992a67ceba2e2b4b005de2994ad5943eec1b6ebbe523a846e1df55"}
+    }
+  },
+  "derived_assets_persistent": {
+    "dir": "~/laowang-data (clause 3: never /tmp)",
+    "replies_pushes_only.txt": {"bytes": 208969654,  "sha256": "44b7aa11255e5f968906626279791485a0a64a466fb25b85b87c705e632bbbf0", "note": "all non-empty push Content lines from reply/*.json (extract_gossip_replies.py); 5,039,670 lines"},
+    "ptt_spoken_train_v2.txt": {"bytes": 255623021,  "sha256": "50a43b64ec150d7ee830f2815d02ce214f53fae0114c7726a63d95345c770c9c", "note": "byte-identical to prior corpus (bytes match exactly)"},
+    "conversion_pairs_v2.tsv": {"bytes": 1482218050, "sha256": "aef642613985438590571ad5394edcc5c95b310958cd4a02124f8b21ee33ac3e"}
+  },
+  "drift_corpus": {
+    "metric":     ["lines",     "han_chars",  "chars"],
+    "new":        [5271221,     77762073,     90137076],
+    "old":        [5271221,     77762073,     90137076],
+    "drift_pct":  [0.00,        0.00,         0.00],
+    "verdict": "byte-identical corpus (0.00%); prior push extraction was a subset, but downstream dedup+short-drop in build_spoken_corpus.py converges to the identical kept set"
+  },
+  "drift_pairs": {
+    "metric":     ["pairs",     "han_in_targets", "ambig_reading", "short_run", "seg_fail"],
+    "new":        [43574779,    69757447,         4312922,         525326,      16908],
+    "old":        [43489599,    69620822,         4304421,         524291,      16870],
+    "drift_pct":  [0.20,        0.20,             0.20,            0.20,        0.23],
+    "verdict": "+0.20%, within 1% gate. Cause: prior built pairs from the PACKED corpus (lines_in=474322) where the per-physical-line mainland filter drops ~11 joined lines per hit; unpacked (lines_in=5271221) drops only the single offending line, keeping ~0.2% more content. build_conversion_pairs.py resets left-context per han-run, so pairs are otherwise packing-invariant."
+  },
+  "gate_result": "PASS (both <1%) → treated as same basis; proceeding to T2 per clause 2"
+}
