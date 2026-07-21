@@ -50,6 +50,20 @@
 - **新 harness 最佳仍 v2c 387**（flag OFF）。
 - **Zenzai** 封存、本棒不碰。
 
+### 實驗 / 診斷（未發版）— 60 句沉默診斷 + 多位置提案 beam（2026-07-21）
+
+- **問題**：B 類 67 句只有 7 句被提案到達,60 句沉默。是**機制**(單位置/搜索寬度,可修)還是**模型知識**(cond 分佈不偏好 gold,修機制無用)?
+- **T1 沉默診斷**（`zenzai_silence_diag.cpp`,複用 401 harness 的 reached 判定）：對 60 句逐分歧位置量 (a) gold 字在 cond 單音候選的排名(teacher-forced gold 左文)、(b) 全路徑 cond gold vs draft、(c) v2c gold vs draft。分桶(綁定約束優先 KNOW>VETO_RISK>MECH)：
+  - **MECH 24**(top3=20)：每個分歧位置 gold 可達 ≤top-5 且雙票皆偏好 → 加寬提案可救。
+  - **VETO_RISK 22**：可達但至少一票反對 gold → 雙票(m>0)擋(採納牆殘餘)。
+  - **KNOW 14**(1 lattice miss)：某分歧位置 gold 不在 cond top-5 → 需重訓/詞庫,機制無解。
+  - **軸 a**：161 個分歧位置,**84% gold 在 cond top-3**(top1 75/top2-3 59)。模型幾乎都認得字;失敗在「多位置聯合到達」與「採納」,非知識。
+  - **關鍵**：24 句 MECH **全是多分歧(2-7 位)**,0 單分歧 → 單位置提案器結構上組不出。停棒條款(KNOW≥40)**未觸發**。
+- **T2 多位置 cond beam**（`zenzai_multiproposer.cpp`,fork 401 harness,`beam_width=0` 精確重現 401）：單位置提案後,對最差 `beam_pos` 音位 beam-decode cond top-k、留 `beam_width` 條、逐條重搜入池。**只擴池,雙票採納制不動**。
+  - `8 3 8`：**到達 B 類 7→11**(+4,全是多分歧 MECH:硬邦邦/是帶點油嫩/沒事…有沒有事/爛鍋配爛蓋),雙票 m=1.0 **→ 402/537**(net +5,gains 6,**regress 1**,fidelity **0**);MEAN_MS 3.8k→19k。
+  - 新到達 4 句雙票只採納 1(其餘 3 被 m=1 擋)——**綁定約束從「到達」移回「採納」**。
+- **讀法/建議**：機制便宜勝(402)已入袋;其餘 ~44/60 卡採納(VETO_RISK 22+新到達否決)或知識(14),都不吃 beam。B 類線近便宜天花板;續攻須「更強 reranker(非 reweight)」或「知識(2-epoch 重訓/詞庫補 KNOW 14)」——皆較大投資。復現 `analysis/cond-proposer-silence-diag-tw538.md`(+`.tsv`)。app／flag／權重未動。
+
 ## [v2.5.0] - 2026-07-09
 
 **真神經路徑重排**：以 **char-LSTM LM** 取代 v2.4.0 的 char-trigram PathScorer（v2.4.0 違規用統計 n-gram 頂替 RNN，本版糾正）。

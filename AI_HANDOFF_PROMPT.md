@@ -2,7 +2,7 @@
 
 你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-07-14**（v2.5.0 仍是最新發版 tag；下方含 Zenzai/CondConverter POC 交班）。
+**最後更新：2026-07-21**（v2.5.0 仍是最新發版 tag；下方含 Zenzai/CondConverter/多位置 beam POC 交班）。
 
 ## 先讀文件
 
@@ -13,11 +13,11 @@
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 
-## 三行同步狀態（2026-07-17 深夜）
+## 三行同步狀態（2026-07-21）
 
-1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨權重／app **未動**（CondConverter + 約束重搜皆純研究，未接線）。
-2. **北極星 tw538**：harness 最佳 = **CondProposer 約束重搜 + 神經雙票採納 → 401/537**。階梯:walk 333 → v2c rerank 387 → 三項 mix 397(A 類到頂)→ 約束重搜三項保守採納 400 → **雙票 m=1.0 採納 401**(吃回 5/7 到達的 B 類,退步 1)。細節 `analysis/cond-proposer-acceptance-sweep-tw538.md`。
-3. **下一刀（優先序）**：① **提案到達是新天花板**——B 類 67 句只有 **7 句被提案到達**(採納已近極限 5-7),**60 句從未到達**。B 類長期戰要攻**提案器**:多位置/beam 探索、或更強 conditional decoder,不是採納規則。② 池外採納已刻畫 precision-recall 牆(walk 降權 α≤0.75 全崩:recall 滿但 +145 退步;雙票 m=1 才穿過)——採納這條大致收斂。③ 延遲債(3.7s/case 研究配置,蒸餾/量化)。④ CondConverter 乾淨 2-epoch 重訓(封存)。
+1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨權重／app **未動**（CondConverter + 約束重搜 + 多位置 beam 皆純研究，未接線）。
+2. **北極星 tw538**：harness 最佳 = **CondProposer 約束重搜 + 多位置 cond beam + 神經雙票採納 → 402/537**。階梯:walk 333 → v2c rerank 387 → 三項 mix 397(A 類到頂)→ 約束重搜保守採納 400 → 雙票 m=1.0 401 → **多位置 beam(8/3/8)吃回多分歧 B 類 → 402**(到達 B 類 7→11,雙票採納 +1,退步仍 1,fidelity 0,MEAN_MS 19s)。細節 `analysis/cond-proposer-silence-diag-tw538.md`。
+3. **下一刀（優先序）**：① **B 類已近便宜天花板**——60 句沉默診斷:MECH 24 / VETO_RISK 22 / KNOW 14(84% 分歧位置 gold 在 cond top-3,是機制非知識)。多位置 beam 已收機制便宜勝(+1→402);其餘 ~44 卡**採納**(雙票已榨乾,VETO_RISK 22)或**知識**(KNOW 14),都不吃更多 beam。續攻 B 類須「更強 reranker(非 reweight)」或「2-epoch 重訓/詞庫補 KNOW 14」——**較大投資,建議由顧問層拍板是否開**。② **延遲債(當前研究配置 19s/case,不可出貨)** 升為 B 類線後最高槓桿:蒸餾/量化/縮 beam。③ 出貨接線(flag/權重仍 OFF)。
 
 ### tw538 基準線
 

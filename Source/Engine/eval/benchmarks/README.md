@@ -188,6 +188,31 @@ recall wall). Residual map: of 67 B-class only **7 are reached** by the
 proposer, 60 never — the ceiling is now proposal reach, not acceptance.
 Table + wall analysis: `../analysis/cond-proposer-acceptance-sweep-tw538.md`.
 
+### The 60 silent B-class: diagnostic + multi-position beam (→ 402/537)
+
+`zenzai_silence_diag.cpp` buckets the 60 never-reached B-class misses by the
+binding constraint — **MECH 24 / VETO_RISK 22 / KNOW 14** (84% of divergence
+positions have gold in cond top-3; every MECH case is multi-divergence). It is
+a mechanism, not a knowledge, wall. `zenzai_multiproposer.cpp` forks the 401
+harness and injects a **multi-position cond beam** (top-k over the worst
+`beam_pos` syllables, `beam_width` hypotheses re-walked); `beam_width=0`
+reproduces 401 exactly. Beam `8 3 8` reaches B-class **7→11** and the *unchanged*
+two-vote (m=1.0) → **402/537** (net +5, regress 1, fidelity 0; MEAN_MS 19k —
+research config, not shippable). Diagnosis + decision map (keep attacking vs
+stop): `../analysis/cond-proposer-silence-diag-tw538.md` (+ per-sentence `.tsv`).
+
+```bash
+# T1: writes bucket TSV; T2: last 3 args = beam_pos beam_k beam_width (0=off)
+/tmp/zenzai_diag tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 \
+  ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
+  5 8 0.5 0.25 0.5 -2.5 ../analysis/cond-proposer-silence-diag-tw538.tsv
+/tmp/zenzai_mp  tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 \
+  ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
+  5 8 0.5 0.25 0.5 -2.5 8 3 8   # → BASE397 397 · reached 11 · twovote m=1 402
+```
+
 ### A-class attribution + fusion probes
 
 ```bash
