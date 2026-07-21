@@ -29,3 +29,8 @@ DerivedData
 # Per-user personalization cache (private typing memory — never commit).
 user-override-cache.dat
 **/user-override-cache.dat
+
+# Eval/experiment scratch: per-experiment Xcode DerivedData (regenerable, GB-scale)
+# and the legacy kenlm staging dir. Never commit.
+/dd-test*/
+/kenlm-runtime/
