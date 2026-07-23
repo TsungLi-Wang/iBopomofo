@@ -188,6 +188,26 @@ recall wall). Residual map: of 67 B-class only **7 are reached** by the
 proposer, 60 never — the ceiling is now proposal reach, not acceptance.
 Table + wall analysis: `../analysis/cond-proposer-acceptance-sweep-tw538.md`.
 
+### Shipping-latency Pareto: optimized N=10 rerank (→ v2c 387 @ ~44ms 甲級)
+
+`rerank_opt.cpp` reranks the same `walkNBest(10)` the engine produces (faithful
+`correct`) with a **prefix trie** (10 candidates share the sentence → each
+distinct prefix's LSTM step + softmax computed once, not per-candidate from BOS)
+and **Accelerate BLAS**. v2c drops **723ms → ~44ms (~16×, 387 unchanged)** — 甲級.
+Weight-only int8 (all tensors) is **lossless on v2c (387)**, 38.9→9.9MB (role =
+bundle size, not speed). Distillation de-scoped (T1 ≥380@甲級). Full Pareto +
+shipping candidates: `../analysis/shipping-latency-pareto-tw538.md`.
+
+```bash
+clang++ -std=c++17 -O2 -I../.. -I../../gramambular2 \
+  rerank_opt.cpp ../../CorpusBigramContextModel.cpp ../../ParselessLM.cpp \
+  ../../ParselessPhraseDB.cpp ../../MemoryMappedFile.cpp \
+  ../../gramambular2/reading_grid.cpp -framework Accelerate -o /tmp/rerank_opt
+/tmp/rerank_opt tw538-northstar.tsv ../../../Data/data.txt \
+  ../../../Data/word-bigrams.tsv 0.75 ../models/path-char-lstm-spoken-v2c.bin 0.75 0
+# → CORRECT 387/537 · MEAN_MS_TOTAL ~44 ; int8=1 → 387 (lossless)
+```
+
 ### The 60 silent B-class: diagnostic + multi-position beam (→ 402/537)
 
 `zenzai_silence_diag.cpp` buckets the 60 never-reached B-class misses by the

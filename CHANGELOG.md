@@ -64,6 +64,18 @@
   - 新到達 4 句雙票只採納 1(其餘 3 被 m=1 擋)——**綁定約束從「到達」移回「採納」**。
 - **讀法/建議**：機制便宜勝(402)已入袋;其餘 ~44/60 卡採納(VETO_RISK 22+新到達否決)或知識(14),都不吃 beam。B 類線近便宜天花板;續攻須「更強 reranker(非 reweight)」或「知識(2-epoch 重訓/詞庫補 KNOW 14)」——皆較大投資。復現 `analysis/cond-proposer-silence-diag-tw538.md`(+`.tsv`)。app／flag／權重未動。
 
+### 實驗 / 診斷（未發版）— 出貨延遲債:精度-延遲 Pareto（2026-07-23）
+
+- **戰略**：顧問層拍板 B 類研究線收隊封存(cond 6hr 重訓維持封存)。新主戰場=出貨債:研究最佳 402 但出貨 app 仍 walk ON **333(62%)**,神經 rerank(v2c 387)一直被當「~730ms 不可出貨」。問題:輸入法 commit 延遲預算(甲級 ≤100ms/乙級 ≤160ms,N=10)內能拿幾分?
+- **T1 免訓練壓縮**（`rerank_opt.cpp`,rerank 引擎同款 `walkNBest(10)`,只換 scorer）：兩把工程刀——(1) **前綴 trie 狀態共享**(10 條候選共享整句前綴,每個相異前綴的 LSTM step+softmax 只算一次,非逐候選從 BOS 重跑);(2) **Accelerate BLAS**(cblas_sgemv 打 4H×in 閘與 V×H 輸出投影)。
+  - **v2c 387 @ ~44ms**(nbest ~5.6 + rerank ~38),對照 per-candidate 基線 **723ms → ~16×**,精度 **零損**(fp32 trie/BLAS 只重排浮點加法)。**甲級達標**,推翻「不可出貨」前提。
+  - 全 Pareto(全 tw538 實測,皆甲級):v2c 387@44ms / v2b 374@14ms / v1 356@9ms。nbest 列舉本身 ~5.6ms(與模型無關,任何 rerank 的地板)。
+  - nu 穩健(v2c opt):0.25→375、0.5→386、**0.75→387**、1.0→385;延遲 47–48ms 全程。
+- **權重 int8(全張量,per-row 對稱,round-trip 全量重測)**：精度 v2c **387→387(零損)**、v2b 374→372(−2)、v1 356→353(−3)。大模型 int8 更穩,要出貨的 v2c 無損。**int8 此處無延遲增益**(dequant 走同 float sgemv),角色是**體積**:v2c 38.9MB→**9.9MB(3.9×)**。
+- **T2 蒸餾——依 T1 條款降為驗證**（T1 已 ≥380@甲級）：**未跑蒸餾**。理由不只是跳過:能直接出 teacher(v2c 47ms/9.9MB int8),student 打不過自己的天花板 387;而更小體積點(v2b 372@4.1MB、v1 353@1.3MB)**已是現成訓練模型**,不花訓練就在檯面上;bundle 預算充裕(dmg 31MB+9.9MB=41MB,可內嵌)。KD-vs-scratch 對照僅在「硬性 <1MB 上限」時才需要,現無此需求。
+- **T3 出貨候選**（app/flag/權重仍全未動,接線=下一棒）：**A(建議)v2c int8+trie+BLAS = 387 @ ~44ms / +9.9MB,對現出貨 333 = +54**;B(精簡)v2b int8 = 372 @ ~14ms / +4.1MB(−15 vs A)。
+- 復現 + 證據 SHA256:`analysis/shipping-latency-pareto-tw538.md`。app／flag／權重／模型未動。
+
 ## [v2.5.0] - 2026-07-09
 
 **真神經路徑重排**：以 **char-LSTM LM** 取代 v2.4.0 的 char-trigram PathScorer（v2.4.0 違規用統計 n-gram 頂替 RNN，本版糾正）。
