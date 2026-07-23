@@ -512,8 +512,11 @@ extension Preferences {
     }
 
     /// Mozc-style n-best + PathScorer fusion after ContextModel walk.
-    /// Default OFF so cold+empty matches v2.3.1 bit-identical path selection.
-    @UserDefault(key: kEnableNeuralPathRerankKey, defaultValue: false)
+    /// Default ON since v2.6.0: candidate A = v2c int8 char-LSTM reranker with
+    /// prefix-trie + BLAS batched scoring (tw538 387/537 @ ~45ms, N=10, ν=0.75).
+    /// Set to false (or toggle via the menu) to fall back to the pre-rerank
+    /// walk path bit-identically.
+    @UserDefault(key: kEnableNeuralPathRerankKey, defaultValue: true)
     @objc static var enableNeuralPathRerank: Bool
 
     @objc static func toggleNeuralPathRerankEnabled() -> Bool {
@@ -522,10 +525,9 @@ extension Preferences {
     }
 
     /// Interpolation weight ν for final_score = walk_score + ν · path_scorer.
-    /// Default 0.25 from harness grid search on tw-sentences (see CHANGELOG).
-    /// Default 0.5 from nbest_path_rerank harness with true char-LSTM PathScorer
-    /// (BEST_NU 0.5 → 179/395; see CHANGELOG v2.5.0).
-    @UserDefault(key: kNeuralPathRerankNuKey, defaultValue: 0.5)
+    /// Default 0.75 since v2.6.0: peak on tw538 for the shipped v2c reranker
+    /// (nu 0.5→386, 0.75→387, 1.0→385; see shipping-latency-pareto-tw538.md).
+    @UserDefault(key: kNeuralPathRerankNuKey, defaultValue: 0.75)
     @objc static var neuralPathRerankNu: Double
 
     // L1 神經候選重排(llama-server 整句 logprob 打分)。實驗功能,預設關閉;

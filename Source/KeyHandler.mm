@@ -68,6 +68,12 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     Formosa::Gramambular2::ReadingGrid *_grid;
     Formosa::Gramambular2::ReadingGrid::WalkResult _latestWalk;
 
+    // Neural n-best rerank (candidate A) is commit-time only: the per-keystroke
+    // composing walk stays bit-identical to the pre-rerank path (~0.1 ms),
+    // and rerank (~45 ms) runs once when the sentence commits. This gate is YES
+    // only during that commit-time walk.
+    BOOL _rerankThisWalk;
+
     // Homophone confusion-pair disambiguation (e.g. 在/再) on the walked
     // path. Per-KeyHandler so its applied-override bookkeeping never crosses
     // client sessions. Inert unless the table resource exists in the bundle.
@@ -1452,10 +1458,23 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
         return NO;
     }
 
+    // Commit-time neural rerank (candidate A): re-walk the whole sentence once
+    // with the char-LSTM reranker ON, then commit the reranked buffer. Hard
+    // user overrides survive (their high walk score dominates ν·neural). The
+    // per-keystroke composing path above never runs this.
+    NSString *composingBuffer = ((InputStateInputting *)state).composingBuffer;
+    if (Preferences.enableNeuralPathRerank && _inputMode != InputModePlainBopomofo) {
+        _rerankThisWalk = YES;
+        [self _walk];
+        _rerankThisWalk = NO;
+        InputState *reranked = [self buildInputtingState];
+        if ([reranked isKindOfClass:[InputStateInputting class]]) {
+            composingBuffer = ((InputStateInputting *)reranked).composingBuffer;
+        }
+    }
+
     [self clear];
 
-    InputStateInputting *current = (InputStateInputting *)state;
-    NSString *composingBuffer = current.composingBuffer;
     InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];
     stateCallback(committing);
     InputStateEmpty *empty = [[InputStateEmpty alloc] init];
@@ -2761,9 +2780,12 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
         _grid->setContextModel(nullptr);
     }
 
-    // Mozc-style n-best + true char-LSTM PathScorer (experimental, default OFF).
-    // When off / scorer null / nu==0, walk() is bit-identical to pre-rerank.
-    if (Preferences.enableNeuralPathRerank &&
+    // Mozc-style n-best + true char-LSTM PathScorer (candidate A, default ON
+    // since v2.6.0). COMMIT-TIME ONLY: gated by _rerankThisWalk so the
+    // per-keystroke composing walk never pays the ~45 ms rerank (measured
+    // 27 ms mean / 104 ms max per keystroke if run inline — unacceptable).
+    // When off / not commit / scorer null, walk() is bit-identical to pre-rerank.
+    if (Preferences.enableNeuralPathRerank && _rerankThisWalk &&
         _inputMode != InputModePlainBopomofo) {
         static McBopomofo::NeuralLMPathScorer *sharedPathScorer = nullptr;
         static dispatch_once_t pathOnce;

@@ -6,6 +6,21 @@
 #include <cmath>
 #include <cstring>
 #include <fstream>
+#include <unordered_map>
+
+// Accelerate BLAS: forward-declare the single symbol we use (cblas_sgemv)
+// instead of including <Accelerate/Accelerate.h>. The umbrella header pulls in
+// BNNS, which fails to build as a C++ module under recent SDKs. The framework
+// is still linked (OTHER_LDFLAGS / CMake / -framework Accelerate) for the symbol.
+extern "C" {
+void cblas_sgemv(int order, int trans_a, int m, int n, float alpha,
+                 const float* a, int lda, const float* x, int incx, float beta,
+                 float* y, int incy);
+}
+namespace {
+constexpr int kCblasRowMajor = 101;
+constexpr int kCblasNoTrans = 111;
+}  // namespace
 
 namespace McBopomofo {
 
@@ -32,7 +47,9 @@ bool NeuralLMPathScorer::load(const std::string& path) {
   if (!in) return false;
 
   char magic[8];
-  if (!readExact(in, magic, 8) || std::memcmp(magic, "LWLSTM1\0", 8) != 0) {
+  if (!readExact(in, magic, 8)) return false;
+  bool int8 = std::memcmp(magic, "LWLSTM8\0", 8) == 0;
+  if (!int8 && std::memcmp(magic, "LWLSTM1\0", 8) != 0) {
     return false;
   }
   if (!readExact(in, &emb_, 4) || !readExact(in, &hidden_, 4) ||
@@ -63,10 +80,34 @@ bool NeuralLMPathScorer::load(const std::string& path) {
     v.resize(n);
     return readExact(in, v.data(), n * sizeof(float));
   };
+  // int8 tensor: rows×cols int8 body + per-row float scale → dequant to fp32
+  // (row-major, matches quantize_lstm_int8.cpp). "Really reads int8": bytes on
+  // disk are int8; we reconstruct fp32 in RAM so the forward path is unchanged.
+  auto readRowInt8 = [&](std::vector<float>& v, int rows, int cols) -> bool {
+    size_t n = static_cast<size_t>(rows) * static_cast<size_t>(cols);
+    std::vector<int8_t> q(n);
+    std::vector<float> scale(static_cast<size_t>(rows));
+    if (!readExact(in, q.data(), n) ||
+        !readExact(in, scale.data(),
+                   static_cast<size_t>(rows) * sizeof(float))) {
+      return false;
+    }
+    v.resize(n);
+    for (int r = 0; r < rows; ++r) {
+      float s = scale[static_cast<size_t>(r)];
+      for (int j = 0; j < cols; ++j) {
+        v[static_cast<size_t>(r) * cols + j] =
+            static_cast<float>(q[static_cast<size_t>(r) * cols + j]) * s;
+      }
+    }
+    return true;
+  };
+  auto readW = [&](std::vector<float>& v, int rows, int cols) -> bool {
+    return int8 ? readRowInt8(v, rows, cols)
+                : readF(v, static_cast<size_t>(rows) * cols);
+  };
 
-  if (!readF(emb_w_, static_cast<size_t>(vocab_) * static_cast<size_t>(emb_))) {
-    return false;
-  }
+  if (!readW(emb_w_, vocab_, emb_)) return false;
 
   w_ih_.assign(static_cast<size_t>(layers_), {});
   w_hh_.assign(static_cast<size_t>(layers_), {});
@@ -74,17 +115,15 @@ bool NeuralLMPathScorer::load(const std::string& path) {
   b_hh_.assign(static_cast<size_t>(layers_), {});
   for (int li = 0; li < layers_; ++li) {
     int inDim = (li == 0) ? emb_ : hidden_;
-    size_t wih = static_cast<size_t>(4 * hidden_) * static_cast<size_t>(inDim);
-    size_t whh = static_cast<size_t>(4 * hidden_) * static_cast<size_t>(hidden_);
     size_t b = static_cast<size_t>(4 * hidden_);
-    if (!readF(w_ih_[static_cast<size_t>(li)], wih) ||
-        !readF(w_hh_[static_cast<size_t>(li)], whh) ||
+    if (!readW(w_ih_[static_cast<size_t>(li)], 4 * hidden_, inDim) ||
+        !readW(w_hh_[static_cast<size_t>(li)], 4 * hidden_, hidden_) ||
         !readF(b_ih_[static_cast<size_t>(li)], b) ||
         !readF(b_hh_[static_cast<size_t>(li)], b)) {
       return false;
     }
   }
-  if (!readF(fc_w_, static_cast<size_t>(vocab_) * static_cast<size_t>(hidden_)) ||
+  if (!readW(fc_w_, vocab_, hidden_) ||
       !readF(fc_b_, static_cast<size_t>(vocab_))) {
     return false;
   }
@@ -250,6 +289,151 @@ double NeuralLMPathScorer::scoreSentence(
   }
 
   return scored > 0 ? sumLog10 : 0.0;
+}
+
+std::vector<double> NeuralLMPathScorer::scoreNBest(
+    const std::vector<std::vector<std::string>>& paths) {
+  if (!loaded_ || paths.empty()) {
+    return std::vector<double>(paths.size(), 0.0);
+  }
+  const int H = hidden_;
+  const int L = layers_;
+  const int E = emb_;
+  const int V = vocab_;
+
+  // Build id sequences: BOS + content chars + EOS.
+  std::vector<std::vector<int>> seqs(paths.size());
+  for (size_t si = 0; si < paths.size(); ++si) {
+    auto chars = flattenChars(paths[si]);
+    auto& s = seqs[si];
+    s.reserve(chars.size() + 2);
+    s.push_back(bos_id_);
+    for (const auto& ch : chars) {
+      auto it = stoi_.find(ch);
+      s.push_back(it == stoi_.end() ? unk_id_ : it->second);
+    }
+    s.push_back(eos_id_);
+  }
+
+  // Prefix trie over the id sequences: each distinct prefix computes its LSTM
+  // step + one full-vocab softmax exactly once (identical prefixes are shared).
+  struct TrieNode {
+    std::vector<float> h, c;              // state AFTER consuming incoming id
+    std::unordered_map<int, int> child;   // id -> node index
+    bool stateReady = false;
+  };
+  std::vector<TrieNode> nodes(1);
+  nodes[0].h.assign(static_cast<size_t>(L) * H, 0.f);
+  nodes[0].c.assign(static_cast<size_t>(L) * H, 0.f);
+  nodes[0].stateReady = true;
+  std::vector<std::vector<std::pair<int, int>>> seqEdges(seqs.size());
+  for (size_t si = 0; si < seqs.size(); ++si) {
+    int cur = 0;
+    for (int id : seqs[si]) {
+      auto it = nodes[cur].child.find(id);
+      int nxt;
+      if (it == nodes[cur].child.end()) {
+        nxt = static_cast<int>(nodes.size());
+        nodes.emplace_back();
+        nodes[cur].child[id] = nxt;
+      } else {
+        nxt = it->second;
+      }
+      seqEdges[si].emplace_back(cur, id);
+      cur = nxt;
+    }
+  }
+
+  // LSTM advance from (hIn,cIn) consuming id → (hOut,cOut), via BLAS gate matvec.
+  auto advance = [&](const std::vector<float>& hIn, const std::vector<float>& cIn,
+                     int id, std::vector<float>& hOut, std::vector<float>& cOut) {
+    hOut.assign(static_cast<size_t>(L) * H, 0.f);
+    cOut.assign(static_cast<size_t>(L) * H, 0.f);
+    if (id < 0 || id >= V) id = unk_id_;
+    std::vector<float> cur(
+        emb_w_.data() + static_cast<size_t>(id) * E,
+        emb_w_.data() + static_cast<size_t>(id) * E + E);
+    std::vector<float> gates(static_cast<size_t>(4 * H));
+    for (int l = 0; l < L; ++l) {
+      int inDim = (l == 0) ? E : H;
+      const float* hp = hIn.data() + static_cast<size_t>(l) * H;
+      const float* cp = cIn.data() + static_cast<size_t>(l) * H;
+      // gates = Wih@cur + Whh@hp
+      cblas_sgemv(kCblasRowMajor, kCblasNoTrans, 4 * H, inDim, 1.0f,
+                  w_ih_[static_cast<size_t>(l)].data(), inDim, cur.data(), 1,
+                  0.0f, gates.data(), 1);
+      cblas_sgemv(kCblasRowMajor, kCblasNoTrans, 4 * H, H, 1.0f,
+                  w_hh_[static_cast<size_t>(l)].data(), H, hp, 1, 1.0f,
+                  gates.data(), 1);
+      const float* bih = b_ih_[static_cast<size_t>(l)].data();
+      const float* bhh = b_hh_[static_cast<size_t>(l)].data();
+      float* ho = hOut.data() + static_cast<size_t>(l) * H;
+      float* co = cOut.data() + static_cast<size_t>(l) * H;
+      for (int j = 0; j < H; ++j) {
+        float ig = sigmoid(gates[j] + bih[j] + bhh[j]);
+        float fg = sigmoid(gates[H + j] + bih[H + j] + bhh[H + j]);
+        float gg = std::tanh(gates[2 * H + j] + bih[2 * H + j] + bhh[2 * H + j]);
+        float og = sigmoid(gates[3 * H + j] + bih[3 * H + j] + bhh[3 * H + j]);
+        float cc = fg * cp[j] + ig * gg;
+        co[j] = cc;
+        ho[j] = og * std::tanh(cc);
+      }
+      cur.assign(ho, ho + H);
+    }
+  };
+
+  const double log10e = 1.0 / std::log(10.0);
+  std::unordered_map<long long, double> edgeLogp;
+  auto edgeKey = [](int p, int id) {
+    return (static_cast<long long>(p) << 20) ^ static_cast<long long>(id);
+  };
+  std::vector<int> order;
+  order.reserve(nodes.size());
+  order.push_back(0);
+  std::vector<float> logits(static_cast<size_t>(V));
+  for (size_t qi = 0; qi < order.size(); ++qi) {
+    int ni = order[qi];
+    if (nodes[ni].child.empty()) continue;
+    // softmax at this node's last-layer hidden
+    const float* hLast = nodes[ni].h.data() + static_cast<size_t>(L - 1) * H;
+    cblas_sgemv(kCblasRowMajor, kCblasNoTrans, V, H, 1.0f, fc_w_.data(), H, hLast,
+                1, 0.0f, logits.data(), 1);
+    float maxv = -1e30f;
+    for (int v = 0; v < V; ++v) {
+      logits[static_cast<size_t>(v)] += fc_b_[static_cast<size_t>(v)];
+      if (logits[static_cast<size_t>(v)] > maxv) maxv = logits[static_cast<size_t>(v)];
+    }
+    double sumExp = 0.0;
+    for (int v = 0; v < V; ++v)
+      sumExp += std::exp(static_cast<double>(logits[static_cast<size_t>(v)] - maxv));
+    double logZ = std::log(sumExp);
+    for (const auto& kv : nodes[ni].child) {
+      int id = kv.first;
+      int tgt = (id < 0 || id >= V) ? unk_id_ : id;
+      double lp =
+          (static_cast<double>(logits[static_cast<size_t>(tgt)] - maxv) - logZ) *
+          log10e;
+      edgeLogp[edgeKey(ni, id)] = lp;
+      int childIdx = kv.second;
+      if (!nodes[childIdx].stateReady) {
+        advance(nodes[ni].h, nodes[ni].c, id, nodes[childIdx].h,
+                nodes[childIdx].c);
+        nodes[childIdx].stateReady = true;
+      }
+      order.push_back(childIdx);
+    }
+  }
+
+  std::vector<double> out(seqs.size(), 0.0);
+  for (size_t si = 0; si < seqs.size(); ++si) {
+    if (seqEdges[si].size() <= 1) continue;  // need ≥1 scored edge past BOS
+    double s = 0.0;
+    for (size_t e = 1; e < seqEdges[si].size(); ++e) {  // skip root→BOS
+      s += edgeLogp[edgeKey(seqEdges[si][e].first, seqEdges[si][e].second)];
+    }
+    out[si] = s;
+  }
+  return out;
 }
 
 std::vector<double> NeuralLMPathScorer::scoreCharsLog10(

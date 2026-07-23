@@ -104,7 +104,8 @@ int main(int argc, char** argv) {
   ReadingGrid::PathScorer* scorer = nullptr;
   std::string magic = peekMagic(argv[5]);
   bool hasScorer = false;
-  if (magic == std::string("LWLSTM1\0", 8)) {
+  if (magic == std::string("LWLSTM1\0", 8) ||
+      magic == std::string("LWLSTM8\0", 8)) {
     hasScorer = lstm.load(argv[5]);
     scorer = &lstm;
     std::cout << "scorer=LSTM loaded=" << hasScorer

@@ -208,6 +208,13 @@ clang++ -std=c++17 -O2 -I../.. -I../../gramambular2 \
 # → CORRECT 387/537 · MEAN_MS_TOTAL ~44 ; int8=1 → 387 (lossless)
 ```
 
+**Shipped in v2.6.0** (candidate A wired into engine + app). The batched
+trie+BLAS scorer is now `NeuralLMPathScorer::scoreNBest`; the int8 disk format
+`LWLSTM8` is produced by `quantize_lstm_int8.cpp` and read by the engine loader.
+`override_rerank_check.cpp` verifies hard user overrides survive rerank (32/32).
+Engine-path parallelism (`nbest_path_rerank_any` on the int8 model) reproduces
+387/537 @ ~45ms exactly. Wiring + dogfood: `../analysis/v2.6.0-shipping-wiring.md`.
+
 ### The 60 silent B-class: diagnostic + multi-position beam (→ 402/537)
 
 `zenzai_silence_diag.cpp` buckets the 60 never-reached B-class misses by the

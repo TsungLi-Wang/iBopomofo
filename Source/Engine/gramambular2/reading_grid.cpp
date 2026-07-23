@@ -326,9 +326,12 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
     if (!nbest.empty()) {
       size_t bestIdx = 0;
       double bestFinal = -std::numeric_limits<double>::infinity();
+      std::vector<std::vector<std::string>> paths;
+      paths.reserve(nbest.size());
+      for (const auto& rp : nbest) paths.push_back(rp.words);
+      std::vector<double> rnns = pathScorer_->scoreNBest(paths);
       for (size_t pi = 0; pi < nbest.size(); ++pi) {
-        double rnn = pathScorer_->scoreSentence(nbest[pi].words);
-        double finalScore = nbest[pi].walkScore + pathRerankNu_ * rnn;
+        double finalScore = nbest[pi].walkScore + pathRerankNu_ * rnns[pi];
         nbest[pi].pathScore = finalScore;
         if (finalScore > bestFinal) {
           bestFinal = finalScore;

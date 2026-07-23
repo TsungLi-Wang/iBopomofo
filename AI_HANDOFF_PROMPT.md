@@ -2,7 +2,7 @@
 
 你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-07-23**（v2.5.0 仍是最新發版 tag；主戰場已轉出貨債——rerank 提速到甲級,待接線發版）。
+**最後更新：2026-07-23**（v2.6.0 已 bump+tag,神經 rerank 首次進出貨,待 Johnny dogfood）。
 
 ## 先讀文件
 
@@ -15,9 +15,9 @@
 
 ## 三行同步狀態（2026-07-23）
 
-1. **發版**：master tip 仍 **v2.5.0** 系；`EnableNeuralPathRerank` 預設 **OFF**；出貨權重／app **未動**（rerank 提速 + int8 + B 類線皆純研究，未接線）。**顧問層拍板：B 類研究線收隊封存**（VETO_RISK/KNOW 大投資換個位數；cond 6hr 重訓維持封存；診斷+管線留 repo）。
-2. **主戰場=出貨債**：出貨 app 仍 walk ON **333(62%)**，落差研究最佳的關鍵是延遲。**已解**：`rerank_opt.cpp`(前綴 trie 狀態共享 + Accelerate BLAS)把 **v2c 387 → ~44ms(甲級,對 723ms 基線 ~16×,精度零損)**；int8 全張量 v2c **無損 387**、體積 38.9→**9.9MB**。Pareto 皆甲級:v2c 387@44ms / v2b 374@14ms / v1 356@9ms。細節 `analysis/shipping-latency-pareto-tw538.md`。蒸餾依 T1 條款(≥380@甲級)**降為驗證未跑**——可直接出 teacher,不需要。
-3. **下一刀（優先序）**：① **接線出貨候選 A：v2c int8 + trie + BLAS(387 @ ~44ms,對現 333 = +54)**——把 trie+BLAS 批次 rerank 移入 `NeuralLMPathScorer`(取代 `reading_grid.cpp:330` 逐候選迴圈)、加 int8 磁碟格式、`EnableNeuralPathRerank` 預設 ON(nu 0.75,NBest 10)、跑 `scripts/e2e-typing-check.sh`、bump 版本發版。② 候選 B（v2b int8,372@14ms,+4.1MB）作為 bundle 更小的備選。③ B 類線封存,除非顧問層重啟。
+1. **發版**：**v2.6.0（build 2290）已 bump + tag，待 Johnny dogfood 裝完決定發不發 GitHub Release**。`EnableNeuralPathRerank` 預設 **ON**（候選 A：v2c int8 + 前綴 trie + BLAS，commit-time only，ν=0.75/N=10）。神經 rerank **首次進出貨路徑**。app/CMake 已鏈 Accelerate；bundle 內嵌 v2c int8（9.9MB）。回退：輸入法選單 → Neural Path Rerank (Experimental) 取消勾。
+2. **成果**：tw538 出貨路徑 walk-ON 333(62%) → **rerank 387(72%),+54 句**。平行性驗收:引擎路徑==eval harness **387@~45ms**(int8 對 fp32 零損)。手選 override 存活 32/32。逐鍵零退化(commit-time gating:組字 0.12ms 不變,只送出時重排一次)。app build 綠、Swift 133 tests 綠、engine ctest 149 綠。dogfood build 在 `~/Desktop/LaoWang-v2.6.0-dogfood/`。細節 `analysis/v2.6.0-shipping-wiring.md`。
+3. **下一刀（優先序）**：① **Johnny dogfood 實機驗收**（驗收單在 wiring doc；純鍵盤感受+回退鈕），過了才發 Release。② **其他 commit 觸發路徑（標點/部分 space/選字）尚未接 rerank**,只 Enter-commit 走了——補齊一致性。③ 選單標籤「(Experimental)」該拿掉（本棒為避免動 localization 未改）。④ B 類線維持封存;蒸餾封存(重啟條件:硬性 <1-2MB bundle 上限)。
 
 ### tw538 基準線
 

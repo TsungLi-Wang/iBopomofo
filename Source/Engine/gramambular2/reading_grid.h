@@ -205,6 +205,16 @@ class ReadingGrid {
     virtual ~PathScorer() = default;
     // Log-domain sentence score over the path word sequence (higher = better).
     virtual double scoreSentence(const std::vector<std::string>& words) = 0;
+    // Batched scoring of the n-best paths at once. The default loops
+    // scoreSentence (bit-identical to per-path); scorers that share work
+    // across candidates (e.g. prefix-state caching) override this.
+    virtual std::vector<double> scoreNBest(
+        const std::vector<std::vector<std::string>>& paths) {
+      std::vector<double> out;
+      out.reserve(paths.size());
+      for (const auto& p : paths) out.push_back(scoreSentence(p));
+      return out;
+    }
   };
 
   // One complete lattice path with walk DP score (before PathScorer fusion).

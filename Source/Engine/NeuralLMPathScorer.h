@@ -30,6 +30,13 @@ class NeuralLMPathScorer
   // Sum of log10 next-char probabilities under the LSTM LM (higher = better).
   double scoreSentence(const std::vector<std::string>& words) override;
 
+  // Batched n-best scoring with prefix-state sharing + BLAS. Candidates share
+  // most of the sentence, so each distinct char-id prefix runs its LSTM step +
+  // full-vocab softmax exactly once. Arithmetically equal to looping
+  // scoreSentence (float reassociation only). This is the shipped rerank path.
+  std::vector<double> scoreNBest(
+      const std::vector<std::vector<std::string>>& paths) override;
+
   // Per-character log10 P(char_t | history) for disagreement detection
   // (Zenzai-style constraint placement). Size equals flattened UTF-8 char count.
   // Empty if not loaded / empty input. Does not invent text.
