@@ -332,9 +332,6 @@ class InputState: NSObject {
     class Inputting: NotEmpty {
         @objc var tooltip: String = ""
 
-        // For more invisible AI correction flows (design report point 2)
-        var pendingAISuggestion: AICandidateSuggestion?
-        var aiTooltipMessage: String?
 
         @objc override init(composingBuffer: String, cursorIndex: UInt) {
             super.init(composingBuffer: composingBuffer, cursorIndex: cursorIndex)
@@ -538,9 +535,6 @@ class InputState: NSObject {
         @objc private(set) var useVerticalMode: Bool
         @objc var originalCursorIndex: UInt
 
-        // For AI rerank / invisible suggestions (design report)
-        var aiRerankedTopCandidate: String?
-        var aiTooltipMessage: String?
 
         @objc init(
             composingBuffer: String, cursorIndex: UInt, candidates: [Candidate],

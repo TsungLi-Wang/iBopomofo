@@ -6,6 +6,22 @@
 
 ## [Unreleased]
 
+### v2.7.0-dogfood（2026-07-24）— 大掃除 + Tab 重排預覽
+
+**使用者可見：**
+
+- **移除**全部本機 llama / Claude 雲端 AI 套件：AI 候選建議、AI 句末自動校正、⌘Return AI 整句、AI 神經候選重排、同音字智慧消歧、選單「AI 修正模型／設定」。常駐不再拉起 `llama-server`（實機約省 **~3GB RSS**）。
+- **Tab 重定義**：組字中按 Tab → 用與 Enter **同一條** v2c int8 神經路徑重排（`scoreNBest`）預覽整句，**維持組字底線、不送出**；結果以 hard override 釘住，繼續打字不會被 walk 翻掉；手選字不被覆寫；連按第二次無閃爍。非組字狀態的 Tab 放行給 App。
+- **Enter 不變**：仍是「重排 + 送出」。
+- **保留**：情境化選字、神經路徑重排、語音輸入、輸出簡體／半形標點／聯想詞。原版句尾空白／失焦 commit 路徑不補接 rerank。
+
+**工程：**
+
+- 啟動時清除已移除功能的 UserDefaults 孤兒鍵，並 log `ShippingConfig`（contextual / neural / ν / 模型指紋）。
+- tw538 回歸 **387/537** 全等；override 存活 **32/32**。
+- 版本 `2.7.0-dogfood` build **2291**（不打正式 tag、不發 Release，等 dogfood）。
+- 盤點與驗收：`Source/Engine/eval/analysis/feature-inventory.md`、`v2.7.0-dogfood-acceptance.md`。
+
 ### 北極星切換（評測集）
 
 - **`tw538-northstar.tsv`（537 句）** 取代 `tw-sentences.tsv`（395）成為預設北極星。

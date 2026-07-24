@@ -56,13 +56,6 @@ class McBopomofoInputMethodController: IMKInputController {
     var keyHandler: KeyHandler = KeyHandler()
     var state: InputState = InputState.Empty()
     lazy var charInfo: SystemCharacterInfo? = try? SystemCharacterInfo()
-    // AI 輔助邏輯集中管理（設計報告階段一）。
-    // 所有原本散落的 aiCandidate* / aiAutoCorrection* 狀態現在由 coordinator 擁有。
-    lazy var aiAssistCoordinator: AIAssistCoordinator = {
-        let c = AIAssistCoordinator(controller: self, delegate: self)
-        return c
-    }()
-
     // Phase 3:語音輸入 push-to-talk。連按兩下「右 Shift」開始/結束。改用右 Shift
     // 是因為 macOS 內建聽寫常綁「連按兩下 Control」,改一顆系統沒綁的鍵可永久零衝突、
     // 不必使用者改任何系統設定。只認「兩次乾淨的右 Shift 單擊」——兩擊之間不可夾雜
@@ -101,33 +94,13 @@ class McBopomofoInputMethodController: IMKInputController {
             action: #selector(toggleAssociatedPhrasesEnabled(_:)), keyEquivalent: "")
         associatedPhrasesItem.state = Preferences.associatedPhrasesEnabled.state
 
-        let aiCandidateRerankItem = menu.addItem(
-            withTitle: NSLocalizedString("AI Candidate Suggestions", comment: ""),
-            action: #selector(toggleAICandidateRerankEnabled(_:)), keyEquivalent: "")
-        aiCandidateRerankItem.state = Preferences.enableAICandidateRerank.state
-
-        let aiAutoCorrectionItem = menu.addItem(
-            withTitle: NSLocalizedString("AI Auto-Correction (Experimental)", comment: ""),
-            action: #selector(toggleAIAutoCorrectionEnabled(_:)), keyEquivalent: "")
-        aiAutoCorrectionItem.state = Preferences.enableAIAutoCorrection.state
-
-        let confusionPairItem = menu.addItem(
-            withTitle: NSLocalizedString("Homophone Disambiguation (Experimental)", comment: ""),
-            action: #selector(toggleConfusionPairDisambiguationEnabled(_:)), keyEquivalent: "")
-        confusionPairItem.state = Preferences.enableConfusionPairDisambiguation.state
-
-        let neuralRerankItem = menu.addItem(
-            withTitle: NSLocalizedString("Neural Candidate Rerank (Experimental)", comment: ""),
-            action: #selector(toggleGlobalNeuralRerankEnabled(_:)), keyEquivalent: "")
-        neuralRerankItem.state = Preferences.enableGlobalNeuralRerank.state
-
         let contextualWalkItem = menu.addItem(
             withTitle: NSLocalizedString("Contextual Selection", comment: ""),
             action: #selector(toggleContextualWalkEnabled(_:)), keyEquivalent: "")
         contextualWalkItem.state = Preferences.enableContextualWalk.state
 
         let neuralPathItem = menu.addItem(
-            withTitle: NSLocalizedString("Neural Path Rerank (Experimental)", comment: ""),
+            withTitle: NSLocalizedString("Neural Path Rerank", comment: ""),
             action: #selector(toggleNeuralPathRerankEnabled(_:)), keyEquivalent: "")
         neuralPathItem.state = Preferences.enableNeuralPathRerank.state
 
@@ -138,35 +111,6 @@ class McBopomofoInputMethodController: IMKInputController {
         menu.addItem(
             withTitle: voiceInputTitle,
             action: #selector(toggleVoiceInput(_:)), keyEquivalent: "")
-
-        // AI 整句修正模型切換器(⌘↵ 觸發時使用;可隨時切換)
-        menu.addItem(NSMenuItem.separator())
-        // 後端編號沿用 UserDefaults 既有值:2=Claude Opus、3=本機 AI(0/1 已移除,不重排)。
-        let aiBackends: [(tag: Int, name: String, selector: Selector)] = [
-            (2, "Claude Opus(雲端・最準)", #selector(selectAIBackendOpus(_:))),
-            (3, "本機 AI(內建・離線)", #selector(selectAIBackendLocal(_:))),
-        ]
-        let currentBackend = McBopomofoInputMethodController.aiBackend
-        let currentName =
-            aiBackends.first(where: { $0.tag == currentBackend })?.name ?? "?"
-        // 標題直接顯示目前選的模型,不靠勾勾(輸入法選單的勾勾渲染不一定可靠)。
-        let aiHeader = menu.addItem(
-            withTitle: "AI 修正模型:目前【\(currentName)】", action: nil, keyEquivalent: "")
-        aiHeader.isEnabled = false
-        // 每個後端用各自的 selector,不靠 sender.tag。輸入法選單跨 process 代管,
-        // 回傳的 sender 不是我們建立的 NSMenuItem,讀 tag 會失敗(這也是勾勾/圖示不可靠的同一個原因)。
-        for backend in aiBackends {
-            // 用標準勾勾(.state)標示目前選用的後端。選單項是我們自己在開選單時建的
-            // NSMenuItem,直接設 .state 渲染正常(先前不可靠的是「讀回 sender 的狀態」,非設定本身)。
-            let item = menu.addItem(
-                withTitle: backend.name, action: backend.selector,
-                keyEquivalent: "")
-            item.state = (currentBackend == backend.tag) ? .on : .off
-            item.tag = backend.tag
-        }
-        // 開啟 AI 修正設定視窗(填 API key / 端點 / 模型;任何 clone 下來的人自行設定)。
-        menu.addItem(
-            withTitle: "AI 修正設定…", action: #selector(openAISettings(_:)), keyEquivalent: "")
 
         let inputMode = keyHandler.inputMode
 
@@ -322,23 +266,6 @@ class McBopomofoInputMethodController: IMKInputController {
             detectVoicePushToTalkRightShiftDoubleTap(event, client: client)
         }
 
-        // AI 整句修正熱鍵:⌘ + Return(keyCode 36)。只在有 composing 內容時觸發。
-        if event.modifierFlags.contains(.command), event.keyCode == 36,
-            let inputting = state as? InputState.Inputting,
-            !inputting.composingBuffer.isEmpty
-        {
-            triggerAICorrection(guess: inputting.composingBuffer, client: client)
-            return true
-        }
-
-        if event.keyCode == 48,
-            acceptAICandidateSuggestionFromCandidateWindowIfAvailable(client: client)
-                || acceptAICandidateSuggestionIfAvailable(client: client)
-                || acceptAIAutoCorrectionSuggestionIfAvailable(client: client)
-        {
-            return true
-        }
-
         if event.type == .flagsChanged {
             if state is InputState.Empty {
                 return false
@@ -424,42 +351,12 @@ class McBopomofoInputMethodController: IMKInputController {
         _ = Preferences.toggleAssociatedPhrasesEnabled()
     }
 
-    @objc func toggleAICandidateRerankEnabled(_ sender: Any?) {
-        _ = Preferences.toggleAICandidateRerankEnabled()
-    }
-
-    @objc func toggleAIAutoCorrectionEnabled(_ sender: Any?) {
-        let enabled = Preferences.toggleAIAutoCorrectionEnabled()
-        if !enabled {
-            aiAssistCoordinator.reset()
-        }
-    }
-
-    @objc func toggleConfusionPairDisambiguationEnabled(_ sender: Any?) {
-        _ = Preferences.toggleConfusionPairDisambiguationEnabled()
-    }
-
     @objc func toggleContextualWalkEnabled(_ sender: Any?) {
         _ = Preferences.toggleContextualWalkEnabled()
     }
 
     @objc func toggleNeuralPathRerankEnabled(_ sender: Any?) {
         _ = Preferences.toggleNeuralPathRerankEnabled()
-    }
-
-    // L1 神經重排與「本機 AI 修正後端」共用同一顆 llama-server;server 由「任一需要者」持有:
-    // 開啟時暖 server(模型不在就觸發首次下載),關閉時只有後端也不是本機才 stop 釋放記憶體。
-    @objc func toggleGlobalNeuralRerankEnabled(_ sender: Any?) {
-        let enabled = Preferences.toggleGlobalNeuralRerankEnabled()
-        if enabled {
-            if LlamaServerManager.shared.isModelInstalled {
-                LlamaServerManager.shared.startIfNeeded()
-            } else {
-                LlamaServerManager.shared.ensureModelDownloaded()
-            }
-        } else if McBopomofoInputMethodController.aiBackend != 3 {
-            LlamaServerManager.shared.stop()
-        }
     }
 
     /// Phase 3 push-to-talk:偵測「連按兩下乾淨的右 Shift」(keyCode 60)。乾淨 = 兩次
@@ -632,34 +529,6 @@ class McBopomofoInputMethodController: IMKInputController {
         LanguageModelManager.phraseReplacementEnabled = enabled
     }
 
-    // AI 修正模型切換:定義在主 class 本體(與其他能用的選單 action 同層),
-    // 不放 extension —— IMK 選單 action 派送對 extension 裡的 @objc 不一定找得到。
-    @objc func selectAIBackendOpus(_ sender: Any?) { setAIBackend(2) }
-    @objc func selectAIBackendLocal(_ sender: Any?) { setAIBackend(3) }
-
-    // 開啟 AI 修正設定視窗。action 同樣放主 class 本體(IMK 選單派送對 extension 的 @objc 不一定找得到)。
-    @objc func openAISettings(_ sender: Any?) {
-        AISettingsWindowController.shared.showSettings()
-    }
-
-    private func setAIBackend(_ index: Int) {
-        McBopomofoInputMethodController.aiBackend = index
-        UserDefaults.standard.synchronize()
-        // 切到本機後端:模型在就暖 server;不在就觸發首次下載(會跳通知)。切走就收掉 server
-        // 釋放 ~2GB 記憶體——但 L1 神經重排也持有這顆 server,它開著就不停。
-        if index == 3 {
-            if LlamaServerManager.shared.isModelInstalled {
-                LlamaServerManager.shared.startIfNeeded()
-            } else {
-                LlamaServerManager.shared.ensureModelDownloaded()
-            }
-        } else if !Preferences.enableGlobalNeuralRerank {
-            LlamaServerManager.shared.stop()
-        }
-        let name = index == 2 ? "Claude Opus" : "本機 AI"
-        NotifierController.notify(message: "已切換 AI 修正模型:" + name)
-    }
-
     @objc func checkForUpdate(_ sender: Any?) {
         (NSApp.delegate as? AppDelegate)?.checkForUpdate(forced: true)
     }
@@ -752,13 +621,10 @@ extension McBopomofoInputMethodController {
             handle(state: newState, previous: previous, client: client)
             state = .Empty()
         case let newState as InputState.Empty:
-            aiAssistCoordinator.reset()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.EmptyIgnoringPreviousState:
-            aiAssistCoordinator.reset()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Committing:
-            aiAssistCoordinator.reset()
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Inputting:
             handle(state: newState, previous: previous, client: client)
@@ -904,14 +770,12 @@ extension McBopomofoInputMethodController {
         client.setMarkedText(
             state.attributedString, selectionRange: NSMakeRange(Int(state.cursorIndex), 0),
             replacementRange: NSMakeRange(NSNotFound, NSNotFound))
-        let tip = state.tooltip.isEmpty ? (state.aiTooltipMessage ?? "") : state.tooltip
+        let tip = state.tooltip
         if !tip.isEmpty {
             show(
                 tooltip: tip, composingBuffer: state.composingBuffer,
                 cursorIndex: state.cursorIndex, client: client)
         }
-        scheduleAIAutoCorrectionIfNeeded(for: state, client: client)
-        scheduleNeuralDeferredCheckIfNeeded(for: state, client: client)
     }
 
     private func handle(state: InputState.Marking, previous: InputState, client: Any?) {
@@ -949,7 +813,6 @@ extension McBopomofoInputMethodController {
             state.attributedString, selectionRange: NSMakeRange(Int(state.cursorIndex), 0),
             replacementRange: NSMakeRange(NSNotFound, NSNotFound))
         show(candidateWindowWith: state, client: client)
-        scheduleAICandidateRerankIfNeeded(for: state, client: client)
     }
 
     private func handle(state: InputState.AssociatedPhrases, previous: InputState, client: Any?) {
@@ -1192,14 +1055,8 @@ extension McBopomofoInputMethodController {
             gCurrentCandidateController = .vertical
         }
 
-        let coordinator = aiAssistCoordinator
         gCurrentCandidateController?.tooltip =
             switch state {
-            case let state as InputState.ChoosingCandidate
-                where coordinator.aiCandidateSuggestion?.originalComposingBuffer == state.composingBuffer:
-                String(
-                    format: NSLocalizedString("AI Suggestion: %@ (Tab)", comment: ""),
-                    coordinator.aiCandidateSuggestion?.suggestion ?? "")
             case let state as InputState.SelectingDictionary:
                 String(format: NSLocalizedString("Look up %@", comment: ""), state.selectedPhrase)
             case let state as InputState.AssociatedPhrases:
@@ -1327,13 +1184,3 @@ extension McBopomofoInputMethodController {
     }
 }
 
-// Conform to delegate so Coordinator can drive apply results (design report centralization).
-extension McBopomofoInputMethodController: AIAssistControllerDelegate {
-    func applyRerankResult(_ outcome: Result<String, AICorrectionError>, context: AICandidateRerankContext, client: Any?) {
-        applyAICandidateRerankResult(outcome, context: context, client: client)
-    }
-
-    func applyAutoCorrectionResult(_ outcome: Result<String, AICorrectionError>, composingBuffer: String, client: Any?) {
-        applyAIAutoCorrectionResult(outcome, composingBuffer: composingBuffer, client: client)
-    }
-}

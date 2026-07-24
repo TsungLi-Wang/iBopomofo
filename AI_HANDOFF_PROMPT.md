@@ -2,7 +2,7 @@
 
 你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-07-23**（v2.6.0 已 bump+tag,神經 rerank 首次進出貨,待 Johnny dogfood）。
+**最後更新：2026-07-24**（v2.7.0-dogfood：大掃除 llama/Claude + Tab 神經預覽；v2.6.0 tag 可回退）。
 
 ## 先讀文件
 
@@ -12,12 +12,13 @@
 2. `CHANGELOG.md`（最新正式版條目）
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
+5. 功能地圖：`Source/Engine/eval/analysis/feature-inventory.md`（v2.7 後狀態）
 
-## 三行同步狀態（2026-07-23）
+## 三行同步狀態（2026-07-24）
 
-1. **發版**：**v2.6.0（build 2290）已 bump + tag，待 Johnny dogfood 裝完決定發不發 GitHub Release**。`EnableNeuralPathRerank` 預設 **ON**（候選 A：v2c int8 + 前綴 trie + BLAS，commit-time only，ν=0.75/N=10）。神經 rerank **首次進出貨路徑**。app/CMake 已鏈 Accelerate；bundle 內嵌 v2c int8（9.9MB）。回退：輸入法選單 → Neural Path Rerank (Experimental) 取消勾。
-2. **成果**：tw538 出貨路徑 walk-ON 333(62%) → **rerank 387(72%),+54 句**。平行性驗收:引擎路徑==eval harness **387@~45ms**(int8 對 fp32 零損)。手選 override 存活 32/32。逐鍵零退化(commit-time gating:組字 0.12ms 不變,只送出時重排一次)。app build 綠、Swift 133 tests 綠、engine ctest 149 綠。dogfood build 在 `~/Desktop/LaoWang-v2.6.0-dogfood/`。細節 `analysis/v2.6.0-shipping-wiring.md`。
-3. **下一刀（優先序）**：① **Johnny dogfood 實機驗收**（驗收單在 wiring doc；純鍵盤感受+回退鈕），過了才發 Release。② **其他 commit 觸發路徑（標點/部分 space/選字）尚未接 rerank**,只 Enter-commit 走了——補齊一致性。③ 選單標籤「(Experimental)」該拿掉（本棒為避免動 localization 未改）。④ B 類線維持封存;蒸餾封存(重啟條件:硬性 <1-2MB bundle 上限)。
+1. **發版**：**v2.7.0-dogfood（build 2291）** 已實機覆蓋安裝、**未**打正式 tag／未發 Release。KEEP：情境化選字 + 神經路徑重排(v2c int8) + 語音 + 上游三項(簡體/半形/聯想)。**已移除**：整套 llama/Claude（候選建議、句末自動校正、⌘Return AI、神經候選重排、同音消歧、AI 模型選單）。
+2. **成果**：tw538 **387/537** 全等；override **32/32**；Swift tests **89** 全綠（含新 Tab 路徑）；engine ctest **135** 全綠。Tab = 組字中神經路徑預覽（同 `scoreNBest`，釘 hard override，不 commit）；Enter 仍 rerank+送出。常駐 **無 llama-server**（IME RSS ~50MB 級 vs 舊 ~3GB）。dogfood：`~/Desktop/LaoWang-v2.7.0-dogfood/` + 驗收單 `analysis/v2.7.0-dogfood-acceptance.md`。
+3. **下一刀（優先序）**：① Johnny dogfood（Tab 預覽/釘住/手選/冪等 + 記憶體）。② 過了再決定是否 bump 正式 v2.7.0 + Release。③ **不**補接空白/失焦 rerank（Johnny 已拍板維持原版）。④ B 類研究線維持封存。
 
 ### tw538 基準線
 

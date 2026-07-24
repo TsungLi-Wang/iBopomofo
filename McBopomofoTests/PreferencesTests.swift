@@ -200,13 +200,22 @@ final class PreferencesTests {
         #expect(Preferences.chineseConversionStyle == .model)
     }
 
-    @Test("Test AI candidate rerank toggle")
-    func testEnableAICandidateRerank() {
-        #expect(Preferences.enableAICandidateRerank == true)
-        Preferences.enableAICandidateRerank = false
-        #expect(Preferences.enableAICandidateRerank == false)
-        _ = Preferences.toggleAICandidateRerankEnabled()
-        #expect(Preferences.enableAICandidateRerank == true)
+    @Test("Test neural path rerank toggle")
+    func testEnableNeuralPathRerank() {
+        #expect(Preferences.enableNeuralPathRerank == true)
+        Preferences.enableNeuralPathRerank = false
+        #expect(Preferences.enableNeuralPathRerank == false)
+        _ = Preferences.toggleNeuralPathRerankEnabled()
+        #expect(Preferences.enableNeuralPathRerank == true)
+    }
+
+    @Test("Test purge of removed feature preference keys")
+    func testPurgeRemovedFeaturePreferences() {
+        UserDefaults.standard.set(true, forKey: "EnableGlobalNeuralRerank")
+        UserDefaults.standard.set(2, forKey: "AICorrectionBackend")
+        Preferences.purgeRemovedFeaturePreferences()
+        #expect(UserDefaults.standard.object(forKey: "EnableGlobalNeuralRerank") == nil)
+        #expect(UserDefaults.standard.object(forKey: "AICorrectionBackend") == nil)
     }
 
 }

@@ -56,11 +56,7 @@ private let kRepeatedPunctuationToSelectCandidateEnabledKey =
     "RepeatedPunctuationToSelectCandidateEnabled"
 private let kUseCustomUserPhraseLocation = "UseCustomUserPhraseLocation"
 private let kCustomUserPhraseLocation = "CustomUserPhraseLocation"
-private let kEnableAICandidateRerankKey = "EnableAICandidateRerank"
-private let kEnableAIAutoCorrectionKey = "EnableAIAutoCorrection"
-private let kEnableConfusionPairDisambiguationKey = "EnableConfusionPairDisambiguation"
 private let kEnableContextualWalkKey = "EnableContextualWalk"
-private let kEnableGlobalNeuralRerankKey = "EnableGlobalNeuralRerank"
 private let kEnableNeuralPathRerankKey = "EnableNeuralPathRerank"
 private let kNeuralPathRerankNuKey = "NeuralPathRerankNu"
 
@@ -242,10 +238,6 @@ class Preferences: NSObject {
             kRepeatedPunctuationToSelectCandidateEnabledKey,
             kUseCustomUserPhraseLocation,
             kCustomUserPhraseLocation,
-            kEnableAICandidateRerankKey,
-            kEnableAIAutoCorrectionKey,
-            kEnableConfusionPairDisambiguationKey,
-            kEnableGlobalNeuralRerankKey,
             kEnableContextualWalkKey,
             kEnableNeuralPathRerankKey,
         ]
@@ -279,11 +271,57 @@ class Preferences: NSObject {
         Preferences.enableUserPhrasesInPlainBopomofo = Preferences.enableUserPhrasesInPlainBopomofo
         Preferences.allowMovingCursorWhenChoosingCandidates =
             Preferences.allowMovingCursorWhenChoosingCandidates
-        Preferences.enableAICandidateRerank = Preferences.enableAICandidateRerank
-        Preferences.enableAIAutoCorrection = Preferences.enableAIAutoCorrection
-        Preferences.enableConfusionPairDisambiguation =
-            Preferences.enableConfusionPairDisambiguation
         Preferences.enableContextualWalk = Preferences.enableContextualWalk
+    }
+
+
+    /// Orphan keys from removed llama/Claude/AI features (v2.7.0 cleanup).
+    private static let removedPreferenceKeys: [String] = [
+        "EnableAICandidateRerank",
+        "EnableAIAutoCorrection",
+        "EnableConfusionPairDisambiguation",
+        "EnableGlobalNeuralRerank",
+        "AICorrectionBackend",
+        "AICorrectionClaudeEndpoint",
+        "AICorrectionClaudeOpusModel",
+        "NeuralDeferredDiagnostics",
+    ]
+
+    @objc static func purgeRemovedFeaturePreferences() {
+        let d = UserDefaults.standard
+        var purged: [String] = []
+        for key in removedPreferenceKeys {
+            if d.object(forKey: key) != nil {
+                d.removeObject(forKey: key)
+                purged.append(key)
+            }
+        }
+        if !purged.isEmpty {
+            d.synchronize()
+            NSLog("Preferences: purged removed-feature keys: \(purged.joined(separator: ", "))")
+        }
+    }
+
+    /// Boot log: active shipping knobs + model fingerprint (surfaces residual-pref bugs fast).
+    @objc static func logShippingConfiguration() {
+        let neural = Preferences.enableNeuralPathRerank
+        let nu = Preferences.neuralPathRerankNu
+        let contextual = Preferences.enableContextualWalk
+        var fingerprint = "missing"
+        if let url = Bundle.main.url(forResource: "path-char-lstm", withExtension: "bin"),
+            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+            let size = attrs[.size] as? NSNumber
+        {
+            // Size + first 8 file bytes hex (LWLSTM8 magic check) — full SHA is in analysis docs.
+            if let fh = try? FileHandle(forReadingFrom: url) {
+                let head = fh.readData(ofLength: 8)
+                try? fh.close()
+                let magic = head.map { String(format: "%02x", $0) }.joined()
+                fingerprint = "size=\(size.intValue),magic=\(magic)"
+            }
+        }
+        NSLog(
+            "ShippingConfig: contextualWalk=\(contextual ? "ON" : "OFF") neuralPathRerank=\(neural ? "ON" : "OFF") nu=\(String(format: "%.2f", nu)) N=10 model=\(fingerprint)")
     }
 
     @EnumUserDefault(key: kKeyboardLayoutPreferenceKey, defaultValue: KeyboardLayout.standard)
@@ -473,32 +511,9 @@ extension Preferences {
     @UserDefault(key: kRepeatedPunctuationToSelectCandidateEnabledKey, defaultValue: false)
     @objc static var repeatedPunctuationToSelectCandidateEnabled: Bool
 
-    @UserDefault(key: kEnableAICandidateRerankKey, defaultValue: true)
-    @objc static var enableAICandidateRerank: Bool
-
-    @objc static func toggleAICandidateRerankEnabled() -> Bool {
-        enableAICandidateRerank = !enableAICandidateRerank
-        return enableAICandidateRerank
-    }
 
     // Phase 2:句末自動 L2 整句校正。實驗功能,預設關閉。
-    @UserDefault(key: kEnableAIAutoCorrectionKey, defaultValue: false)
-    @objc static var enableAIAutoCorrection: Bool
 
-    @objc static func toggleAIAutoCorrectionEnabled() -> Bool {
-        enableAIAutoCorrection = !enableAIAutoCorrection
-        return enableAIAutoCorrection
-    }
-
-    // 引擎層同音混淆對消歧(在/再 log-odds 查表)。實驗功能,預設關閉;
-    // 需 bundle 內有 confusion-pairs.tsv 才會生效。
-    @UserDefault(key: kEnableConfusionPairDisambiguationKey, defaultValue: false)
-    @objc static var enableConfusionPairDisambiguation: Bool
-
-    @objc static func toggleConfusionPairDisambiguationEnabled() -> Bool {
-        enableConfusionPairDisambiguation = !enableConfusionPairDisambiguation
-        return enableConfusionPairDisambiguation
-    }
 
     // 引擎層情境化 walk:語料詞 bigram ContextModel 讓上下文參與 walk 的路徑競爭
     // (只重排既有候選,不生成)。v2.3.0 起預設開啟;需 bundle 內有
@@ -530,15 +545,6 @@ extension Preferences {
     @UserDefault(key: kNeuralPathRerankNuKey, defaultValue: 0.75)
     @objc static var neuralPathRerankNu: Double
 
-    // L1 神經候選重排(llama-server 整句 logprob 打分)。實驗功能,預設關閉;
-    // 依賴本機 llama-server,未就緒時自動退回 n-gram。見 docs/l1-neural-rerank-integration.md。
-    @UserDefault(key: kEnableGlobalNeuralRerankKey, defaultValue: false)
-    @objc static var enableGlobalNeuralRerank: Bool
-
-    @objc static func toggleGlobalNeuralRerankEnabled() -> Bool {
-        enableGlobalNeuralRerank = !enableGlobalNeuralRerank
-        return enableGlobalNeuralRerank
-    }
 }
 
 @objc enum ControlEnterOutput: Int {
@@ -752,13 +758,10 @@ extension Preferences {
             "  - Moving Cursor When Choosing Candidates: \(Preferences.allowMovingCursorWhenChoosingCandidates)"
         )
         lines.append(
-            "  - AI Candidate Suggestions: \(Preferences.enableAICandidateRerank ? "Enabled" : "Disabled")"
+            "  - Contextual Walk: \(Preferences.enableContextualWalk ? "Enabled" : "Disabled")"
         )
         lines.append(
-            "  - AI Auto-Correction: \(Preferences.enableAIAutoCorrection ? "Enabled" : "Disabled")"
-        )
-        lines.append(
-            "  - Homophone Disambiguation: \(Preferences.enableConfusionPairDisambiguation ? "Enabled" : "Disabled")"
+            "  - Neural Path Rerank: \(Preferences.enableNeuralPathRerank ? "Enabled" : "Disabled") ν=\(Preferences.neuralPathRerankNu)"
         )
         return lines.joined(separator: "\n")
     }

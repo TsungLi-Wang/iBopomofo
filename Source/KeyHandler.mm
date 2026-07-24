@@ -21,7 +21,6 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-#import "ConfusionPairDisambiguator.h"
 #import "NeuralLMPathScorer.h"
 #import "CompositeContextModel.h"
 #import "CorpusBigramContextModel.h"
@@ -68,23 +67,12 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     Formosa::Gramambular2::ReadingGrid *_grid;
     Formosa::Gramambular2::ReadingGrid::WalkResult _latestWalk;
 
-    // Neural n-best rerank (candidate A) is commit-time only: the per-keystroke
-    // composing walk stays bit-identical to the pre-rerank path (~0.1 ms),
-    // and rerank (~45 ms) runs once when the sentence commits. This gate is YES
-    // only during that commit-time walk.
+    // Neural n-best rerank (candidate A): composing walk stays bit-identical
+    // (~0.1 ms); gate is YES only for Enter-commit and Tab-preview walks.
     BOOL _rerankThisWalk;
 
-    // Homophone confusion-pair disambiguation (e.g. 在/再) on the walked
-    // path. Per-KeyHandler so its applied-override bookkeeping never crosses
-    // client sessions. Inert unless the table resource exists in the bundle.
-    McBopomofo::ConfusionPairDisambiguator *_confusionPairDisambiguator;
-
-    // Nodes soft-overridden by the deferred neural rerank bridge, so it can
-    // re-evaluate its own decisions without fighting user overrides. Same
-    // weak_ptr pattern as ConfusionPairDisambiguator (guards address reuse).
-    std::unordered_map<const Formosa::Gramambular2::ReadingGrid::Node *,
-                       std::weak_ptr<Formosa::Gramambular2::ReadingGrid::Node>>
-        _neuralApplied;
+    // Last composing buffer after a Tab neural preview pin (for idempotent Tab).
+    NSString *_lastTabPinnedBuffer;
 
     NSString *_inputMode;
 }
@@ -139,7 +127,6 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 {
     delete _bpmfReadingBuffer;
     delete _grid;
-    delete _confusionPairDisambiguator;
 }
 
 - (instancetype)init
@@ -157,12 +144,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         std::shared_ptr<Formosa::Gramambular2::LanguageModel> lm(_emptySharedPtr, _languageModel);
         _grid = new Formosa::Gramambular2::ReadingGrid(lm);
         _grid->setReadingSeparator("-");
-
-        _confusionPairDisambiguator = new McBopomofo::ConfusionPairDisambiguator();
-        NSString *confusionTablePath = [[NSBundle bundleForClass:[self class]] pathForResource:@"confusion-pairs" ofType:@"tsv"];
-        if (confusionTablePath != nil) {
-            _confusionPairDisambiguator->load(confusionTablePath.UTF8String);
-        }
+        _lastTabPinnedBuffer = nil;
 
         _inputMode = InputModeBopomofo;
     }
@@ -326,200 +308,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _bpmfReadingBuffer->clear();
     _grid->clear();
     _latestWalk = Formosa::Gramambular2::ReadingGrid::WalkResult {};
-    _confusionPairDisambiguator->reset();
-    _neuralApplied.clear();
-}
-
-#pragma mark - Deferred neural rerank bridge
-
-// Splits a node reading like ㄇㄢˋ-ㄇㄢˋ-ㄉㄜ˙ into syllables (same separator
-// convention as ConfusionPairDisambiguator's SplitReading).
-static std::vector<std::string> NeuralSplitReading(const std::string &reading)
-{
-    std::vector<std::string> out;
-    std::string current;
-    for (char c : reading) {
-        if (c == Formosa::Gramambular2::ReadingGrid::kDefaultSeparator[0]) {
-            out.push_back(current);
-            current.clear();
-        } else {
-            current.push_back(c);
-        }
-    }
-    out.push_back(current);
-    return out;
-}
-
-- (BOOL)_neuralAppliedByUs:(const Formosa::Gramambular2::ReadingGrid::NodePtr &)node
-{
-    auto it = _neuralApplied.find(node.get());
-    if (it == _neuralApplied.end()) {
-        return NO;
-    }
-    std::shared_ptr<Formosa::Gramambular2::ReadingGrid::Node> locked = it->second.lock();
-    // Address reuse guard: only trust the entry when the weak_ptr still
-    // resolves to the same node object.
-    return locked != nullptr && locked.get() == node.get();
-}
-
-- (nullable NSDictionary *)neuralRerankSnapshotForCharacters:(NSString *)ambiguousCharacters
-                                             maxAlternatives:(NSUInteger)maxAlternatives
-{
-    if (_inputMode == InputModePlainBopomofo) {
-        return nil;
-    }
-    if (_latestWalk.nodes.empty()) {
-        return nil;
-    }
-
-    const char *ambiguousUtf8 = ambiguousCharacters.UTF8String;
-    std::vector<std::string> ambiguousList =
-        McBopomofo::Split(std::string(ambiguousUtf8 != NULL ? ambiguousUtf8 : ""));
-    std::unordered_set<std::string> ambiguousSet(ambiguousList.begin(), ambiguousList.end());
-
-    // Drop registry entries for nodes the grid no longer holds.
-    for (auto it = _neuralApplied.begin(); it != _neuralApplied.end();) {
-        it = it->second.expired() ? _neuralApplied.erase(it) : std::next(it);
-    }
-
-    NSMutableArray *spans = [NSMutableArray array];
-    NSMutableString *flatText = [NSMutableString string];
-    size_t charLocation = 0;
-
-    for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
-        const auto &node = _latestWalk.nodes[i];
-        std::string value = _latestWalk.chosenValueAt(i);
-        std::vector<std::string> chars = McBopomofo::Split(value);
-        size_t nodeStart = charLocation;
-        charLocation += chars.size();
-        [flatText appendString:[NSString stringWithUTF8String:value.c_str()]];
-
-        std::vector<std::string> syllables = NeuralSplitReading(node->reading());
-        if (chars.size() != syllables.size()) {
-            // Symbol/emoji or annotation nodes; not our business.
-            continue;
-        }
-        const auto &unigrams = node->unigrams();
-        if (unigrams.size() < 2) {
-            continue;
-        }
-        // Never fight the user or the user override model; own overrides may
-        // be re-evaluated as more right context arrives.
-        if (node->isOverridden() && ![self _neuralAppliedByUs:node]) {
-            continue;
-        }
-        // Per syllable position: eligible when the current character is
-        // tracked and the node has "twin" unigrams differing only at that
-        // position (the dictionary contains e.g. both 慢慢的 and 慢慢地; the
-        // unigram walk always favors the frequent twin). A span-1 node is the
-        // degenerate case where every other unigram is a twin.
-        for (size_t k = 0; k < chars.size(); ++k) {
-            if (!ambiguousSet.count(chars[k])) {
-                continue;
-            }
-            NSMutableArray *alternatives = [NSMutableArray array];
-            std::unordered_set<std::string> seen;
-            seen.insert(chars[k]);
-            [alternatives addObject:[NSString stringWithUTF8String:chars[k].c_str()]];
-            for (const auto &unigram : unigrams) {
-                if (alternatives.count >= maxAlternatives) {
-                    break;
-                }
-                std::vector<std::string> twinChars = McBopomofo::Split(unigram.value());
-                if (twinChars.size() != chars.size()) {
-                    continue;
-                }
-                bool twin = true;
-                for (size_t j = 0; j < chars.size(); ++j) {
-                    if (j != k && twinChars[j] != chars[j]) {
-                        twin = false;
-                        break;
-                    }
-                }
-                if (!twin || !seen.insert(twinChars[k]).second) {
-                    continue;
-                }
-                [alternatives addObject:[NSString stringWithUTF8String:twinChars[k].c_str()]];
-            }
-            if (alternatives.count < 2) {
-                continue;
-            }
-            [spans addObject:@{
-                @"location" : @(nodeStart + k),
-                @"reading" : [NSString stringWithUTF8String:syllables[k].c_str()],
-                @"current" : [NSString stringWithUTF8String:chars[k].c_str()],
-                @"alternatives" : alternatives,
-            }];
-        }
-    }
-
-    return @{ @"text" : flatText, @"spans" : spans };
-}
-
-- (BOOL)applyNeuralOverrideAtLocation:(NSUInteger)location
-                              reading:(NSString *)reading
-                      expectedCurrent:(NSString *)expectedCurrent
-                                value:(NSString *)value
-{
-    if (_inputMode == InputModePlainBopomofo) {
-        return NO;
-    }
-    const char *readingC = reading.UTF8String;
-    const char *currentC = expectedCurrent.UTF8String;
-    const char *valueC = value.UTF8String;
-    std::string readingUtf8(readingC != NULL ? readingC : "");
-    std::string currentUtf8(currentC != NULL ? currentC : "");
-    std::string valueUtf8(valueC != NULL ? valueC : "");
-    if (valueUtf8.empty() || valueUtf8 == currentUtf8) {
-        return NO;
-    }
-
-    size_t charLocation = 0;
-    for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
-        const auto &node = _latestWalk.nodes[i];
-        std::string nodeValue = _latestWalk.chosenValueAt(i);
-        std::vector<std::string> chars = McBopomofo::Split(nodeValue);
-        size_t nodeStart = charLocation;
-        charLocation += chars.size();
-        if (location < nodeStart || location >= nodeStart + chars.size()) {
-            continue;
-        }
-        size_t k = location - nodeStart;
-        std::vector<std::string> syllables = NeuralSplitReading(_latestWalk.nodes[i]->reading());
-        if (syllables.size() != chars.size() || syllables[k] != readingUtf8
-            || chars[k] != currentUtf8) {
-            return NO;
-        }
-        if (node->isOverridden() && ![self _neuralAppliedByUs:node]) {
-            return NO;
-        }
-        // Rebuild the twin value with position k replaced; selectOverrideUnigram
-        // only succeeds when that value actually exists among the node's
-        // unigrams, keeping the engine-level guarantee: text is re-picked,
-        // never generated. Soft override keeps the top unigram's score, so
-        // segmentation and path competition are unaffected and no re-walk is
-        // needed; nothing is observed into the user override model.
-        //
-        // Hybrid path (n-gram walk + RNN reselect): also write
-        // selectedUnigramIndices so chosenValueAt stays consistent when a
-        // ContextModel walk left DP indices behind. Node override alone is
-        // not enough — chosenValueAt used to prefer DP indices and would
-        // silently discard a post-walk neural flip under EnableContextualWalk.
-        std::string targetValue;
-        for (size_t j = 0; j < chars.size(); ++j) {
-            targetValue += (j == k) ? valueUtf8 : chars[j];
-        }
-        if (node->selectOverrideUnigram(
-                targetValue,
-                Formosa::Gramambular2::ReadingGrid::Node::OverrideType::
-                    kOverrideValueWithScoreFromTopUnigram)) {
-            _latestWalk.reselectUnigramValue(i, targetValue);
-            _neuralApplied[node.get()] = node;
-            return YES;
-        }
-        return NO;
-    }
-    return NO;
+    _lastTabPinnedBuffer = nil;
 }
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback
@@ -1045,55 +834,29 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
     return NO;
 }
 
-- (BOOL)_handleTabState:(InputState *)state shiftIsHold:(BOOL)shiftIsHold stateCallback:(void (^)(InputState *))stateCallback errorCallback:(void (^)(void))errorCallback
+// Cycle the candidate at the current cursor (used by repeated-punctuation
+// preference). Not the Tab key — Tab is neural path preview since v2.7.0.
+- (void)_cycleCandidateAtCursorShiftIsHold:(BOOL)shiftIsHold
 {
-    if (!_grid->length()) {
-        return NO;
+    InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
+    if (![inputting isKindOfClass:[InputStateInputting class]]) {
+        return;
     }
-
-    if (![state isKindOfClass:[InputStateInputting class]]) {
-        errorCallback();
-        return YES;
-    }
-
-    if (!_bpmfReadingBuffer->isEmpty()) {
-        errorCallback();
-        return YES;
-    }
-
-    InputStateChoosingCandidate *candidateState = [self _buildCandidateStateFromInputtingState:(InputStateInputting *)[self buildInputtingState] useVerticalMode:NO];
+    InputStateChoosingCandidate *candidateState = [self _buildCandidateStateFromInputtingState:inputting useVerticalMode:NO];
     NSArray *candidates = candidateState.candidates;
     if (candidates.count == 0) {
-        errorCallback();
-        return YES;
+        return;
     }
-
     auto nodeIter = _latestWalk.findNodeAt(self.actualCandidateCursorIndex);
     if (nodeIter == _latestWalk.nodes.cend()) {
-        // Shouldn't happen.
-        errorCallback();
-        return true;
+        return;
     }
     Formosa::Gramambular2::ReadingGrid::NodePtr currentNode = *nodeIter;
-
     size_t currentIndex = 0;
     if (!currentNode->isOverridden()) {
-        // If the user never selects a candidate for the node, we start from the
-        // first candidate, so the user has a chance to use the unigram with two or
-        // more characters when type the tab key for the first time.
-        //
-        // In other words, if a user type two BPMF readings, but the score of seeing
-        // them as two unigrams is higher than a phrase with two characters, the
-        // user can just use the longer phrase by typing the tab key.
         InputStateCandidate *candidate = candidates[0];
         if (currentNode->reading() == candidate.reading.UTF8String && currentNode->value() == candidate.value.UTF8String) {
-            // If the first candidate is the value of the current node, we use next
-            // one.
-            if (shiftIsHold) {
-                currentIndex = candidates.count - 1;
-            } else {
-                currentIndex = 1;
-            }
+            currentIndex = shiftIsHold ? candidates.count - 1 : 1;
         }
     } else {
         for (InputStateCandidate *candidate : candidates) {
@@ -1108,16 +871,87 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
             currentIndex++;
         }
     }
-
     if (currentIndex >= candidates.count) {
         currentIndex = 0;
     }
-
     InputStateCandidate *candidate = candidates[currentIndex];
     size_t originalCursorIndex = _grid->cursor();
     [self fixNodeWithReading:candidate.reading value:candidate.value originalCursorIndex:originalCursorIndex useMoveCursorAfterSelectionSetting:NO];
-    InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
-    stateCallback(inputting);
+}
+
+// Pin each node on the latest walk with kOverrideValueWithHighScore so later
+// per-keystroke walks cannot flip Tab/Enter neural picks. User hard overrides
+// already use the same type; re-pinning their chosen value is a no-op for them
+// and preserves the 32/32 "hand selection survives" invariant.
+- (void)_pinLatestWalkWithHardOverrides
+{
+    size_t loc = 0;
+    for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+        const auto &node = _latestWalk.nodes[i];
+        if (node == nullptr) {
+            continue;
+        }
+        std::string value = _latestWalk.chosenValueAt(i);
+        if (!value.empty()) {
+            _grid->overrideCandidate(
+                loc, value,
+                Formosa::Gramambular2::ReadingGrid::Node::OverrideType::
+                    kOverrideValueWithHighScore);
+        }
+        loc += node->spanningLength();
+    }
+}
+
+// v2.7.0: Tab = neural path re-rank PREVIEW (same scoreNBest path as Enter).
+// Stays in Inputting (composing underline). Non-composing Tab returns NO so the
+// host app gets the key (tab char / focus traversal). Old candidate-cycling Tab
+// is intentionally removed.
+- (BOOL)_handleTabState:(InputState *)state shiftIsHold:(BOOL)shiftIsHold stateCallback:(void (^)(InputState *))stateCallback errorCallback:(void (^)(void))errorCallback
+{
+    (void)shiftIsHold;
+
+    // Not composing → pass Tab to host.
+    if (![state isKindOfClass:[InputStateInputting class]] || !_grid->length()) {
+        return NO;
+    }
+    // Mid-syllable Bopomofo reading: keep composing, swallow Tab (no host tab).
+    if (!_bpmfReadingBuffer->isEmpty()) {
+        errorCallback();
+        return YES;
+    }
+    // Plain Bopomofo has no L0+ path; do not intercept.
+    if (_inputMode == InputModePlainBopomofo) {
+        return NO;
+    }
+    if (!Preferences.enableNeuralPathRerank) {
+        // Flag off: no-op, stay composing (do not fall back to candidate cycle).
+        return YES;
+    }
+
+    NSString *before = ((InputStateInputting *)state).composingBuffer;
+    // Idempotent: second Tab with identical pinned buffer → no UI flash.
+    if (_lastTabPinnedBuffer != nil && [before isEqualToString:_lastTabPinnedBuffer]) {
+        return YES;
+    }
+
+    _rerankThisWalk = YES;
+    [self _walk];
+    _rerankThisWalk = NO;
+
+    // Nail the winning path so subsequent typing walks cannot undo it.
+    [self _pinLatestWalkWithHardOverrides];
+
+    InputState *reranked = [self buildInputtingState];
+    if (![reranked isKindOfClass:[InputStateInputting class]]) {
+        return YES;
+    }
+    NSString *after = ((InputStateInputting *)reranked).composingBuffer;
+    _lastTabPinnedBuffer = [after copy];
+    if ([before isEqualToString:after]) {
+        // Path unchanged: still pin (done above) but skip state rewrite flash.
+        return YES;
+    }
+    stateCallback(reranked);
     return YES;
 }
 
@@ -1501,7 +1335,7 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
                     if (Preferences.selectPhraseAfterCursorAsCandidate) {
                         _grid->setCursor(actualPrefixCursorIndex);
                     }
-                    [self _handleTabState:state shiftIsHold:NO stateCallback:stateCallback errorCallback:errorCallback];
+                    [self _cycleCandidateAtCursorShiftIsHold:NO];
                     _grid->setCursor(prefixCursorIndex);
                     stateCallback([self buildInputtingState]);
                     return YES;
@@ -2781,10 +2615,9 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
     }
 
     // Mozc-style n-best + true char-LSTM PathScorer (candidate A, default ON
-    // since v2.6.0). COMMIT-TIME ONLY: gated by _rerankThisWalk so the
-    // per-keystroke composing walk never pays the ~45 ms rerank (measured
-    // 27 ms mean / 104 ms max per keystroke if run inline — unacceptable).
-    // When off / not commit / scorer null, walk() is bit-identical to pre-rerank.
+    // since v2.6.0). Gated by _rerankThisWalk: Enter-commit and Tab-preview only;
+    // per-keystroke composing walk never pays the ~45 ms rerank.
+    // When off / not gated / scorer null, walk() is bit-identical to pre-rerank.
     if (Preferences.enableNeuralPathRerank && _rerankThisWalk &&
         _inputMode != InputModePlainBopomofo) {
         static McBopomofo::NeuralLMPathScorer *sharedPathScorer = nullptr;
@@ -2814,18 +2647,6 @@ static std::vector<std::string> NeuralSplitReading(const std::string &reading)
 
     _latestWalk = _grid->walk();
 
-    // Confusion-pair disambiguation (e.g. 在/再): re-picks among the unigrams
-    // that already exist in a single-reading node via a soft override, using
-    // the neighboring characters of the walked path. Segmentation and node
-    // scores are unaffected, so no re-walk is needed. It never touches nodes
-    // overridden by the user or the user override model, and it never feeds
-    // the user override model (override-without-observe; see
-    // docs/engine-node-override.md).
-    if (Preferences.enableConfusionPairDisambiguation
-        && _inputMode != InputModePlainBopomofo
-        && _confusionPairDisambiguator->isLoaded()) {
-        _confusionPairDisambiguator->rescoreWalk(_latestWalk);
-    }
 }
 
 - (InputStateChoosingCandidate *)_buildCandidateStateFromInputtingState:(InputStateInputting *)inputting useVerticalMode:(BOOL)useVerticalMode

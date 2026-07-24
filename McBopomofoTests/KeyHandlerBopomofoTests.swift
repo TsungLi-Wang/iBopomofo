@@ -2053,11 +2053,14 @@ class KeyHandlerBopomofoTests: XCTestCase {
         }
     }
 
+    /// v2.7.0: Tab runs neural path preview and stays in Inputting (no commit).
     func testTabKey() {
+        let prev = Preferences.enableNeuralPathRerank
+        Preferences.enableNeuralPathRerank = true
+        defer { Preferences.enableNeuralPathRerank = prev }
+
         var state: InputState = InputState.Empty()
-        let keys = Array("w8 ").map {
-            String($0)
-        }
+        let keys = Array("w8 ").map { String($0) }
         for key in keys {
             let input = KeyHandlerInput(
                 inputText: key, keyCode: 0, charCode: charCode(key), flags: [],
@@ -2067,26 +2070,87 @@ class KeyHandlerBopomofoTests: XCTestCase {
             } errorCallback: {
             }
         }
-        let input = KeyHandlerInput(
-            inputText: " ", keyCode: KeyCode.tab.rawValue, charCode: 0, flags: [],
-            isVerticalMode: false)
-
-        handler.handle(input: input, state: state) { newState in
-            state = newState
-        } errorCallback: {
-        }
-
-        handler.handle(input: input, state: state) { newState in
-            state = newState
-        } errorCallback: {
-        }
-
-        handler.handle(input: input, state: state) { newState in
-            state = newState
-        } errorCallback: {
-        }
-
         XCTAssertTrue(state is InputState.Inputting)
+        let before = (state as? InputState.Inputting)?.composingBuffer ?? ""
+
+        let tab = KeyHandlerInput(
+            inputText: "\t", keyCode: KeyCode.tab.rawValue, charCode: 9, flags: [],
+            isVerticalMode: false)
+        var callbacks = 0
+        handler.handle(input: tab, state: state) { newState in
+            callbacks += 1
+            state = newState
+        } errorCallback: {
+        }
+        XCTAssertTrue(state is InputState.Inputting, "Tab must keep composing")
+        XCTAssertFalse(state is InputState.Committing, "Tab must not commit")
+        let after1 = (state as? InputState.Inputting)?.composingBuffer ?? ""
+
+        // Idempotent second Tab: no state callback flash when buffer unchanged.
+        callbacks = 0
+        handler.handle(input: tab, state: state) { newState in
+            callbacks += 1
+            state = newState
+        } errorCallback: {
+        }
+        let after2 = (state as? InputState.Inputting)?.composingBuffer ?? ""
+        XCTAssertEqual(after1, after2)
+        XCTAssertEqual(callbacks, 0, "second Tab should not rewrite UI when identical")
+        XCTAssertFalse(before.isEmpty)
+    }
+
+    /// User hard selection must survive Tab neural preview (same invariant as Enter).
+    func testTabDoesNotOverrideUserSelection() {
+        let prev = Preferences.enableNeuralPathRerank
+        Preferences.enableNeuralPathRerank = true
+        defer { Preferences.enableNeuralPathRerank = prev }
+
+        var state: InputState = InputState.Empty()
+        // Type 再-ish readings then open candidates and pick a value, then Tab.
+        let keys = Array("ulk4 ").map { String($0) }  // 再 reading often ㄗㄞˋ
+        for key in keys {
+            let input = KeyHandlerInput(
+                inputText: key, keyCode: 0, charCode: charCode(key), flags: [],
+                isVerticalMode: false)
+            handler.handle(input: input, state: state) { newState in
+                state = newState
+            } errorCallback: {
+            }
+        }
+        // Open candidate window
+        let down = KeyHandlerInput(
+            inputText: " ", keyCode: KeyCode.down.rawValue, charCode: 0, flags: [],
+            isVerticalMode: false)
+        handler.handle(input: down, state: state) { newState in
+            state = newState
+        } errorCallback: {
+        }
+        guard let choosing = state as? InputState.ChoosingCandidate, choosing.candidates.count >= 2 else {
+            // Environment without full LM data — skip rather than fail the suite hard.
+            return
+        }
+        // Select second candidate via keyHandler fix path (index 1)
+        let selected = choosing.candidates[1]
+        handler.fixNode(
+            reading: selected.reading, value: selected.value,
+            originalCursorIndex: Int(choosing.originalCursorIndex),
+            useMoveCursorAfterSelectionSetting: false)
+        state = handler.buildInputtingState()
+        let pinned = (state as? InputState.Inputting)?.composingBuffer ?? ""
+        XCTAssertFalse(pinned.isEmpty)
+
+        let tab = KeyHandlerInput(
+            inputText: "\t", keyCode: KeyCode.tab.rawValue, charCode: 9, flags: [],
+            isVerticalMode: false)
+        handler.handle(input: tab, state: state) { newState in
+            state = newState
+        } errorCallback: {
+        }
+        XCTAssertTrue(state is InputState.Inputting)
+        let after = (state as? InputState.Inputting)?.composingBuffer ?? ""
+        // Hand-selected value must still appear (hard override survives pin/rerank).
+        XCTAssertTrue(after.contains(selected.value) || after == pinned,
+                      "user selection must survive Tab; before=\(pinned) after=\(after) selected=\(selected.value)")
     }
 
     func testMacroAndTabKey() {

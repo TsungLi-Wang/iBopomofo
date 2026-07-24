@@ -12,9 +12,7 @@ add_library(McBopomofoLMLib
         AssociatedPhrasesV2.cpp
         ByteBlockBackedDictionary.h
         ByteBlockBackedDictionary.cpp
-        ConfusionPairDisambiguator.h
-        ConfusionPairDisambiguator.cpp
-        CorpusBigramContextModel.h
+                        CorpusBigramContextModel.h
         CorpusBigramContextModel.cpp
         CompositeContextModel.h
         CompositeContextModel.cpp
@@ -101,8 +99,7 @@ if (ENABLE_TEST)
         add_executable(McBopomofoLMLibTest
                 AssociatedPhrasesV2Test.cpp
                 ByteBlockBackedDictionaryTest.cpp
-                ConfusionPairDisambiguatorTest.cpp
-                CorpusBigramContextModelTest.cpp
+                                CorpusBigramContextModelTest.cpp
                 CompositeContextModelTest.cpp
                 McBopomofoLMTest.cpp
                 MemoryMappedFileTest.cpp

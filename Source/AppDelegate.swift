@@ -188,16 +188,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
 
         enableBopomofoFontAnnotationSupportMenuItemIfRelevantFontsInstalled()
 
-        // 單元測試以本 app 當 test host 啟動。此時不要 spawn 內嵌 llama-server、
-        // 也不要連網檢查更新——否則模型載入與背景子程序會讓 `xcodebuild test`
-        // 無法乾淨結束,造成整包測試卡在收尾階段。
+        // 單元測試以本 app 當 test host 啟動時不要連網檢查更新。
         if AppDelegate.isRunningUnitTests {
             return
         }
 
-        // 若 AI 修正後端是本機 AI(內建),啟動時就 spawn 內嵌 llama-server 開始載入模型,
-        // 消掉首次使用的冷啟動。
-        McBopomofoInputMethodController.startLocalServerIfNeeded()
+        // v2.7.0: drop orphan prefs from removed llama/Claude features; log shipping knobs.
+        Preferences.purgeRemovedFeaturePreferences()
+        Preferences.logShippingConfiguration()
 
         checkForUpdate()
     }
@@ -208,8 +206,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // 收掉內嵌 llama-server / whisper-server 子程序,別留孤兒佔記憶體。
-        LlamaServerManager.shared.stop()
+        // 收掉內嵌 whisper-server 子程序,別留孤兒佔記憶體。
         WhisperServerManager.shared.stop()
     }
 
