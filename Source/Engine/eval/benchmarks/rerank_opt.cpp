@@ -34,6 +34,8 @@
 #include "ParselessLM.h"
 #include "gramambular2/reading_grid.h"
 
+#include "../benchmark_gate.h"
+
 using Formosa::Gramambular2::ReadingGrid;
 using McBopomofo::CorpusBigramContextModel;
 using McBopomofo::ParselessLM;
@@ -340,6 +342,7 @@ int main(int argc, char** argv) {
                  "[int8]\n";
     return 1;
   }
+  McBopomofoEval::AbortUnlessTw538(argv[1]);
   auto cases = loadCases(argv[1]);
   ParselessLM lm;
   if (!lm.open(argv[2])) { std::cerr << "data fail\n"; return 1; }

@@ -1,0 +1,9 @@
+cases=537 params=9734083 emb=256 hidden=512 lambdas=1 nus=1 control=1
+TSV	lambda	nu	correct	total	in_pool
+COVERAGE	lambda	in_pool	total
+COVERAGE	0.7500	470	537
+LAMBDA_DONE 0.7500 in_pool 470/537 wall_ms 23470.0000
+TSV	0.7500	0.7500	387	537	470
+CONTROL lambda=0.75 nu=0.75 correct 387/537
+BEST lambda=0.7500 nu=0.7500 correct 387/537
+CONTROL_OK YES got=387 expected=387

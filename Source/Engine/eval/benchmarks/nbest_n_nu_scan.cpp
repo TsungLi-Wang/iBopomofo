@@ -22,6 +22,8 @@
 #include "ParselessLM.h"
 #include "gramambular2/reading_grid.h"
 
+#include "../benchmark_gate.h"
+
 using Formosa::Gramambular2::ReadingGrid;
 using McBopomofo::CorpusBigramContextModel;
 using McBopomofo::NeuralLMPathScorer;
@@ -115,6 +117,7 @@ int main(int argc, char** argv) {
                  "n_list nu_list\n";
     return 1;
   }
+  McBopomofoEval::AbortUnlessTw538(argv[1]);
   auto cases = loadCases(argv[1]);
   ParselessLM lm;
   if (!lm.open(argv[2])) return 1;

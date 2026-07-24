@@ -1,36 +1,26 @@
 #!/usr/bin/env python3
-"""
-Taiwan Typing Benchmark (北極星指標)
-Run this after building or with the C++ harness.
-
-For now, this is a python driver that can call the C++ tw_benchmark or implement simple.
-
-For prototype, it loads the tsv and prints the cases for manual or future integration.
-
-Usage: python run_tw_benchmark.py tw-sentences.tsv
-"""
-
+"""Driver stub: only loads tw538 (537 sentences)."""
 import sys
-import subprocess
+from pathlib import Path
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python run_tw_benchmark.py tw-sentences.tsv [lm-data]")
+        print("Usage: python run_tw_benchmark.py tw538-northstar.tsv")
         sys.exit(1)
-
-    tsv = sys.argv[1]
-    with open(tsv) as f:
-        cases = [line.strip().split('\t') for line in f if line.strip() and not line.startswith('#')]
-
-    print(f"Loaded {len(cases)} Taiwan benchmark sentences.")
-
-    # TODO: call the C++ binary or implement via the grid
-    # For now, print first few
-    for r, e in cases[:5]:
-        print(f"  {r} -> {e}")
-
-    print("\nRun the C++ tw_benchmark or integrate with rerank_eval for real numbers.")
-    print("This is the north star for EM / bigram changes.")
+    tsv = Path(sys.argv[1])
+    if "tw-sentences" in tsv.name:
+        print(f"FATAL: retired benchmark corpus refused: {tsv}", file=sys.stderr)
+        sys.exit(3)
+    cases = []
+    for line in tsv.read_text().splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        if "\t" in line or "	" in line:
+            cases.append(line)
+    if len(cases) != 537:
+        print(f"FATAL: benchmark gate: expected 537 sentences, got {len(cases)}", file=sys.stderr)
+        sys.exit(3)
+    print(f"Loaded {len(cases)} tw538 sentences (gate OK).")
 
 if __name__ == "__main__":
     main()

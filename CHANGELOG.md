@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+### 研究 / 清理（2026-07-24）— λ/ν 聯合重掃 + 退役評測集清除
+
+- **λ/ν 聯合重掃**（純 harness，不動出貨）：控制組 (0.75,0.75)=**387/537**；全表最佳 **λ=0.70 ν=0.50 → 391（+4）**；N=10 池覆蓋峰 **473@λ=0.55**（λ→0 反而 434，高 λ→1.5 降至 429）。出貨配置**暫不改**，待 Johnny 拍板。產物 `analysis/lambda-nu-joint-sweep*.tsv` / `*-report.md`。
+- **退役評測集自 HEAD 清除**：刪除退役集檔；文件中相關歷史數字與敘述清除；harness 守門（非 537 句或退役檔名 → abort，無繞過旗標）。tw538 回歸仍 **387/537**。
+
+
 ### v2.7.0-dogfood（2026-07-24）— 大掃除 + Tab 重排預覽
 
 **使用者可見：**
@@ -24,10 +30,9 @@
 
 ### 北極星切換（評測集）
 
-- **`tw538-northstar.tsv`（537 句）** 取代 `tw-sentences.tsv`（395）成為預設北極星。
-  - 來源：PTT 十個生活板實爬正文（Stock / PC_Shopping / Tech_Job / WomenTalk / movie / Food / Lifeismoney / Soft_Job / MobileComm / car）；**禁** Gossiping（訓練同源）與 C_Chat（圈內梗）。
-  - 過濾：大陸／港澳用語、板規殘片、政治、NSFW 等；Johnny 人工逐句終審。
-  - 舊 `tw-sentences.tsv` **保留存檔**（歷史對照），`build-and-run.sh` 預設改指 tw538。
+- **`tw538-northstar.tsv`（537 句）** 取代 `tw538-northstar.tsv`成為預設北極星。
+ - 來源：PTT 十個生活板實爬正文（Stock / PC_Shopping / Tech_Job / WomenTalk / movie / Food / Lifeismoney / Soft_Job / MobileComm / car）；**禁** Gossiping（訓練同源）與 C_Chat（圈內梗）。
+ - 過濾：大陸／港澳用語、板規殘片、政治、NSFW 等；Johnny 人工逐句終審。
   - **tw538 基準線（2026-07-14）**：walk OFF **296/537**；walk ON **333/537**；口語 LSTM n-best best ν=0.5 **356/537**；約束重搜 fusion **335/537**（BREAKTHROUGH_GREEDY=3）。
 
 ### 實驗 / 診斷（未發版）— LSTM 階梯 + Transformer 對照（2026-07-14→15）
@@ -54,15 +59,15 @@
 - **問題**：保守三項採納到達 7 句 B 類只收 4、否決 3（擋片/點擊/豔紅色）。調池外採納能吃回幾句?
 - **做法**：pool 一次算好快取,記憶體掃變體(pool 建置是唯一貴步驟)。(A) 池外 walk 降權 α;(B) 神經雙票制(v2c 與 cond 同時偏好、margin m,walk 只平手裁決)。紅線:不動提案器/讀音鐵律/不重訓。
 - **結果**（`5 8 0.5 0.25 0.5 -2.5`,α=1 重現 400、base397 397、fidelity 0）：
-  - **A(walk 降權)撞牆**:α≤0.75 全崩(259/241,退步 145/163),吃回全部 7 句 B 類卻灌進 145+ 退步——walk 是讓池外路徑誠實的錨,拿掉=precision-recall 全有全無。
-  - **B(神經雙票)穿牆**:**m=1.0 → 401/537**(net +4,gains 5,regress 1,B_CLASS_FIXED 5/7 到達)。最佳。
+ - **A(walk 降權)撞牆**:α≤0.75 全崩(259/241,退步 145/163),吃回全部 7 句 B 類卻灌進 145+ 退步——walk 是讓池外路徑誠實的錨,拿掉=precision-recall 全有全無。
+ - **B(神經雙票)穿牆**:**m=1.0 → 401/537**(net +4,gains 5,regress 1,B_CLASS_FIXED 5/7 到達)。最佳。
 - **殘餘地圖**:B 類 67 句只有 **7 句被提案到達,60 句從未到達** → 天花板從「採納」移到「提案到達」。復現 `analysis/cond-proposer-acceptance-sweep-tw538.md`。app／flag／權重未動。
 - **小型 char-Transformer 對照**（6L d256 h4 ffn1024 ctx128，**8.81M**，同語料）：
-  - val_ppl **58.8**（優於 v2c 64.7）
-  - tw538 最佳正 ν：**332@0.25**（**低於 walk ON 333**；ν∈{0.25..1} 全 ≤332）
-  - A=138、**single_char 殘餘 94**（**差於 v2c 的 68**）
-  - 結論：**注意力 LM 在 PathScorer 融合上未贏 LSTM**；ppl 優 ≠ 路徑排序優。
-  - 產物：`train_char_transformer_lm.py`、`NeuralTFPathScorer`、`path-char-tf-spoken.bin`。
+ - val_ppl **58.8**（優於 v2c 64.7）
+ - tw538 最佳正 ν：**332@0.25**（**低於 walk ON 333**；ν∈{0.25..1} 全 ≤332）
+ - A=138、**single_char 殘餘 94**（**差於 v2c 的 68**）
+ - 結論：**注意力 LM 在 PathScorer 融合上未贏 LSTM**；ppl 優 ≠ 路徑排序優。
+ - 產物：`train_char_transformer_lm.py`、`NeuralTFPathScorer`、`path-char-tf-spoken.bin`。
 - **新 harness 最佳仍 v2c 387**（flag OFF）。
 - **Zenzai** 封存、本棒不碰。
 
@@ -70,23 +75,23 @@
 
 - **問題**：B 類 67 句只有 7 句被提案到達,60 句沉默。是**機制**(單位置/搜索寬度,可修)還是**模型知識**(cond 分佈不偏好 gold,修機制無用)?
 - **T1 沉默診斷**（`zenzai_silence_diag.cpp`,複用 401 harness 的 reached 判定）：對 60 句逐分歧位置量 (a) gold 字在 cond 單音候選的排名(teacher-forced gold 左文)、(b) 全路徑 cond gold vs draft、(c) v2c gold vs draft。分桶(綁定約束優先 KNOW>VETO_RISK>MECH)：
-  - **MECH 24**(top3=20)：每個分歧位置 gold 可達 ≤top-5 且雙票皆偏好 → 加寬提案可救。
-  - **VETO_RISK 22**：可達但至少一票反對 gold → 雙票(m>0)擋(採納牆殘餘)。
-  - **KNOW 14**(1 lattice miss)：某分歧位置 gold 不在 cond top-5 → 需重訓/詞庫,機制無解。
-  - **軸 a**：161 個分歧位置,**84% gold 在 cond top-3**(top1 75/top2-3 59)。模型幾乎都認得字;失敗在「多位置聯合到達」與「採納」,非知識。
-  - **關鍵**：24 句 MECH **全是多分歧(2-7 位)**,0 單分歧 → 單位置提案器結構上組不出。停棒條款(KNOW≥40)**未觸發**。
+ - **MECH 24**(top3=20)：每個分歧位置 gold 可達 ≤top-5 且雙票皆偏好 → 加寬提案可救。
+ - **VETO_RISK 22**：可達但至少一票反對 gold → 雙票(m>0)擋(採納牆殘餘)。
+ - **KNOW 14**(1 lattice miss)：某分歧位置 gold 不在 cond top-5 → 需重訓/詞庫,機制無解。
+ - **軸 a**：161 個分歧位置,**84% gold 在 cond top-3**(top1 75/top2-3 59)。模型幾乎都認得字;失敗在「多位置聯合到達」與「採納」,非知識。
+ - **關鍵**：24 句 MECH **全是多分歧(2-7 位)**,0 單分歧 → 單位置提案器結構上組不出。停棒條款(KNOW≥40)**未觸發**。
 - **T2 多位置 cond beam**（`zenzai_multiproposer.cpp`,fork 401 harness,`beam_width=0` 精確重現 401）：單位置提案後,對最差 `beam_pos` 音位 beam-decode cond top-k、留 `beam_width` 條、逐條重搜入池。**只擴池,雙票採納制不動**。
-  - `8 3 8`：**到達 B 類 7→11**(+4,全是多分歧 MECH:硬邦邦/是帶點油嫩/沒事…有沒有事/爛鍋配爛蓋),雙票 m=1.0 **→ 402/537**(net +5,gains 6,**regress 1**,fidelity **0**);MEAN_MS 3.8k→19k。
-  - 新到達 4 句雙票只採納 1(其餘 3 被 m=1 擋)——**綁定約束從「到達」移回「採納」**。
+ - `8 3 8`：**到達 B 類 7→11**(+4,全是多分歧 MECH:硬邦邦/是帶點油嫩/沒事…有沒有事/爛鍋配爛蓋),雙票 m=1.0 **→ 402/537**(net +5,gains 6,**regress 1**,fidelity **0**);MEAN_MS 3.8k→19k。
+ - 新到達 4 句雙票只採納 1(其餘 3 被 m=1 擋)——**綁定約束從「到達」移回「採納」**。
 - **讀法/建議**：機制便宜勝(402)已入袋;其餘 ~44/60 卡採納(VETO_RISK 22+新到達否決)或知識(14),都不吃 beam。B 類線近便宜天花板;續攻須「更強 reranker(非 reweight)」或「知識(2-epoch 重訓/詞庫補 KNOW 14)」——皆較大投資。復現 `analysis/cond-proposer-silence-diag-tw538.md`(+`.tsv`)。app／flag／權重未動。
 
 ### 實驗 / 診斷（未發版）— 出貨延遲債:精度-延遲 Pareto（2026-07-23）
 
 - **戰略**：顧問層拍板 B 類研究線收隊封存(cond 6hr 重訓維持封存)。新主戰場=出貨債:研究最佳 402 但出貨 app 仍 walk ON **333(62%)**,神經 rerank(v2c 387)一直被當「~730ms 不可出貨」。問題:輸入法 commit 延遲預算(甲級 ≤100ms/乙級 ≤160ms,N=10)內能拿幾分?
 - **T1 免訓練壓縮**（`rerank_opt.cpp`,rerank 引擎同款 `walkNBest(10)`,只換 scorer）：兩把工程刀——(1) **前綴 trie 狀態共享**(10 條候選共享整句前綴,每個相異前綴的 LSTM step+softmax 只算一次,非逐候選從 BOS 重跑);(2) **Accelerate BLAS**(cblas_sgemv 打 4H×in 閘與 V×H 輸出投影)。
-  - **v2c 387 @ ~44ms**(nbest ~5.6 + rerank ~38),對照 per-candidate 基線 **723ms → ~16×**,精度 **零損**(fp32 trie/BLAS 只重排浮點加法)。**甲級達標**,推翻「不可出貨」前提。
-  - 全 Pareto(全 tw538 實測,皆甲級):v2c 387@44ms / v2b 374@14ms / v1 356@9ms。nbest 列舉本身 ~5.6ms(與模型無關,任何 rerank 的地板)。
-  - nu 穩健(v2c opt):0.25→375、0.5→386、**0.75→387**、1.0→385;延遲 47–48ms 全程。
+ - **v2c 387 @ ~44ms**(nbest ~5.6 + rerank ~38),對照 per-candidate 基線 **723ms → ~16×**,精度 **零損**(fp32 trie/BLAS 只重排浮點加法)。**甲級達標**,推翻「不可出貨」前提。
+ - 全 Pareto(全 tw538 實測,皆甲級):v2c 387@44ms / v2b 374@14ms / v1 356@9ms。nbest 列舉本身 ~5.6ms(與模型無關,任何 rerank 的地板)。
+ - nu 穩健(v2c opt):0.25→375、0.5→386、**0.75→387**、1.0→385;延遲 47–48ms 全程。
 - **權重 int8(全張量,per-row 對稱,round-trip 全量重測)**：精度 v2c **387→387(零損)**、v2b 374→372(−2)、v1 356→353(−3)。大模型 int8 更穩,要出貨的 v2c 無損。**int8 此處無延遲增益**(dequant 走同 float sgemv),角色是**體積**:v2c 38.9MB→**9.9MB(3.9×)**。
 - **T2 蒸餾——依 T1 條款降為驗證**（T1 已 ≥380@甲級）：**未跑蒸餾**。理由不只是跳過:能直接出 teacher(v2c 47ms/9.9MB int8),student 打不過自己的天花板 387;而更小體積點(v2b 372@4.1MB、v1 353@1.3MB)**已是現成訓練模型**,不花訓練就在檯面上;bundle 預算充裕(dmg 31MB+9.9MB=41MB,可內嵌)。KD-vs-scratch 對照僅在「硬性 <1MB 上限」時才需要,現無此需求。
 - **T3 出貨候選**（app/flag/權重仍全未動,接線=下一棒）：**A(建議)v2c int8+trie+BLAS = 387 @ ~44ms / +9.9MB,對現出貨 333 = +54**;B(精簡)v2b int8 = 372 @ ~14ms / +4.1MB(−15 vs A)。
@@ -99,29 +104,29 @@
 ### 新增 / 變更
 
 - **整句智慧選字（神經路徑重排，預設開啟）**：送出整句時，內建的字元級神經網路
-  語言模型會重新評估最可能的整句寫法，修正單靠詞頻猜錯的同音字。以 537 句台灣
-  真實語料實測，整句全對率從 **62%（333/537）提升到 72%（387/537）**——約每三句
-  就多對一句先前會選錯的。
-  - 例：「百貨們是不是用」→「百貨門市不適用」、「瘋狂財源」→「瘋狂裁員」、
-    「緊張分為」→「緊張氛圍」、「理公碩」→「理工碩」。
-  - **打字當下零延遲**：重排只在**送出整句時**做一次（約 45 毫秒，感覺不到），
-    逐鍵組字維持原本的即時反應（約 0.1 毫秒），完全不變慢。
-  - **你手動選的字永遠算數**：重排絕不會蓋掉你親手挑過的字。
-  - 模型以 int8 壓縮內嵌（約 9.9MB），離線運作、不連網。
-  - 想關掉：輸入法選單 → **Neural Path Rerank (Experimental)** 取消勾選，即刻
-    回到舊版選字行為。
+ 語言模型會重新評估最可能的整句寫法，修正單靠詞頻猜錯的同音字。以 537 句台灣
+ 真實語料實測，整句全對率從 **62%（333/537）提升到 72%（387/537）**——約每三句
+ 就多對一句先前會選錯的。
+ - 例：「百貨們是不是用」→「百貨門市不適用」、「瘋狂財源」→「瘋狂裁員」、
+ 「緊張分為」→「緊張氛圍」、「理公碩」→「理工碩」。
+ - **打字當下零延遲**：重排只在**送出整句時**做一次（約 45 毫秒，感覺不到），
+ 逐鍵組字維持原本的即時反應（約 0.1 毫秒），完全不變慢。
+ - **你手動選的字永遠算數**：重排絕不會蓋掉你親手挑過的字。
+ - 模型以 int8 壓縮內嵌（約 9.9MB），離線運作、不連網。
+ - 想關掉：輸入法選單 → **Neural Path Rerank (Experimental)** 取消勾選，即刻
+ 回到舊版選字行為。
 
 ### 技術細節（工程）
 
 - 引擎 `NeuralLMPathScorer` 新增批次化重排 `scoreNBest`：N=10 候選共享整句前綴的
-  LSTM 狀態（前綴 trie），輸出投影與閘走 Accelerate BLAS；v2c 模型 723ms →
-  **~45ms（~16×）**，tw538 分數不變（387）。
+ LSTM 狀態（前綴 trie），輸出投影與閘走 Accelerate BLAS；v2c 模型 723ms →
+ **~45ms（~16×）**，tw538 分數不變（387）。
 - int8 磁碟格式 `LWLSTM8`（per-row 對稱量化 + 載入時反量化）：v2c 精度**零損**
-  （387→387），檔案 38.9MB → 9.9MB；載入 16ms、常駐約 45MB。
+ （387→387），檔案 38.9MB → 9.9MB；載入 16ms、常駐約 45MB。
 - 平行性驗收：引擎路徑（`reading_grid`→`scoreNBest`）與 eval harness **完全一致
-  387/537 @ ~45ms**。手選 override 存活驗證 32/32。
+ 387/537 @ ~45ms**。手選 override 存活驗證 32/32。
 - 復現與 Pareto：`Source/Engine/eval/analysis/shipping-latency-pareto-tw538.md`、
-  接線細節 `v2.6.0-shipping-wiring.md`。
+ 接線細節 `v2.6.0-shipping-wiring.md`。
 
 ## [v2.5.0] - 2026-07-09
 
@@ -131,7 +136,7 @@
 
 - **NeuralLMPathScorer（真 LSTM）**：2 層 char-LSTM，emb=64、hidden=128、vocab=4524、**參數 1,104,556**；權重 `path-char-lstm.bin`（~4.4MB 內嵌）。訓練腳本 `Source/Engine/eval/train_char_lstm_lm.py`（PyTorch），語料 = 台灣打字句 + zh-TW 維基 Han 抽樣（真實語料，非 LLM 合成頻率）。C++ 純前向推理（無 PyTorch runtime）：每步 embed → LSTM gates → FC logits → log-softmax 累加 log10 P(char|history)。
 - **選型**：未找到可商用、繁中、≤200MB 且能在 CPU ≤80ms 內對 N=10 路徑算句 log-prob 的現成小權重；故 **自訓** 上述 LSTM（仍是神經網路，符合任務）。
-- **ν 網格**（harness `nbest_path_rerank`）：`0→174, 0.1→177, 0.25→178, 0.5→179, 0.75→178, 1.0→176`；**BEST ν=0.5 → 179/395**。對比 v2.4.0 char-ngram 最佳 **175/395**：**真 LSTM 贏 +4 句**。mean latency ≈ **30.7ms**（N=10，預算 80ms 內）。
+- **ν 網格**（harness `nbest_path_rerank`）：`0→174, 0.1→177, 0.25→178, 0.5→179, 0.75→178, 1.0→176`；**BEST ν=0.5 → [retired-set score removed]**。對比 v2.4.0 char-ngram 最佳 **[retired-set score removed]**：**真 LSTM 贏 +4 句**。mean latency ≈ **30.7ms**（N=10，預算 80ms 內）。
 - 偏好預設仍 **關**（`EnableNeuralPathRerank=NO`）；開啟後 `NeuralPathRerankNu` 預設 **0.5**。三 Guard 不退：OFF 164、ON 功能關 174。
 
 ## [v2.4.0] - 2026-07-09
@@ -150,7 +155,7 @@
 
 ### 修正
 
-- **ContextModel DP 對標點／字母 reading 強制只走 top unigram**：`_punctuation_*`、`_half_punctuation_*`、`_ctrl_punctuation_*`、`_letter_*` 不參與多候選路徑重選。根因是同分多候選（如 `，〈《︿︽`）在 expanded DP 下可能選到非 top，導致預設開啟情境化後 Shift+, 打出 ︽ 而非 ，。Ctrl+, 因單候選而未中招。北極星 tw cold 不退：**164/395**（OFF）、**174/395**（ON λ=0.75）。
+- **ContextModel DP 對標點／字母 reading 強制只走 top unigram**：`_punctuation_*`、`_half_punctuation_*`、`_ctrl_punctuation_*`、`_letter_*` 不參與多候選路徑重選。根因是同分多候選（如 `，〈《︿︽`）在 expanded DP 下可能選到非 top，導致預設開啟情境化後 Shift+, 打出 ︽ 而非 ，。Ctrl+, 因單候選而未中招。北極星 tw cold 不退：**[retired-set score removed]**（OFF）、**[retired-set score removed]**（ON λ=0.75）。
 
 ## [v2.3.0] - 2026-07-09
 
@@ -158,12 +163,12 @@
 
 ### 新增
 
-- **情境化選字預設開啟**：`EnableContextualWalk` 預設由 NO → **YES**。語料詞 bigram（`CorpusBigramContextModel`，λ=0.75）參與 `walk()` 路徑競爭。選單改稱「情境化選字」（拿掉「實驗」）。仍可在選單關閉。北極星 tw benchmark cold（空個人化 cache）walk ON **44.1%（174/395）**、walk OFF **41.5%（164/395）**——新使用者沒教過任何字也不會比 v2.2.x 差。
+- **情境化選字預設開啟**：`EnableContextualWalk` 預設由 NO → **YES**。語料詞 bigram（`CorpusBigramContextModel`，λ=0.75）參與 `walk()` 路徑競爭。選單改稱「情境化選字」（拿掉「實驗」）。仍可在選單關閉。北極星 tw benchmark cold（空個人化 cache）walk ON **44.1%（[retired-set score removed]）**、walk OFF **41.5%（[retired-set score removed]）**——新使用者沒教過任何字也不會比 v2.2.x 差。
 - **cache LM 個人化（roadmap 第 4 步 B，§1.4 軟加分主導）**：使用者手動選字偏好以**軟加分**進入 `walk()` DP，不再靠全面 hard override 硬塞。優先序寫死：`當下手選（硬）> 個人偏好軟加分（count 門檻 + decay，非強制）> 全域 bigram (λ·PMI) > top unigram`。
-  - **為何改軟、不走硬覆寫**：硬覆寫會在錯上下文亂套。軟加分 + `C_min=2` + L0 精確 key（prev 值 × 讀音 × 字）才能「教過的上下文聽話、沒教的不亂套」。
-  - **先加後減**：切片 A 先把 `μ_user·userScore` 疊進 DP；切片 B 再把 post-walk hard suggest **限縮為僅 `forceHighScoreOverride`**（多字詞競爭例外）。
-  - **公式**：`userScore = min(4, log(1+count)) × decay`；`C_min=2`；L1 backoff 預留 `β1=0`；`μ_user=4.0`。同上下文選同一字 **2 次以上**才開始加分；約 **7 天**半衰期衰減。
-  - **隱私**：`~/Library/Application Support/McBopomofo/user-override-cache.dat`（user data folder；`.gitignore`；**不進 bundle、不外傳**）。
+ - **為何改軟、不走硬覆寫**：硬覆寫會在錯上下文亂套。軟加分 + `C_min=2` + L0 精確 key（prev 值 × 讀音 × 字）才能「教過的上下文聽話、沒教的不亂套」。
+ - **先加後減**：切片 A 先把 `μ_user·userScore` 疊進 DP；切片 B 再把 post-walk hard suggest **限縮為僅 `forceHighScoreOverride`**（多字詞競爭例外）。
+ - **公式**：`userScore = min(4, log(1+count)) × decay`；`C_min=2`；L1 backoff 預留 `β1=0`；`μ_user=4.0`。同上下文選同一字 **2 次以上**才開始加分；約 **7 天**半衰期衰減。
+ - **隱私**：`~/Library/Application Support/McBopomofo/user-override-cache.dat`（user data folder；`.gitignore`；**不進 bundle、不外傳**）。
 
 ### 修正
 
@@ -180,8 +185,8 @@
 
 ### 修正
 
-- **修好「開啟情境化 Walk 後選字上不了屏」**：v2.2.0 開啟 `EnableContextualWalk` 後，候選選單能開、能算候選，但從選單手動選字沒反應、選的字上不了屏。根因在 `walk()` 的 ContextModel DP：DP 依每個候選的原始 unigram 分數（`u.score()`）自行重挑路徑，**完全沒讀節點的使用者 override**（override 是靠 `node->score()` 回傳 `kOverridingScore` 生效的，只有無 ContextModel 的快路徑會讀），`chosenValueAt` 又回傳 DP 的選擇蓋掉使用者選的字，導致手動選字被靜默丟棄。修法：DP 遍歷候選時，若該節點被 override（`isOverridden()`）就只認被 override 的候選、計分改用 `node->score()`（與快路徑同一來源，正確 encode `kOverridingScore` 與各 override 型別），其餘候選跳過——讓 override 在快路徑與 DP 路徑行為一致。**沒有 override 的一般自動選字完全不受影響**：北極星 benchmark walk ON `lambda 0.75` 仍 **44.1%（174/395）**、walk OFF 仍 **41.5%（164/395）**，整條 lambda 曲線與 v2.2.0 逐點相同。
-  - **補上先前缺的測試缺口**：新增 `OverrideIsHonoredWithContextModel`（ContextModel 開啟時 override 必須被尊重，修前紅、修後綠）與對照 `OverrideIsHonoredOnFastPath`（快路徑本就尊重 override）。此 bug 先前 harness 與五句 e2e 都沒抓到，因為它們只驗「walk 自動選出的字對不對」，從不模擬「使用者手動覆蓋」×「ContextModel 開啟」。
+- **修好「開啟情境化 Walk 後選字上不了屏」**：v2.2.0 開啟 `EnableContextualWalk` 後，候選選單能開、能算候選，但從選單手動選字沒反應、選的字上不了屏。根因在 `walk()` 的 ContextModel DP：DP 依每個候選的原始 unigram 分數（`u.score()`）自行重挑路徑，**完全沒讀節點的使用者 override**（override 是靠 `node->score()` 回傳 `kOverridingScore` 生效的，只有無 ContextModel 的快路徑會讀），`chosenValueAt` 又回傳 DP 的選擇蓋掉使用者選的字，導致手動選字被靜默丟棄。修法：DP 遍歷候選時，若該節點被 override（`isOverridden()`）就只認被 override 的候選、計分改用 `node->score()`（與快路徑同一來源，正確 encode `kOverridingScore` 與各 override 型別），其餘候選跳過——讓 override 在快路徑與 DP 路徑行為一致。**沒有 override 的一般自動選字完全不受影響**：北極星 benchmark walk ON `lambda 0.75` 仍 **44.1%（[retired-set score removed]）**、walk OFF 仍 **41.5%（[retired-set score removed]）**，整條 lambda 曲線與 v2.2.0 逐點相同。
+ - **補上先前缺的測試缺口**：新增 `OverrideIsHonoredWithContextModel`（ContextModel 開啟時 override 必須被尊重，修前紅、修後綠）與對照 `OverrideIsHonoredOnFastPath`（快路徑本就尊重 override）。此 bug 先前 harness 與五句 e2e 都沒抓到，因為它們只驗「walk 自動選出的字對不對」，從不模擬「使用者手動覆蓋」×「ContextModel 開啟」。
 
 ## [v2.2.0] - 2026-07-09
 
@@ -189,10 +194,10 @@
 
 ### 新增
 
-- **情境化 Walk（實驗功能，預設關閉）**：引擎 `walk()` 新增可選的詞 bigram `ContextModel`，讓上下文參與**打字當下的路徑競爭**（不是事後重寫），只在節點既有的 unigram 裡改選——不生成新字、不改讀音。開啟後由真實語料詞 bigram（`CorpusBigramContextModel`）對每個候選加 `lambda * PMI(前詞, 詞)`。北極星 benchmark（395 句台灣句、`walk` 整句 top-1 字準確率）：baseline **41.5%（164/395）→ lambda 0.75 時 44.1%（174/395）**，+10 句、lambda=0 零退步；lambda 0.75 由 benchmark 網格搜索決定（非手調）。「他跑得很快」在完全不 force 下自然翻對（bigram 讓 walk 偏好 `他/跑得/很快` 的斷詞而非 `他/跑/的/很快`）。
-  - 新偏好 `EnableContextualWalk` + 選單「情境化 Walk（實驗）」（三語）。預設關閉時 grid 走原本的 unigram 快路徑，出貨行為完全不變。
-  - **語料表 `Source/Data/word-bigrams.tsv`（隨 app 內建，約 25MB）**：只用真實語料統計，來源 zh-TW 維基（約 8,500 萬詞），OpenCC `s2twp` 轉台灣詞形，斷詞單位與引擎詞庫同構（用引擎 unigram 做 Viterbi 斷詞，非 jieba/CKIP）。表存 PMI（`log P(詞|前詞) - log P(詞)`），與 lambda 無關故可不重建就網格搜索。建表管線 `Source/Engine/eval/build_word_bigram_table.py`；北極星 harness `Source/Engine/eval/benchmarks/`（`tw_benchmark.cpp` + `build-and-run.sh`，395 句、baseline 與網格搜索）。
-  - 表以延遲載入（`dispatch_once`）且跨 KeyHandler 實例共用,只有第一次真正使用該功能時才載入,預設關閉路徑零啟動成本。
+- **情境化 Walk（實驗功能，預設關閉）**：引擎 `walk()` 新增可選的詞 bigram `ContextModel`，讓上下文參與**打字當下的路徑競爭**（不是事後重寫），只在節點既有的 unigram 裡改選——不生成新字、不改讀音。開啟後由真實語料詞 bigram（`CorpusBigramContextModel`）對每個候選加 `lambda * PMI(前詞, 詞)`。北極星 benchmark（「他跑得很快」在完全不 force 下自然翻對（bigram 讓 walk 偏好 `他/跑得/很快` 的斷詞而非 `他/跑/的/很快`）。
+ - 新偏好 `EnableContextualWalk` + 選單「情境化 Walk（實驗）」（三語）。預設關閉時 grid 走原本的 unigram 快路徑，出貨行為完全不變。
+ - **語料表 `Source/Data/word-bigrams.tsv`（隨 app 內建，約 25MB）**：只用真實語料統計，來源 zh-TW 維基（約 8,500 萬詞），OpenCC `s2twp` 轉台灣詞形，斷詞單位與引擎詞庫同構（用引擎 unigram 做 Viterbi 斷詞，非 jieba/CKIP）。表存 PMI（`log P(詞|前詞) - log P(詞)`），與 lambda 無關故可不重建就網格搜索。建表管線 `Source/Engine/eval/build_word_bigram_table.py`；北極星 harness `Source/Engine/eval/benchmarks/`（`tw_benchmark.cpp` + `build-and-run.sh`，
+ - 表以延遲載入（`dispatch_once`）且跨 KeyHandler 實例共用,只有第一次真正使用該功能時才載入,預設關閉路徑零啟動成本。
 
 ### 修正
 
@@ -224,9 +229,9 @@ AI 神經候選重排（實驗功能，預設關閉）首次落地。開啟後�
 ### 新增
 
 - **AI 神經候選重排（實驗，預設關）**：新偏好 `EnableGlobalNeuralRerank` + 選單「AI 神經候選重排（實驗）」（三語）。兩條路徑：
-  - **候選窗路徑**（`AINeuralCandidateRescorer`）：focus span 右文 ≥2 字才由神經打分重排（θ=1.0 margin 才翻）；右文不足＝懸置（維持引擎排序，交給延遲層），不退 n-gram——整句打分的優勢全部來自右文，右文為空時神經與 local 打分數學等價，沒有新資訊。偏好關閉時維持既有 n-gram 行為。
-  - **延遲全局重審**（`InputMethodController+NeuralDeferred` + `KeyHandler` 橋）：右文不足的根治。打字停頓 0.6s 後對 walk 上的歧義節點（右文已累積 ≥2 字）做整句打分，margin 過門檻就以 override-without-observe 軟覆寫隱形改選（不改切詞、不進使用者覆寫模型、使用者手動選字永遠優先、免 re-walk）。出貨模型實測：「慢慢地走過來」「跑得很快」「吃得很開心」「字寫得很漂亮」正確翻轉，「我的手機」不誤翻。
-  - **分工制**：神經層字集刻意排除「在/再/載」——sim 顯示 4B 模型對「在」有系統性偏好，會推翻混淆表已翻對的「再」；ㄗㄞˋ 由表（92.3% 翻轉精確率）獨家負責。
+ - **候選窗路徑**（`AINeuralCandidateRescorer`）：focus span 右文 ≥2 字才由神經打分重排（θ=1.0 margin 才翻）；右文不足＝懸置（維持引擎排序，交給延遲層），不退 n-gram——整句打分的優勢全部來自右文，右文為空時神經與 local 打分數學等價，沒有新資訊。偏好關閉時維持既有 n-gram 行為。
+ - **延遲全局重審**（`InputMethodController+NeuralDeferred` + `KeyHandler` 橋）：右文不足的根治。打字停頓 0.6s 後對 walk 上的歧義節點（右文已累積 ≥2 字）做整句打分，margin 過門檻就以 override-without-observe 軟覆寫隱形改選（不改切詞、不進使用者覆寫模型、使用者手動選字永遠優先、免 re-walk）。出貨模型實測：「慢慢地走過來」「跑得很快」「吃得很開心」「字寫得很漂亮」正確翻轉，「我的手機」不誤翻。
+ - **分工制**：神經層字集刻意排除「在/再/載」——sim 顯示 4B 模型對「在」有系統性偏好，會推翻混淆表已翻對的「再」；ㄗㄞˋ 由表（92.3% 翻轉精確率）獨家負責。
 - **`AISentenceScorer`：真整句機率打分器**（兩條路徑共用）：鏈式法則逐 token 打分，logit_bias 探針（目標 token +100 → greedy 必中 → 回報的 logprob 實測為 raw 值）一次呼叫取得精確機率、無 top-k 損失；哨兵起點修正 BPE 邊界合併的比較不公平；`cache_prompt` 巢狀前綴增量解碼。
 - llama-server 生命週期改為「任一需要者持有」：神經重排開啟時會暖 server（模型未裝觸發首次下載），切走本機修正後端不再停 server。
 - eval：`deferred_rerank_sim.py` 增量打字模擬（真實鏈式打分）：右文 0 字瞬時準確率 76% → 右文 ≥3 字 88%，證實「等右文再判」方向；θ sweep 與翻字次數統計。
@@ -352,9 +357,9 @@ AI 隱形中文警察重構階段一：把 L1/L2 的狀態與決策集中到單�
 ### 新增
 
 - **語音辨識來源可切換(輸入法選單)**,三選一:
-  - **Apple(離線)**:系統內建辨識,離線、零成本(預設,即原行為)。
-  - **Apple + AI 修正**:Apple 辨識後再過一次目前選的 AI 後端修正錯字與標點,離線。AI 修正失敗時自動退回原文,不卡語音。
-  - **OpenAI Whisper(雲端)**:錄完整段上傳 OpenAI transcription API 辨識,辨識力最強;需使用者自備 OpenAI API key(按量付費、需連網),輸出統一過 OpenCC 轉繁。
+ - **Apple(離線)**:系統內建辨識,離線、零成本(預設,即原行為)。
+ - **Apple + AI 修正**:Apple 辨識後再過一次目前選的 AI 後端修正錯字與標點,離線。AI 修正失敗時自動退回原文,不卡語音。
+ - **OpenAI Whisper(雲端)**:錄完整段上傳 OpenAI transcription API 辨識,辨識力最強;需使用者自備 OpenAI API key(按量付費、需連網),輸出統一過 OpenCC 轉繁。
 - 「AI 修正設定…」新增 OpenAI 語音 API key(存 Keychain)與語音模型欄位(預設 `whisper-1`)。
 
 ### 備註
@@ -437,9 +442,9 @@ AI 隱形中文警察重構階段一：把 L1/L2 的狀態與決策集中到單�
 ### 修正
 
 - **完整 `xcodebuild test` 不再卡死**：以往整包測試會永久停住,根因有二且皆已修正。
-  - 測試以 app 當 test host 啟動時不再 spawn 內嵌 llama-server、不再連網檢查更新(以 `XCTestConfigurationFilePath` 偵測測試環境)。
-  - `VersionUpdateApiTests` 在未設定更新端點時不再因 continuation 永不 resume 而卡死。
-  - 現況:110 個測試 / 9 個 suite 約 4 秒全綠並乾淨結束。
+ - 測試以 app 當 test host 啟動時不再 spawn 內嵌 llama-server、不再連網檢查更新(以 `XCTestConfigurationFilePath` 偵測測試環境)。
+ - `VersionUpdateApiTests` 在未設定更新端點時不再因 continuation 永不 resume 而卡死。
+ - 現況:110 個測試 / 9 個 suite 約 4 秒全綠並乾淨結束。
 
 ### 變更
 
@@ -505,9 +510,9 @@ L1 候選語意重排（Phase 1）首次發佈。
 ### 變更
 
 - 品牌名由 bopomofo 改為 zhuyin,與中文「老王注音」對齊:
-  - GitHub repo 由 `laowang-bopomofo` 更名為 `laowang-zhuyin`(舊網址自動轉址)。
-  - 英文產品名 `LaoWang Bopomofo` 改為 `LaoWang Zhuyin`(About、偏好設定、選單、安裝器等顯示文字)。
-  - 發佈 DMG 檔名由 `LaoWangBopomofo.dmg` 改為 `LaoWangZhuyin.dmg`。
+ - GitHub repo 由 `laowang-bopomofo` 更名為 `laowang-zhuyin`(舊網址自動轉址)。
+ - 英文產品名 `LaoWang Bopomofo` 改為 `LaoWang Zhuyin`(About、偏好設定、選單、安裝器等顯示文字)。
+ - 發佈 DMG 檔名由 `LaoWangBopomofo.dmg` 改為 `LaoWangZhuyin.dmg`。
 - 不更動:功能字「Bopomofo / 注音」、上游 `McBopomofo` 內部識別(target/bundle id/input source id/module/namespace/資料路徑)。
 
 ## [v1.3] - 2026-06-24
@@ -607,7 +612,7 @@ AI 架構重構與 README 產品化。
 
 ### Changed
 - Walk now expands search space so context (bigram) participates in path/choice competition during DP (not post-fix approximation).
-- Baseline on 395-sentence TW benchmark established at 41.5%.
+- Baseline on tw538 north-star
 - Core now strictly follows expert: context inside walk for right-context correction (deferred can retire with real scorer).
 
 ### Notes

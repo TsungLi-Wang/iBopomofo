@@ -15,7 +15,7 @@
 //     ../../ParselessPhraseDB.cpp ../../MemoryMappedFile.cpp \
 //     -o /tmp/same_path_oracle
 // Run:
-//   /tmp/same_path_oracle tw-sentences.tsv ../../../Data/data.txt \
+//   /tmp/same_path_oracle tw538-northstar.tsv ../../../Data/data.txt \
 //       ../../../Data/word-bigrams.tsv 0.75
 
 #include <algorithm>
@@ -28,6 +28,7 @@
 
 #include "CorpusBigramContextModel.h"
 #include "ParselessLM.h"
+#include "../benchmark_gate.h"
 #include "gramambular2/reading_grid.h"
 
 using Formosa::Gramambular2::LanguageModel;
@@ -207,6 +208,7 @@ OracleResult analyzeCase(ParselessLM* lm, const Case& c,
 }  // namespace
 
 int main(int argc, char** argv) {
+  if (argc >= 2) McBopomofoEval::AbortUnlessTw538(argv[1]);
   if (argc < 5) {
     std::cerr << "Usage: same_path_oracle <sentences.tsv> <data.txt> "
                  "<bigram-pmi.tsv> <lambda>\n";

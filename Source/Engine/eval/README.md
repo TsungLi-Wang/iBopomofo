@@ -430,7 +430,7 @@ from a real corpus via hard-EM over the engine-isomorphic Viterbi segmentation
 marginal is re-estimated; polyphone reading proportions are kept from the old
 table; total mass over the re-estimated set is anchored to the old mass.
 
-Run (training corpus = zhwiki dump ONLY; the 395-sentence tw benchmark is the
+Run (training corpus = zhwiki dump ONLY; the tw538 tw benchmark is the
 measuring stick and must never be fed as training data):
 
 ```bash
@@ -444,9 +444,9 @@ adopted.** (138M-char zhwiki, mu=0.7, 2 iterations)
 
 | metric | shipped `data.txt` | EM `data-em.txt` |
 | --- | --- | --- |
-| walk OFF (pure unigram) | 41.5% (164/395) | 31.4% (124/395) |
-| walk ON, old PMI + new unigram, lambda 0.75 | 44.1% (174/395) | 36.5% (144/395) |
-| walk ON, new PMI (rebuilt on new unigram) + new unigram, lambda 0.75 | 44.1% (174/395) | 36.7% (145/395) |
+| walk OFF (pure unigram) | [retired-set score removed] | [retired-set score removed] |
+| walk ON, old PMI + new unigram, lambda 0.75 | [retired-set score removed] | [retired-set score removed] |
+| walk ON, new PMI (rebuilt on new unigram) + new unigram, lambda 0.75 | [retired-set score removed] | [retired-set score removed] |
 
 Root cause is **domain mismatch**: zhwiki is encyclopedic/written register, while
 the benchmark (and everyday input) is colloquial Taiwan typing. Re-estimating the

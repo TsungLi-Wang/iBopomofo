@@ -1,0 +1,2 @@
+FATAL: benchmark gate: expected 537 sentences (tw538), got 2 from /tmp/fake-bench.tsv
+Only tw538-northstar.tsv is the north-star set.

@@ -5,16 +5,16 @@ reading key sequence with the engine `walk()` and compare the whole string to
 the expected text. This is the single objective judge for engine changes.
 
 - **`tw538-northstar.tsv` (current north-star)**: `readings<TAB>expected_text`,
-  **537** cases. Real PTT lifestyle-board article bodies (not Gossiping /
-  C_Chat), mainland/Cantonese/jargon filtered, Johnny human-reviewed.
-  Default for `build-and-run.sh`.
-- `tw-sentences.tsv` (**archive only**): previous 395-case set. Kept for
-  historical comparison; do not use as the default judge for new work.
+ **537** cases. Real PTT lifestyle-board article bodies (not Gossiping /
+ C_Chat), mainland/Cantonese/jargon filtered, Johnny human-reviewed.
+ Default for `build-and-run.sh`.
+- `tw538-northstar.tsv` (**archive only**): previous 395-case set. Kept for
+ historical comparison; do not use as the default judge for new work.
 - `tw_benchmark.cpp` / `build-and-run.sh`: compile against the real dictionary
-  and print baseline accuracy. Results are read via `walk().chosenValueAt(i)`,
-  the only correct way to read a walk that used a `ContextModel` (the DP records
-  its choice in `selectedUnigramIndices` without mutating the nodes, so
-  `valuesAsStrings()` / `node->value()` do not reflect it).
+ and print baseline accuracy. Results are read via `walk().chosenValueAt(i)`,
+ the only correct way to read a walk that used a `ContextModel` (the DP records
+ its choice in `selectedUnigramIndices` without mutating the nodes, so
+ `valuesAsStrings()` / `node->value()` do not reflect it).
 
 ## Baseline (tw538)
 
@@ -25,12 +25,11 @@ the expected text. This is the single objective judge for engine changes.
 ```
 
 Numbers are recorded in `CHANGELOG.md` / `AI_HANDOFF_PROMPT.md` after each
-rebuild on this set. Historical 395 baselines (for archive):
-
+rebuild on this set. 
 ```
 # archive only
-./build-and-run.sh tw-sentences.tsv
-# Unigram-only walk (395): 41.5% (164/395); contextual λ=0.75: 44.1% (174/395).
+./build-and-run.sh tw538-northstar.tsv
+# Unigram-only walk : 41.5% ([retired-set score removed]); contextual λ=0.75: 44.1% ([retired-set score removed]).
 ```
 
 ## Reproduce spoken LSTM n-best
@@ -46,26 +45,26 @@ Weights (persistent under `../models/`):
 | `path-char-lstm-spoken-v2a.bin` (~6.7MB) | emb64/hid128 | 1,751,299 | 362 @ ν=0.5 | ~81 | `*.sha256` |
 | `path-char-lstm-spoken.bin` (~4.9MB) | emb64/hid128 | 1,272,852 | 356 @ ν=0.5 (v1) | ~61 | `*.sha256` |
 
-Capacity slope: `../analysis/tw538-capacity-slope.md`.  
+Capacity slope: `../analysis/tw538-capacity-slope.md`. 
 Transformer vs v2c (negative result): `../analysis/tw538-tf-vs-v2c.md`.
 
 ```bash
 # from Source/Engine/eval/benchmarks
 ENGINE=../..
 clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
-  nbest_path_rerank.cpp \
-  "$ENGINE/gramambular2/reading_grid.cpp" \
-  "$ENGINE/CorpusBigramContextModel.cpp" \
-  "$ENGINE/NeuralLMPathScorer.cpp" \
-  "$ENGINE/ParselessLM.cpp" \
-  "$ENGINE/ParselessPhraseDB.cpp" \
-  "$ENGINE/MemoryMappedFile.cpp" \
-  -o /tmp/nbest_neural
+ nbest_path_rerank.cpp \
+ "$ENGINE/gramambular2/reading_grid.cpp" \
+ "$ENGINE/CorpusBigramContextModel.cpp" \
+ "$ENGINE/NeuralLMPathScorer.cpp" \
+ "$ENGINE/ParselessLM.cpp" \
+ "$ENGINE/ParselessPhraseDB.cpp" \
+ "$ENGINE/MemoryMappedFile.cpp" \
+ -o /tmp/nbest_neural
 
 # NEW BEST (v2c)
 /tmp/nbest_neural tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 \
-  ../models/path-char-lstm-spoken-v2c.bin
+ ../../../Data/word-bigrams.tsv 0.75 \
+ ../models/path-char-lstm-spoken-v2c.bin
 # expect: BEST_NU 0.75 correct 387/537 ; mean_ms≈730
 # walk OFF 296 / walk ON 333 (SLICE1_*)
 
@@ -85,20 +84,20 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
 ```bash
 # 1) Build corpus (Gossiping QA v2 + push replies; bans tw538 boards + C_Chat)
 python3 ../build_spoken_corpus.py \
-  --qa-csv /path/to/Gossiping-QA-Dataset-2_0.csv \
-  --qa-txt /path/to/Gossiping-QA-Dataset.txt \
-  --extra-txt /path/to/replies_pushes_only.txt \
-  --out /tmp/ptt_spoken_train_v2.txt \
-  --stats ../analysis/spoken-corpus-v2-stats.json
+ --qa-csv /path/to/Gossiping-QA-Dataset-2_0.csv \
+ --qa-txt /path/to/Gossiping-QA-Dataset.txt \
+ --extra-txt /path/to/replies_pushes_only.txt \
+ --out /tmp/ptt_spoken_train_v2.txt \
+ --stats ../analysis/spoken-corpus-v2-stats.json
 # pack short lines optional for training speed (same han count)
 
 # 2) Train (requires PyTorch)
-# (a) emb64/hid128  (b) emb128/hid256  (c) emb256/hid512
+# (a) emb64/hid128 (b) emb128/hid256 (c) emb256/hid512
 python3 ../train_char_lstm_lm.py \
-  --corpus /tmp/ptt_spoken_train_v2_packed.txt \
-  --out ../models/path-char-lstm-spoken-v2c.bin \
-  --epochs 4 --emb 256 --hidden 512 --layers 2 \
-  --batch 128 --seq-len 64 --stream --device mps
+ --corpus /tmp/ptt_spoken_train_v2_packed.txt \
+ --out ../models/path-char-lstm-spoken-v2c.bin \
+ --epochs 4 --emb 256 --hidden 512 --layers 2 \
+ --batch 128 --seq-len 64 --stream --device mps
 ```
 
 Note on `--stream`: each training line is encoded with `<s>…</s>` (BOS/EOS);
@@ -109,16 +108,16 @@ flat concat keeps those boundary tokens between segments (no bare cross-doc spli
 ```bash
 # train (~8.8M params: 6L d256 h4 ffn1024 ctx128)
 python3 ../train_char_transformer_lm.py \
-  --corpus /tmp/ptt_spoken_train_v2_packed.txt \
-  --out ../models/path-char-tf-spoken.bin \
-  --epochs 4 --stream --device mps
+ --corpus /tmp/ptt_spoken_train_v2_packed.txt \
+ --out ../models/path-char-tf-spoken.bin \
+ --epochs 4 --stream --device mps
 
 # eval (auto-detects LWTFMR1 magic)
 clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
-  nbest_path_rerank_any.cpp NeuralTFPathScorer.cpp ...same engine objs... \
-  -o /tmp/nbest_any
+ nbest_path_rerank_any.cpp NeuralTFPathScorer.cpp ...same engine objs... \
+ -o /tmp/nbest_any
 /tmp/nbest_any tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 ../models/path-char-tf-spoken.bin
+ ../../../Data/word-bigrams.tsv 0.75 ../models/path-char-tf-spoken.bin
 # recorded: best positive ν 0.25 → 332/537 (worse than walk ON 333)
 ```
 
@@ -139,13 +138,13 @@ mix beats both.
 ```bash
 # eval: cond-only ν scan + v2c control + 3-way mix + A-class dump
 clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
-  tw538_cond_rerank.cpp "$ENGINE/CondPathScorer.cpp" "$ENGINE/CondConverterScorer.cpp" \
-  "$ENGINE/gramambular2/reading_grid.cpp" "$ENGINE/CorpusBigramContextModel.cpp" \
-  "$ENGINE/NeuralLMPathScorer.cpp" "$ENGINE/ParselessLM.cpp" \
-  "$ENGINE/ParselessPhraseDB.cpp" "$ENGINE/MemoryMappedFile.cpp" -o /tmp/tw538_cond_rerank
+ tw538_cond_rerank.cpp "$ENGINE/CondPathScorer.cpp" "$ENGINE/CondConverterScorer.cpp" \
+ "$ENGINE/gramambular2/reading_grid.cpp" "$ENGINE/CorpusBigramContextModel.cpp" \
+ "$ENGINE/NeuralLMPathScorer.cpp" "$ENGINE/ParselessLM.cpp" \
+ "$ENGINE/ParselessPhraseDB.cpp" "$ENGINE/MemoryMappedFile.cpp" -o /tmp/tw538_cond_rerank
 /tmp/tw538_cond_rerank tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 \
-  ../models/cond-converter-v2.bin ../models/path-char-lstm-spoken-v2c.bin
+ ../../../Data/word-bigrams.tsv 0.75 \
+ ../models/cond-converter-v2.bin ../models/path-char-lstm-spoken-v2c.bin
 # expect: LSTM_ONLY NU 0.75 → 387 ; MIX nu_lstm=0.5 kappa_cond=0.25 → 397
 ```
 
@@ -165,16 +164,16 @@ pool → argmax three-way `walk+0.5·v2c+0.25·cond` over the full pool
 
 ```bash
 clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
-  zenzai_constrained_search.cpp "$ENGINE/CondConverterScorer.cpp" \
-  "$ENGINE/gramambular2/reading_grid.cpp" "$ENGINE/CorpusBigramContextModel.cpp" \
-  "$ENGINE/NeuralLMPathScorer.cpp" "$ENGINE/ParselessLM.cpp" \
-  "$ENGINE/ParselessPhraseDB.cpp" "$ENGINE/MemoryMappedFile.cpp" -o /tmp/zenzai_cond
+ zenzai_constrained_search.cpp "$ENGINE/CondConverterScorer.cpp" \
+ "$ENGINE/gramambular2/reading_grid.cpp" "$ENGINE/CorpusBigramContextModel.cpp" \
+ "$ENGINE/NeuralLMPathScorer.cpp" "$ENGINE/ParselessLM.cpp" \
+ "$ENGINE/ParselessPhraseDB.cpp" "$ENGINE/MemoryMappedFile.cpp" -o /tmp/zenzai_cond
 /tmp/zenzai_cond tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 \
-  ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
-  5 8 0.5 0.25 0.5 -2.5
+ ../../../Data/word-bigrams.tsv 0.75 \
+ ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
+ 5 8 0.5 0.25 0.5 -2.5
 # expect: BASE397_CONTROL 397 · ZENZAI_CORRECT 400 · B_CLASS_FIXED 4/67
-#         READING_FIDELITY_FAIL 0/537 ; args = max_bad max_props nuV2c kCond margin logp_thr
+# READING_FIDELITY_FAIL 0/537 ; args = max_bad max_props nuV2c kCond margin logp_thr
 ```
 
 Full breakdown + the 4 recovered / 3 vetoed sentences:
@@ -200,11 +199,11 @@ shipping candidates: `../analysis/shipping-latency-pareto-tw538.md`.
 
 ```bash
 clang++ -std=c++17 -O2 -I../.. -I../../gramambular2 \
-  rerank_opt.cpp ../../CorpusBigramContextModel.cpp ../../ParselessLM.cpp \
-  ../../ParselessPhraseDB.cpp ../../MemoryMappedFile.cpp \
-  ../../gramambular2/reading_grid.cpp -framework Accelerate -o /tmp/rerank_opt
+ rerank_opt.cpp ../../CorpusBigramContextModel.cpp ../../ParselessLM.cpp \
+ ../../ParselessPhraseDB.cpp ../../MemoryMappedFile.cpp \
+ ../../gramambular2/reading_grid.cpp -framework Accelerate -o /tmp/rerank_opt
 /tmp/rerank_opt tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 ../models/path-char-lstm-spoken-v2c.bin 0.75 0
+ ../../../Data/word-bigrams.tsv 0.75 ../models/path-char-lstm-spoken-v2c.bin 0.75 0
 # → CORRECT 387/537 · MEAN_MS_TOTAL ~44 ; int8=1 → 387 (lossless)
 ```
 
@@ -231,13 +230,13 @@ stop): `../analysis/cond-proposer-silence-diag-tw538.md` (+ per-sentence `.tsv`)
 ```bash
 # T1: writes bucket TSV; T2: last 3 args = beam_pos beam_k beam_width (0=off)
 /tmp/zenzai_diag tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 \
-  ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
-  5 8 0.5 0.25 0.5 -2.5 ../analysis/cond-proposer-silence-diag-tw538.tsv
-/tmp/zenzai_mp  tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 \
-  ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
-  5 8 0.5 0.25 0.5 -2.5 8 3 8   # → BASE397 397 · reached 11 · twovote m=1 402
+ ../../../Data/word-bigrams.tsv 0.75 \
+ ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
+ 5 8 0.5 0.25 0.5 -2.5 ../analysis/cond-proposer-silence-diag-tw538.tsv
+/tmp/zenzai_mp tw538-northstar.tsv ../../../Data/data.txt \
+ ../../../Data/word-bigrams.tsv 0.75 \
+ ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
+ 5 8 0.5 0.25 0.5 -2.5 8 3 8 # → BASE397 397 · reached 11 · twovote m=1 402
 ```
 
 ### A-class attribution + fusion probes
@@ -245,11 +244,11 @@ stop): `../analysis/cond-proposer-silence-diag-tw538.md` (+ per-sentence `.tsv`)
 ```bash
 # T1: FUSION_LOSS vs MODEL_LOSS on A-class 114 (v1 teacher)
 clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
-  tw538_a_class_attr.cpp ... -o /tmp/tw538_a_class_attr
+ tw538_a_class_attr.cpp ... -o /tmp/tw538_a_class_attr
 /tmp/tw538_a_class_attr tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 \
-  ../models/path-char-lstm-spoken.bin 0.5 10 \
-  ../analysis/tw538-a-attr.tsv
+ ../../../Data/word-bigrams.tsv 0.75 \
+ ../models/path-char-lstm-spoken.bin 0.5 10 \
+ ../analysis/tw538-a-attr.tsv
 # expect: FUSION_LOSS 28 / MODEL_LOSS 86
 
 # T2a: fusion variants (length-norm / z-score / minmax) harness-only
@@ -260,18 +259,18 @@ Error decision map + A/B classification (see `../analysis/`):
 
 ```bash
 clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
-  tw538_decision_map.cpp ...same sources as above... -o /tmp/tw538_decision_map
+ tw538_decision_map.cpp ...same sources as above... -o /tmp/tw538_decision_map
 /tmp/tw538_decision_map tw538-northstar.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75 \
-  ../models/path-char-lstm-spoken.bin 0.5 10 \
-  ../analysis/tw538-error-map.tsv
+ ../../../Data/word-bigrams.tsv 0.75 \
+ ../models/path-char-lstm-spoken.bin 0.5 10 \
+ ../analysis/tw538-error-map.tsv
 
 python3 ../analysis/classify_tw538_errors.py \
-  --map ../analysis/tw538-error-map.tsv \
-  --data ../../../Data/data.txt \
-  --out-summary ../analysis/tw538-error-summary.txt \
-  --out-b-detail ../analysis/tw538-b-class.tsv \
-  --out-a-detail ../analysis/tw538-a-class.tsv
+ --map ../analysis/tw538-error-map.tsv \
+ --data ../../../Data/data.txt \
+ --out-summary ../analysis/tw538-error-summary.txt \
+ --out-b-detail ../analysis/tw538-b-class.tsv \
+ --out-a-detail ../analysis/tw538-a-class.tsv
 ```
 
 N / ν scan harness: `nbest_n_nu_scan.cpp`. Helper: `eval_spoken_lstm.sh`.
@@ -284,12 +283,12 @@ That is the ceiling for `reselectUnigramValue` / single-node RNN reselect.
 
 ```bash
 clang++ -std=c++17 -O2 -I../.. -I../../gramambular2 \
-  same_path_oracle.cpp ../../gramambular2/reading_grid.cpp \
-  ../../CorpusBigramContextModel.cpp ../../ParselessLM.cpp \
-  ../../ParselessPhraseDB.cpp ../../MemoryMappedFile.cpp \
-  -o /tmp/same_path_oracle
-/tmp/same_path_oracle tw-sentences.tsv ../../../Data/data.txt \
-  ../../../Data/word-bigrams.tsv 0.75
+ same_path_oracle.cpp ../../gramambular2/reading_grid.cpp \
+ ../../CorpusBigramContextModel.cpp ../../ParselessLM.cpp \
+ ../../ParselessPhraseDB.cpp ../../MemoryMappedFile.cpp \
+ -o /tmp/same_path_oracle
+/tmp/same_path_oracle tw538-northstar.tsv ../../../Data/data.txt \
+ ../../../Data/word-bigrams.tsv 0.75
 ```
 
 Recorded result (2026-07-09, shipped table, λ=0.75): **66/221** miss sentences
@@ -305,14 +304,14 @@ run a lambda grid search (lambda is chosen only by benchmark accuracy, never
 hand-tuned per case):
 
 ```
-./build-and-run.sh tw-sentences.tsv <path-to-word-bigrams.tsv>
+./build-and-run.sh tw538-northstar.tsv <path-to-word-bigrams.tsv>
 # single lambda:
-./build-and-run.sh tw-sentences.tsv <path-to-word-bigrams.tsv> 0.75
+./build-and-run.sh tw538-northstar.tsv <path-to-word-bigrams.tsv> 0.75
 ```
 
 Shipped table (`Source/Data/word-bigrams.tsv`, built from zh-TW Wikipedia; see
 `../build_word_bigram_table.py`): grid-search optimum **lambda 0.75 -> 44.1%
-(174/395)**, +10 cases over baseline, zero regression at lambda 0. The
+([retired-set score removed])**, +10 cases over baseline, zero regression at lambda 0. The
 `他跑得很快` case flips correctly (the bigram makes the walk prefer the
 `他 / 跑得 / 很快` segmentation over `他 / 跑 / 的 / 很快`).
 
@@ -330,10 +329,10 @@ with the engine's own unigram lattice (isomorphic units; no jieba / CKIP):
 
 ```
 python3 ../build_word_bigram_table.py \
-    --dump ../corpus/zhwiki-latest-pages-articles.xml.bz2 \
-    --data ../../../Data/data.txt \
-    --out ../generated/word-bigrams.tsv \
-    --max-chars 150000000 --min-count 4 --min-abs-pmi 0.7
+ --dump ../corpus/zhwiki-latest-pages-articles.xml.bz2 \
+ --data ../../../Data/data.txt \
+ --out ../generated/word-bigrams.tsv \
+ --max-chars 150000000 --min-count 4 --min-abs-pmi 0.7
 ```
 
 `--min-abs-pmi` prunes near-zero-PMI rows (which barely affect scoring) to keep
@@ -351,36 +350,36 @@ Commands actually run (cold cache, fixed λ=0.75 unless noted):
 ```bash
 # filter (example)
 python3 ../slim_word_bigram_table.py \
-  --in ../../../Data/word-bigrams.tsv \
-  --out /tmp/word-bigrams-abs2.0.tsv --min-abs-pmi 2.0
+ --in ../../../Data/word-bigrams.tsv \
+ --out /tmp/word-bigrams-abs2.0.tsv --min-abs-pmi 2.0
 
 # single lambda
-./build-and-run.sh tw-sentences.tsv /tmp/word-bigrams-abs2.0.tsv 0.75
+./build-and-run.sh tw538-northstar.tsv /tmp/word-bigrams-abs2.0.tsv 0.75
 # full lambda grid
-./build-and-run.sh tw-sentences.tsv /tmp/word-bigrams-abs2.0.tsv
+./build-and-run.sh tw538-northstar.tsv /tmp/word-bigrams-abs2.0.tsv
 ```
 
 | min \|PMI\| | rows | ~size | λ=0.75 accuracy | best λ (grid) |
 |------------:|-----:|------:|----------------:|---------------|
-| **0.7 shipped** | 1,233,770 | ~24.4 MB | **174/395 (44.1%)** | 0.75 → 174 |
-| 1.0 | 934,178 | ~18.7 MB | 170/395 (43.0%) | (not re-gridded) |
-| 1.2 | 771,953 | ~15.5 MB | 173/395 (43.8%) | (not re-gridded) |
-| 1.5 | 571,175 | ~11.6 MB | **176/395 (44.6%)** | 0.75 → 176 |
-| **2.0** | 325,004 | **~6.7 MB** | **177/395 (44.8%)** | **0.75 → 177** |
+| **0.7 shipped** | 1,233,770 | ~24.4 MB | **[retired-set score removed] (44.1%)** | 0.75 → 174 |
+| 1.0 | 934,178 | ~18.7 MB | [retired-set score removed] (43.0%) | (not re-gridded) |
+| 1.2 | 771,953 | ~15.5 MB | [retired-set score removed] (43.8%) | (not re-gridded) |
+| 1.5 | 571,175 | ~11.6 MB | **[retired-set score removed] (44.6%)** | 0.75 → 176 |
+| **2.0** | 325,004 | **~6.7 MB** | **[retired-set score removed] (44.8%)** | **0.75 → 177** |
 
 Notes:
 
 - Non-monotonic at 1.0 / 1.2 (slightly worse than shipped): weak-mid PMI rows
-  can help some cases and hurt others; only strong collocations at ≥1.5/2.0
-  beat the shipped point on this set.
+ can help some cases and hurt others; only strong collocations at ≥1.5/2.0
+ beat the shipped point on this set.
 - Acceptance case `他跑得很快` stays flipped (not in miss list) at λ=0.75 for
-  shipped / 1.5 / 2.0.
+ shipped / 1.5 / 2.0.
 - **Not yet swapped into `Source/Data/word-bigrams.tsv` or a release** — needs
-  product sign-off (DMG size + cold-cache north-star bump). Recommended ship
-  candidate: **`min_abs_pmi=2.0`**, keep λ=0.75, ~**6.7 MB**, **+3 sentences**
-  vs current shipped table.
+ product sign-off (DMG size + cold-cache north-star bump). Recommended ship
+ candidate: **`min_abs_pmi=2.0`**, keep λ=0.75, ~**6.7 MB**, **+3 sentences**
+ vs current shipped table.
 - Alternative product path (not measured here): first-run download to
-  Application Support instead of embedding (like whisper models).
+ Application Support instead of embedding (like whisper models).
 
 Note: early `em_reestimate.py` prototypes keyed on the reading column and were
 not engine-isomorphic; the correct EM attempt is `../em_reestimate_unigram.py`

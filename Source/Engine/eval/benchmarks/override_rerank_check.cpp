@@ -20,6 +20,8 @@
 #include "ParselessLM.h"
 #include "gramambular2/reading_grid.h"
 
+#include "../benchmark_gate.h"
+
 using Formosa::Gramambular2::ReadingGrid;
 using McBopomofo::CorpusBigramContextModel;
 using McBopomofo::NeuralLMPathScorer;
@@ -76,6 +78,7 @@ std::vector<Case> loadCases(const std::string& p) {
 
 int main(int argc, char** argv) {
   if (argc < 7) { std::cerr << "usage: ... sentences data bigrams lambda lstm nu\n"; return 1; }
+  McBopomofoEval::AbortUnlessTw538(argv[1]);
   auto cases = loadCases(argv[1]);
   ParselessLM lm; if (!lm.open(argv[2])) { std::cerr << "data\n"; return 1; }
   CorpusBigramContextModel cm; if (!cm.load(argv[3])) { std::cerr << "bg\n"; return 1; }

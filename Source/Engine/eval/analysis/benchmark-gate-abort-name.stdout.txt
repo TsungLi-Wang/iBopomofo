@@ -1,0 +1,2 @@
+FATAL: retired benchmark corpus refused: /tmp/tw-sentences.tsv
+Only tw538-northstar.tsv (537 sentences) is allowed.

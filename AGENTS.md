@@ -197,7 +197,7 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 - **C++ tests:** Add to `Source/Engine/CMakeLists.txt` in `McBopomofoLMLibTest` target, use GoogleTest
 - **Mixed tests:** Use Objective-C++ (`.mm`) with bridging header for Swift-C++ interop
 - Snapshot/restore `UserDefaults` in tests (see `PreferencesTests.swift`)
-- **North-star engine metric:** `Source/Engine/eval/benchmarks/build-and-run.sh` — cold cache must stay **164/395** (unigram) and **174/395** (λ=0.75 bigram). Personalization must not change cold numbers.
+- **North-star engine metric:** `Source/Engine/eval/benchmarks/tw538-northstar.tsv` via `build-and-run.sh` / n-best harnesses — shipping reference **walk ON 333/537**, **rerank (λ=0.75,ν=0.75) 387/537**. Personalization must not change cold harness numbers. Non-tw538 corpora are refused by the benchmark gate.
 - **Live end-to-end typing verification (no human needed):** after changing any
   typing-time behavior (L1 rerank, deferred neural rerank, disambiguator, key
   handling, contextual walk, personalization), run `./scripts/e2e-typing-check.sh "<US key sequence>"` — it types

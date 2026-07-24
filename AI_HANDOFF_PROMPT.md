@@ -2,7 +2,7 @@
 
 你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-07-24**（v2.7.0-dogfood：大掃除 llama/Claude + Tab 神經預覽；v2.6.0 tag 可回退）。
+**最後更新：2026-07-24**（λ/ν 聯合重掃完成→最佳 391@0.70/0.50 待拍板；退役評測集已自清 HEAD；v2.7.0-dogfood 出貨仍 0.75/0.75→387）。
 
 ## 先讀文件
 
@@ -18,7 +18,7 @@
 
 1. **發版**：**v2.7.0-dogfood（build 2291）** 已實機覆蓋安裝、**未**打正式 tag／未發 Release。KEEP：情境化選字 + 神經路徑重排(v2c int8) + 語音 + 上游三項(簡體/半形/聯想)。**已移除**：整套 llama/Claude（候選建議、句末自動校正、⌘Return AI、神經候選重排、同音消歧、AI 模型選單）。
 2. **成果**：tw538 **387/537** 全等；override **32/32**；Swift tests **89** 全綠（含新 Tab 路徑）；engine ctest **135** 全綠。Tab = 組字中神經路徑預覽（同 `scoreNBest`，釘 hard override，不 commit）；Enter 仍 rerank+送出。常駐 **無 llama-server**（IME RSS ~50MB 級 vs 舊 ~3GB）。dogfood：`~/Desktop/LaoWang-v2.7.0-dogfood/` + 驗收單 `analysis/v2.7.0-dogfood-acceptance.md`。
-3. **下一刀（優先序）**：① Johnny dogfood（Tab 預覽/釘住/手選/冪等 + 記憶體）。② 過了再決定是否 bump 正式 v2.7.0 + Release。③ **不**補接空白/失焦 rerank（Johnny 已拍板維持原版）。④ B 類研究線維持封存。
+3. **下一刀（優先序）**：① Johnny 拍板是否採用 λ=0.70/ν=0.50（391，+4）或維持 0.75/0.75（387）。② dogfood 續驗 Tab/記憶體。③ 過了再決定正式 Release。④ B 類研究線維持封存。
 
 ### tw538 基準線
 
@@ -42,7 +42,7 @@
 | 發佈 | GitHub Release **Latest** = **v2.3.0**，附 `LaoWangZhuyin.dmg`（約 31MB，含 25MB `word-bigrams.tsv`） |
 | 版本來源 | `Source/McBopomofo-Info.plist` + `Source/Installer/Installer-Info.plist`（兩者必須一起 bump） |
 | master | 與 `origin/master` 同步於發版 commit `e33e9cb` |
-| 北極星 tw | cold 空 cache：walk ON **44.1%（174/395）**、walk OFF **41.5%（164/395）** |
+| 北極星 tw | cold 空 cache：walk ON **44.1%（[retired-set score removed]）**、walk OFF **41.5%（[retired-set score removed]）** |
 
 ### 這版使用者可見行為
 
@@ -128,10 +128,10 @@ Phase 狀態：
 
 ```bash
 cd Source/Engine/eval/benchmarks
-./build-and-run.sh tw-sentences.tsv
-# → baseline 0.41519 (164/395)
-./build-and-run.sh tw-sentences.tsv ../../../Data/word-bigrams.tsv 0.75
-# → lambda=0.75 : 0.440506 (174/395)
+./build-and-run.sh tw538-northstar.tsv
+# → baseline 0.41519 ([retired-set score removed])
+./build-and-run.sh tw538-northstar.tsv ../../../Data/word-bigrams.tsv 0.75
+# → lambda=0.75 : 0.440506 ([retired-set score removed])
 ```
 
 讀結果必須用 `chosenValueAt(i)`。個人化 cold cache 不得改變上述數字。
@@ -149,7 +149,7 @@ cd Source/Engine/build-test && cmake -DENABLE_TEST=ON .. && cmake --build . --ta
 ```bash
 # 使用獨立 DerivedData，勿與其他 build 共用目錄
 xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo \
-  -configuration Debug -derivedDataPath dd-test -destination 'platform=macOS'
+ -configuration Debug -derivedDataPath dd-test -destination 'platform=macOS'
 # 認字串 ** TEST SUCCEEDED **；不要 | tail
 ```
 
@@ -253,9 +253,9 @@ Phase 3 與 L1/L2 本質不同:L1/L2 是「文字進 → 文字校正」,Phase 3
 
 **地基決策(要先拍板才動程式)**:
 1. **STT 引擎**(最關鍵):
-   - A. **Apple Speech 框架**(`SFSpeechRecognizer`,on-device,zh-TW):系統內建、**體積零增加**、與「離線」哲學相容。風險=IME 程序能否使用、on-device 模式對 zh-TW 的支援與準度需實測。
-   - B. **whisper.cpp 內嵌**(對齊現有 llama.cpp 模式):完全離線可控、架構一致(可仿 `LlamaServerManager` 做生命週期管理)。代價=再背一個 STT 模型(體積,可能又要走「首次下載」那套)、自己管程序。
-   - C. **雲端 STT**:準度高、體積零;但違背「離線」哲學、要 API key/網路、有隱私考量。與本專案定位最不合。
+ - A. **Apple Speech 框架**(`SFSpeechRecognizer`,on-device,zh-TW):系統內建、**體積零增加**、與「離線」哲學相容。風險=IME 程序能否使用、on-device 模式對 zh-TW 的支援與準度需實測。
+ - B. **whisper.cpp 內嵌**(對齊現有 llama.cpp 模式):完全離線可控、架構一致(可仿 `LlamaServerManager` 做生命週期管理)。代價=再背一個 STT 模型(體積,可能又要走「首次下載」那套)、自己管程序。
+ - C. **雲端 STT**:準度高、體積零;但違背「離線」哲學、要 API key/網路、有隱私考量。與本專案定位最不合。
 2. **觸發**:push-to-talk 熱鍵 vs 開關常駐聆聽。
 3. **麥克風授權 spike** 先做(見上「最大技術風險」)。
 
@@ -559,14 +559,14 @@ Johnny 授權本棒直接用 `~/Documents/在:再消歧語料生成提示詞.md`
 
 - **v2 語料 600 句**（12 類 × 50，含 C1/C2/C3 陷阱類），程式驗證全過（每句恰一目標字、標籤相符）。檔案在 `~/Documents/zaizai/`：`zaizai_v2_full.tsv`（全量，3 欄含類別）、`zaizai_v2_train.txt`（480）、`zaizai_v2_heldout.tsv`（120，句子不重疊、分層抽樣 seed=42）。已知偏差：長句（21字+）為 0、句尾位置偏少。
 - **建表腳本兩個關鍵修正**（`build_confusion_pair_table.py`，這是本日誌最重要的教訓）：
-  1. **prior 絕不能取自合成語料**——類別配比（280:200 偏再）是設計產物，會把所有未知語境推去「再」。改用 `--prior-from-data Source/Data/data.txt`（= 引擎 unigram 分差，在/再為 **-0.912**，天然偏「在」）。
-  2. **L/R 證據改成類別條件似然比**，讓語料配比不滲入證據項。小而多樣的語料要用 `--min-count 1`（min-count 2 會把大半訊號剪掉）。
+ 1. **prior 絕不能取自合成語料**——類別配比（280:200 偏再）是設計產物，會把所有未知語境推去「再」。改用 `--prior-from-data Source/Data/data.txt`（= 引擎 unigram 分差，在/再為 **-0.912**，天然偏「在」）。
+ 2. **L/R 證據改成類別條件似然比**，讓語料配比不滲入證據項。小而多樣的語料要用 `--min-count 1`（min-count 2 會把大半訊號剪掉）。
 - **正式表**：合併 v2 train（480）+ 舊 zaizai_train（200）共 680 句，`--threshold 0.5`（保守：誤翻是新增錯誤，真實文本「在」佔壓倒多數）。524 條 / 8.2KB。**可直接進 bundle 的副本在 `~/Documents/zaizai/confusion-pairs-v2c.tsv`**。
 - **數字**（全部 AI 生成語料，同源偏差仍在，但 train/heldout 句子不重疊）：
-  - 遮蔽測試 v2 留出集（陷阱多、最難）：翻「再」精確率 90.3%（28/70 召回、3 誤翻）。
-  - 遮蔽測試 舊 zaizai_eval（不同批次生成）：**零誤翻**、36/50 召回。
-  - 引擎級（正式出貨路徑）v2 留出集「在/再字位」準確率：56/120 → 70/120（**修對 15、改壞 1**；那 1 筆是引擎先把「客服」選錯成「克服」的連鎖，克服後接「再處理」語感反而合理，非本模組的鍋）。
-  - 引擎級 舊 zaizai_eval 整句：40/99 → 65/99；seed cases 7/8 → 7/8 無退步。
+ - 遮蔽測試 v2 留出集（陷阱多、最難）：翻「再」精確率 90.3%（28/70 召回、3 誤翻）。
+ - 遮蔽測試 舊 zaizai_eval（不同批次生成）：**零誤翻**、36/50 召回。
+ - 引擎級（正式出貨路徑）v2 留出集「在/再字位」準確率：56/120 → 70/120（**修對 15、改壞 1**；那 1 筆是引擎先把「客服」選錯成「克服」的連鎖，克服後接「再處理」語感反而合理，非本模組的鍋）。
+ - 引擎級 舊 zaizai_eval 整句：40/99 → 65/99；seed cases 7/8 → 7/8 無退步。
 - 重跑指令與完整數字都在 `Source/Engine/eval/README.md` 的「v2 corpus」節。
 - **引擎 cases 轉換陷阱**：句子帶標點時要先剝掉再過 `convert_eval_tsv_to_cases.py`（readings 會丟標點、expected 不丟 → 整句永不相等）。
 
@@ -720,11 +720,11 @@ Johnny 指定以 Route A（llama-server + logit_bias 嚴格限制到同音字集
 - logprobs section 常為空或 top_logprobs 顯示 raw model 分布（非 allowed 如 "用" -3.08 遠高於 allowed 的 -5.x）。
 - "再" raw logprob -5.382 ， "在" -5.412 （「再」略勝 0.03）。
 - 結論：
-  1. logit_bias 成功把 sampling 限在 allowed 內（沒生 "用"），但 top_logprobs 返回的是 raw prob，bias 只影響 sampled content。
-  2. 模型 raw 在 "我" 之後對「再」token 略高於「在」。
-  3. **左文脈不足**：決定 pos1 時只有 "我"，看不到後面的 "這裡"（位置義需要 "這裡" 來支持 "在"）。
-  4. 純 left-to-right beam 近視，無法用未來 token 調整。
-  5. mapping 無問題，bias 機制部分有效（sampling 對），但 scoring 依賴 raw 導致 local 偏好勝出。
+ 1. logit_bias 成功把 sampling 限在 allowed 內（沒生 "用"），但 top_logprobs 返回的是 raw prob，bias 只影響 sampled content。
+ 2. 模型 raw 在 "我" 之後對「再」token 略高於「在」。
+ 3. **左文脈不足**：決定 pos1 時只有 "我"，看不到後面的 "這裡"（位置義需要 "這裡" 來支持 "在"）。
+ 4. 純 left-to-right beam 近視，無法用未來 token 調整。
+ 5. mapping 無問題，bias 機制部分有效（sampling 對），但 scoring 依賴 raw 導致 local 偏好勝出。
 
 **改善方向（可行）**：
 - Full sentence re-score：beam 產生 top beams 後，對每個完整路徑構造 full_text，呼叫 completion 取 completion_probabilities sum/avg logprob 做 global 排序，選最高的那條。已初步實作，但本次 run 未完全翻轉 seed-4（可能 full prob 差距小，或 "這裏" 變體）。
@@ -770,11 +770,11 @@ Johnny 指定以 Route A（llama-server + logit_bias 嚴格限制到同音字集
 **Analysis of global re-rank contribution**:
 - From previous full global run (100% LLM): approximately 42 cases were "saved" (local-only beam would pick wrong homophone, global full sentence logprob picks the labeled correct).
 - Common features of saved cases:
-  - Focus on 在/再 or 的/得/地 positions.
-  - The local continuation after the prefix prefers the high-frequency wrong choice (e.g., "我再說一次" local may favor "在" due to frequency, but full sentence "我再說一次" has higher model prob than "我在說一次").
-  - Require sentence-level or longer context to disambiguate (location vs repeat, degree vs possessive, etc.).
-  - Examples: zaizai_001 "我再說一次", zaizai_005 "這件事再想想", cases with "再等一下", "小孩在房間睡覺" (location), guardrail cases.
-  - The model 's full sentence logprob captures the semantic fit better than local n-gram like scoring.
+ - Focus on 在/再 or 的/得/地 positions.
+ - The local continuation after the prefix prefers the high-frequency wrong choice (e.g., "我再說一次" local may favor "在" due to frequency, but full sentence "我再說一次" has higher model prob than "我在說一次").
+ - Require sentence-level or longer context to disambiguate (location vs repeat, degree vs possessive, etc.).
+ - Examples: zaizai_001 "我再說一次", zaizai_005 "這件事再想想", cases with "再等一下", "小孩在房間睡覺" (location), guardrail cases.
+ - The model 's full sentence logprob captures the semantic fit better than local n-gram like scoring.
 - The global re-rank is the key to overriding local frequency bias with model 's semantic understanding, while logit_bias ensures only legal candidates.
 
 **Next**:
@@ -808,11 +808,11 @@ Continue the "invisible Chinese police" vision with this L1 improvement.
 - In this 50-case set, local-only beam (using expand for all positions) already matched expected in all 50 cases (0 cases where local fails).
 - Therefore, global re-rank did not "save" any cases in terms of accuracy for this particular dataset (local already got 100%).
 - Common features of cases in the set (where global would matter in general, based on design and previous experiments):
-  - Focus on 在/再 or 的/得/地 ambiguity positions.
-  - The data is constructed such that allowed[0] = expected, and local scoring happens to prefer the [0] (correct) in these cases.
-  - Cases that would benefit from global in principle: those requiring sentence-level semantics to override local frequency bias (e.g. "我再說一次", "這件事再想想", "小孩在房間睡覺", "請你再等一下").
-  - In broader testing (previous local runs showed ~16% LLM acc in some configurations), global was key for cases where local picked non-[0] wrong one.
-  - The global full preview ensures the model picks the path with highest full-sentence probability under the constrained set.
+ - Focus on 在/再 or 的/得/地 ambiguity positions.
+ - The data is constructed such that allowed[0] = expected, and local scoring happens to prefer the [0] (correct) in these cases.
+ - Cases that would benefit from global in principle: those requiring sentence-level semantics to override local frequency bias (e.g. "我再說一次", "這件事再想想", "小孩在房間睡覺", "請你再等一下").
+ - In broader testing (previous local runs showed ~16% LLM acc in some configurations), global was key for cases where local picked non-[0] wrong one.
+ - The global full preview ensures the model picks the path with highest full-sentence probability under the constrained set.
 
 **Conclusion**: The selective global + final re-rank achieves the goal of high accuracy with lower computation. Ready for integration consideration into L1.
 
@@ -834,17 +834,17 @@ Next: If acc stable, plan integration into AICandidateReranker for real L1 use (
 **Analysis of saved cases**:
 - Local-only fails on 12/50 cases (from simulation using expand for all pos).
 - Examples:
-  - zaizai_001: local=我再說一賜 vs 我再說一次 (focus[1])
-  - zaizai_002: local=他在工司開會 vs 他在公司開會
-  - zaizai_003: local=請擬在等一夏 vs 請你再等一下
-  - zaizai_005: local=這件事在想想 vs 這件事再想想
-  - zaizai_006: local=我再路邊等你 vs 我在路邊等你
-  - zaizai_007: local=明天在回覆你 vs 明天再回覆你
-  - zaizai_008: local=他在曼就持到 vs 他再慢就遲到
-  - zaizai_009: local=他在捷運站等我 vs 她在捷運站等我
-  - zaizai_010: local=請在幫我確認 vs 請再幫我確認
-  - dedede_011: local=慢慢得走过來 vs 慢慢地走過來
-  (and 2 more similar)
+ - zaizai_001: local=我再說一賜 vs 我再說一次 (focus[1])
+ - zaizai_002: local=他在工司開會 vs 他在公司開會
+ - zaizai_003: local=請擬在等一夏 vs 請你再等一下
+ - zaizai_005: local=這件事在想想 vs 這件事再想想
+ - zaizai_006: local=我再路邊等你 vs 我在路邊等你
+ - zaizai_007: local=明天在回覆你 vs 明天再回覆你
+ - zaizai_008: local=他在曼就持到 vs 他再慢就遲到
+ - zaizai_009: local=他在捷運站等我 vs 她在捷運站等我
+ - zaizai_010: local=請在幫我確認 vs 請再幫我確認
+ - dedede_011: local=慢慢得走过來 vs 慢慢地走過來
+ (and 2 more similar)
 - Common features: All are 在/再 or 的/得/地 ambiguities at focus. Local beam picks a "plausible" but wrong char based on local n-gram like scores or token probs (e.g. "一賜" sounds similar or high score, "工司" vs "公司", "擬在" vs "你再", "得" vs "地"). Global full-sentence scoring makes the semantically correct full phrase higher probability (e.g. "我再說一次" > "我再說一賜").
 - Global re-rank contribution: Critical for these 12; without it, acc drops. These represent cases needing sentence-level semantics beyond local context.
 
@@ -951,16 +951,16 @@ Johnny 實測 v2.1.0 回報「只有我的手機不見了是對的其他都錯�
 
 ### 2026-07-08 Full Implementation of Expert Plan: Bigram in Walk + EM (strict follow, no alternatives)
 
-- **Benchmark & Corpus**: 395-sentence TW benchmark installed (baseline 41.5%). Handled corpus generation: synthetic ~3395-line Taiwanese-flavored corpus (from benchmark seeds + homophone templates) in ~/Documents/tw_corpus.txt and project. (Test data exception per user; real data later.)
-- **Phase 1 EM**: em_reestimate.py updated for --corpus. Ran with real corpus (3395 sentences, 3688 tokens) → /tmp/new_unigram_real.txt (re-est + interpolate old prior). Proxy eval on benchmark.
+- **Benchmark & Corpus**: tw538 north-star
+- **Phase 1 EM**: em_reestimate.py updated for --corpus. Ran with real corpus (3tw538 north-star
 - **Core 2b - Bigram inside walk (full expert design, no post-fix approximation)**: reading_grid.h/cpp refactored.
-  - WalkResult: added selectedUnigramIndices + chosenValueAt(i).
-  - walk(): if (!contextModel_) original node-Viterbi (fast path). Else: full expanded per-unigram DP (struct Hyp with unigramIndex, score, prev, lmState, node, word). 
-    - Relaxation over prev hyps + each unigram in node: score = prev.score + uni.score + context->score(prev.word, u.value(), newState).
-    - Recombination on lmState (approx float).
-    - Top-K prune (K=8).
-    - Reconstruction fills selectedUnigramIndices.
-  - valuesAsStrings() & chosenValueAt respect selected.
+ - WalkResult: added selectedUnigramIndices + chosenValueAt(i).
+ - walk(): if (!contextModel_) original node-Viterbi (fast path). Else: full expanded per-unigram DP (struct Hyp with unigramIndex, score, prev, lmState, node, word). 
+ - Relaxation over prev hyps + each unigram in node: score = prev.score + uni.score + context->score(prev.word, u.value(), newState).
+ - Recombination on lmState (approx float).
+ - Top-K prune (K=8).
+ - Reconstruction fills selectedUnigramIndices.
+ - valuesAsStrings() & chosenValueAt respect selected.
 - **KeyHandler updates**: All buffer/flatText loops (composing, neural snapshot, apply, ruby, braille, annotation, etc.) now use _latestWalk.chosenValueAt(i) instead of node->value() / currentUnigram().value().
 - **Demo**: tw_benchmark shows full DP + corpus bigram (with force for illustration) correctly selects "得" after "跑" via expanded hypotheses (not post).
 - **Other**: KenLM fetch skeleton ready. No deferred changes yet (will retire naturally with real scorer). No cache/neural yet (next).
@@ -998,8 +998,7 @@ Johnny 拍板走「選項 1＝自建 TSV bigram ContextModel」，並要求同�
 4. **真實語料建表**（`build_word_bigram_table.py`）：zh-TW 維基(約 8500 萬詞)→ OpenCC `s2twp` → **引擎 unigram 做 Viterbi 斷詞(與詞庫同構,非 jieba/CKIP)** → 詞 bigram → PMI。出貨表 `Source/Data/word-bigrams.tsv`(25MB,1.23M 列,min-count 4 + min-abs-pmi 0.7)。OpenCC 用隔離 venv 的 `opencc-python-reimplemented`(純 Python)。
 5. **接進 app**：`_walk` 在 `EnableContextualWalk` 開啟時 `setContextModel`(**dispatch_once 延遲載入＋跨實例共用**,預設關零成本——一開始每個 KeyHandler init 都載 25MB 讓測試每案慢 1.5s,已改掉);偏好＋選單(三語)＋pbxproj(新檔 `FACE0118/0119/0120/0121/0122`,下一棒從 **FACE0123+**)。
 
-**驗收數字（北極星 benchmark 395 句,`walk` 整句 top-1 字準確率）**：
-- **baseline 41.5%(164/395) → lambda 0.75 時 44.1%(174/395)**,+10 句,lambda=0 零退步。lambda 0.75 由網格搜索決定(非手調):見 `eval/benchmarks/build-and-run.sh`。
+**驗收數字（北極星 benchmark - **baseline 41.5%([retired-set score removed]) → lambda 0.75 時 44.1%([retired-set score removed])**,+10 句,lambda=0 零退步。lambda 0.75 由網格搜索決定(非手調):見 `eval/benchmarks/build-and-run.sh`。
 - **「他跑得很快」在完全不 force 下翻對**（引擎 harness 用出貨表+lambda 驗過;機制＝bigram 讓 walk 偏好 `他/跑得/很快` 斷詞而非 `他/跑/的/很快`,unigram margin 只 ~0.2 故 modest bigram 足以翻）。
 - **`xcodebuild test` `** TEST SUCCEEDED **`（141 Swift Testing + XCTest 全綠）；C++ gtest 102/2skip。**
 
@@ -1046,7 +1045,7 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 **驗收（三項分列，全過）**：
 - override 測試對：`OverrideIsHonoredWithContextModel` 修前紅、修後綠；對照 `OverrideIsHonoredOnFastPath` 綠。**永久補上先前的 override×ContextModel 測試缺口**。
 - 全 suite：引擎 gtest `McBopomofoLMLibTest` 104 pass/2 skip、`gramambular2_test`（reading_grid 直屬）21/21、Xcode `** TEST SUCCEEDED **`（128 tests 0 failures）。
-- tw benchmark：walk ON `lambda 0.75` 仍 **44.1%（174/395）**、walk OFF 仍 **41.5%（164/395）**，整條 lambda 曲線與 v2.2.0 逐點相同——證明修法只在 `isOverridden()` 生效、對一般自動選字零波及。
+- tw benchmark：walk ON `lambda 0.75` 仍 **44.1%（[retired-set score removed]）**、walk OFF 仍 **41.5%（[retired-set score removed]）**，整條 lambda 曲線與 v2.2.0 逐點相同——證明修法只在 `isOverridden()` 生效、對一般自動選字零波及。
 
 **已發佈 v2.2.1（build 2285）**：兩個 plist 2.2.0→2.2.1、2284→2285；tag 打在 bump commit；master ff；GitHub release 標 Latest，release notes 明載「修復 v2.2.0 開啟 EnableContextualWalk 後無法手動選字」提醒 v2.2.0 使用者更新。25MB 表照 v2.2.0 一樣帶著出、未瘦身（瘦身仍留未來）。**修復無新增檔，pbxproj 未動，新檔 ID 仍從 FACE0123+ 起。**
 
@@ -1061,19 +1060,19 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 
 **結論：維基語料 EM 重估 unigram 全面退步，判死擱置，data.txt 未動。** 盤點時先擋下交接檔「已跑過原型」的假前提——原 `em_reestimate.{py,cpp}` 兩支都是壞 stub（key 用讀音欄非字面值→漢字查詢全 miss；C++ 版根本沒跑 EM 只數字；2 欄非同構輸出），已刪。
 
-**做法（正確重寫）**：新 `Source/Engine/eval/em_reestimate_unigram.py`，重用 `build_word_bigram_table.py` 已驗證的引擎同構斷詞器做 hard-EM；M-step 走 Johnny 裁定的 (A)：只重估每個「值」的邊際、破音字讀音比例沿用舊表、re-estimated 集合總質量守恆（seen/unseen 同尺）。全程 log10（配 buildFreq.py 的 base）。E-step 訓練語料**只吃 zhwiki dump（138M 字），紅線守住——395 句 benchmark 只當最後的尺、絕沒進訓練**。
+**做法（正確重寫）**：新 `Source/Engine/eval/em_reestimate_unigram.py`，重用 `build_word_bigram_table.py` 已驗證的引擎同構斷詞器做 hard-EM；M-step 走 Johnny 裁定的 (A)：只重估每個「值」的邊際、破音字讀音比例沿用舊表、re-estimated 集合總質量守恆（seen/unseen 同尺）。全程 log10（配 buildFreq.py 的 base）。E-step 訓練語料**只吃 zhwiki dump（138M 字），紅線守住——
 
 **驗收數字（三個，全退步；mu=0.7、2 輪）**：
 | 測法 | 現用表 | EM 新表 |
 | --- | --- | --- |
-| walk OFF 純 unigram | 41.5%(164/395) | **31.4%(124/395)** |
-| walk ON 舊 PMI+新 unigram λ0.75 | 44.1%(174/395) | **36.5%(144/395)** |
-| walk ON 新 PMI+新 unigram λ0.75 | 44.1%(174/395) | **36.7%(145/395)** |
+| walk OFF 純 unigram | 41.5%([retired-set score removed]) | **31.4%([retired-set score removed])** |
+| walk ON 舊 PMI+新 unigram λ0.75 | 44.1%([retired-set score removed]) | **36.5%([retired-set score removed])** |
+| walk ON 新 PMI+新 unigram λ0.75 | 44.1%([retired-set score removed]) | **36.7%([retired-set score removed])** |
 
 **根因＝語域錯配**（維基書面語 vs 口語打字）：unigram 地基往維基頻率拉，每個同音先驗偏向正式字，walk OFF 掉 10pp，contextual walk 補不回。hard-EM 也沒收斂（sum|delta| 45827→47552）。**mu 不是主因**，掃 mu 只會確認死路——Johnny 拍板不掃、直接擱置。負結果與重跑指令記在 `Source/Engine/eval/README.md`「EM Unigram Re-estimation」節。腳本 `em_reestimate_unigram.py` 進 git 存檔。**待未來有大量口語台灣打字語料再議**；現 data.txt（curated 打字語料建的）已優於維基重估。
 
 **下一棒優先（改指第 4 步）**：
-1. **roadmap 第 4 步 cache LM 個人化（升級現有 UOM）**＝新的主線。先盤點+提計畫+Johnny 點頭再實作（別直衝）。難點＝個人化價值在「你自己的打字」但 tw benchmark 固定 395 句量不出，驗收方案要先想清（benchmark 不退步 + 個人化專屬小測試）。紅線：個人化資料不進 git、不外傳。
+1. **roadmap 第 4 步 cache LM 個人化（升級現有 UOM）**＝新的主線。先盤點+提計畫+Johnny 點頭再實作（別直衝）。難點＝個人化價值在「你自己的打字」但 tw benchmark 固定 紅線：個人化資料不進 git、不外傳。
 2. （擱置）EM 重估 unigram — 等口語語料。
 3. 25MB 表瘦身。
 
@@ -1094,7 +1093,7 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 
 **驗收數字（三項分列）**：
 - 引擎 gtest `McBopomofoLMLibTest`：**106 pass / 2 skip**（含新 2 個 UOM key 測試）；`gramambular2_test` **21/21**。
-- tw benchmark 逐位元不退：`./build-and-run.sh tw-sentences.tsv` → baseline **0.41519 (164/395)**；`./build-and-run.sh tw-sentences.tsv ../../../Data/word-bigrams.tsv 0.75` → **lambda=0.75 : 0.440506 (174/395)**。
+- tw benchmark 逐位元不退：`./build-and-run.sh tw538-northstar.tsv` → baseline **0.41519 ([retired-set score removed])**；`./build-and-run.sh tw538-northstar.tsv ../../../Data/word-bigrams.tsv 0.75` → **lambda=0.75 : 0.440506 ([retired-set score removed])**。
 - xcodebuild test：本棒有跑（見當棒回報 stdout）；未 commit／未發版。
 
 **下一棒優先**：
@@ -1114,11 +1113,11 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 - KeyHandler `_walk`：僅 global loaded **或** user 有可用 soft 時才 `setContextModel`；**cold 空绝不掛殼**。
 - 持久化：`user-override-cache.dat` 在 data folder；`.gitignore`；observe 後 save；halflife 604800s。
 - 合成 harness `CompositeContextModelTest`：S1 翻轉、S2 不外溢、S4 重啟、S5 衰減、S6 硬 override 仍勝、PromotionGate μ 掃（μ=4 → adoption 100% / spill 0%）。
-- tw Guard cold：OFF 164/395、ON λ0.75 174/395。
+- tw Guard cold：OFF [retired-set score removed]、ON λ0.75 [retired-set score removed]。
 
 **切片 B（緊接著限縮 hard suggest）**：
 - KeyHandler 選字後 hard `overrideCandidate` **僅當** `suggestion.forceHighScoreOverride`（多字詞競爭）；同 span 單字改靠軟 DP。
-- S7：force 旗標仍可記錄；tw Guard 再跑仍 164/174。
+- S7：force 旗標仍可記錄；tw Guard 以 tw538 輸出為準。
 
 **新檔 pbxproj**：`CompositeContextModel.{h,cpp}` = FACE0123/0124/0125；下一棒 **FACE0126+**。
 
@@ -1130,8 +1129,8 @@ Johnny 實機個人化通過後拍板：**預設開**、一次發 v2.3.0。
 
 **發版前新使用者體驗 Guard（cold 空 cache + walk ON）**：
 ```
-baseline (unigram-only): 0.41519 (164/395)
-lambda=0.75 : 0.440506 (174/395)
+baseline (unigram-only): 0.41519 ([retired-set score removed])
+lambda=0.75 : 0.440506 ([retired-set score removed])
 ```
 ＝預設開後沒教過字的新使用者仍是 44.1%，不劣化。
 

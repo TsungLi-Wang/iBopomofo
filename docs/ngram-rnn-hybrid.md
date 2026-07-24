@@ -15,7 +15,7 @@
 | 字元 n-gram 候選窗 | L1 `AICandidateNGramScorer`（側線，非解碼主軸） |
 | 既有神經（貼丁形態） | 候選窗 neural + deferred soft override，**實驗預設關** |
 
-北極星（cold，出貨表）：walk OFF **164/395**，bigram ON **174/395**。
+北極星改為 tw538（見 `eval/benchmarks/tw538-northstar.tsv` 與 AI_HANDOFF）。
 
 ## 2. 殘餘錯誤（bigram 之後，真跑）
 
@@ -23,8 +23,8 @@
 
 ```bash
 cd Source/Engine/eval/benchmarks
-./build-and-run.sh tw-sentences.tsv                    # baseline misses
-./build-and-run.sh tw-sentences.tsv ../../../Data/word-bigrams.tsv 0.75
+./build-and-run.sh tw538-northstar.tsv
+./build-and-run.sh tw538-northstar.tsv ../../../Data/word-bigrams.tsv 0.75
 ```
 
 | 集合 | 句數 |
@@ -69,7 +69,7 @@ clang++ -std=c++17 -O2 -I../.. -I../../gramambular2 \
   ../../CorpusBigramContextModel.cpp ../../ParselessLM.cpp \
   ../../ParselessPhraseDB.cpp ../../MemoryMappedFile.cpp \
   -o /tmp/same_path_oracle
-/tmp/same_path_oracle tw-sentences.tsv ../../../Data/data.txt \
+/tmp/same_path_oracle tw538-northstar.tsv ../../../Data/data.txt \
   ../../../Data/word-bigrams.tsv 0.75
 ```
 
@@ -77,7 +77,7 @@ clang++ -std=c++17 -O2 -I../.. -I../../gramambular2 \
 
 ### 結果（cold，出貨 word-bigrams.tsv，λ=0.75）
 
-北極星確認：bigram **174/395** 正確 → **221** miss。
+北極星確認請以 tw538 harness 輸出為準。
 
 | 項目 | 句數 | 比例 |
 |------|-----:|-----:|
@@ -86,7 +86,7 @@ clang++ -std=c++17 -O2 -I../.. -I../../gramambular2 \
 | 正解不在同路徑 unigram 候選內（reselect 救不回） | **155** | **70.1%** |
 | 其中 insert-failed | 9 | 4.1% of 221 |
 
-**完美 same-path reselect 上限：** 174+66 = **240/395（60.8%）**。
+**same-path reselect 上限**（歷史研究用語）請以 tw538 錯誤地圖重新量測，不沿用退役集。
 
 ### 分層（僅 in-oracle 66 句）
 

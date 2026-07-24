@@ -2579,7 +2579,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         dispatch_once(&onceToken, ^{
             auto *model = new McBopomofo::CorpusBigramContextModel();
             // lambda 0.75 is the benchmark grid-search optimum (eval/benchmarks:
-            // 41.5% -> 44.1% top-1 sentence accuracy over 395 Taiwan sentences);
+            // grid-search optimum on the north-star set (see eval/benchmarks);
             // it is not hand-tuned per case.
             model->setLambda(0.75);
             NSString *path = [[NSBundle bundleForClass:[self class]] pathForResource:@"word-bigrams" ofType:@"tsv"];
