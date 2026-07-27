@@ -8,9 +8,36 @@ LaoWang Zhuyin (老王注音) is a macOS Traditional Chinese Bopomofo input meth
 
 The repository still intentionally keeps many upstream identifiers (`McBopomofo` target/module names, bundle id, input source ids, C++ namespaces) because they are tied to IMK registration, user data paths, and upstream merge cost. Prefer product-facing cleanup first; do not rename these internal identifiers without a migration plan.
 
-**Current line:** v2.7.0-dogfood (shipping scores still λ/ν 0.75 → tw538 **387/537**). Handoff truth lives in `AI_HANDOFF_PROMPT.md` (top section) and `CHANGELOG.md`.
+**Current line:** **v2.7.0** (build 2292; tag `v2.7.0`). Shipping scores still λ/ν 0.75 → tw538 **387/537**. Handoff truth lives in `AI_HANDOFF_PROMPT.md` (top section) and `CHANGELOG.md`.
 
-**Privacy (local-only plaintext):** `~/Library/Application Support/McBopomofo/rerank-diff.log` records Enter-time walk→rerank flips only. Never commit, upload, or attach to crash reports. Toggle/clear via input menu.## System Requirements
+**Privacy (local-only plaintext):** `~/Library/Application Support/McBopomofo/rerank-diff.log` records Enter-time walk→rerank flips only. Never commit, upload, or attach to crash reports. Toggle/clear via input menu.
+
+## Version traceability (standing rule — every baton)
+
+This is a **permanent** rule, not a one-off cleanup. Full text also lives in the handoff volume 1 iron-rules section (`~/Documents/老王注音-總交接檔v3.1-完整版.md` §1-4).
+
+1. Any baton that changes product behavior or user-visible content **must** on close-out:
+   - (a) Update `CHANGELOG.md` in plain language (what changed, impact on the user);
+   - (b) If the baton is a release point: bump version numbers in **both** `Source/McBopomofo-Info.plist` and `Source/Installer/Installer-Info.plist`, create an **annotated** git tag, tag message includes commit range;
+   - (c) Record that version’s **commit range** in CHANGELOG.
+2. Version numbers must not stagnate: once behavior-changing work accumulates, do not keep shipping under an old label (anti-pattern: months of work still labeled `2.7.0-dogfood`).
+3. Pure research / harness / docs batons need not bump the product version, but still leave an **internal** CHANGELOG line with commit hash.
+4. **Johnny** decides major/minor; executors propose with rationale only.
+5. This rule must not be removed or weakened without Johnny’s explicit approval.
+
+### Clean `GitRevision` on formal builds
+
+The Xcode “Stamp Git Revision” phase writes `GitRevision` = short HEAD hash, and appends `+` only if the **product tree** is dirty (ignores regenerable `Source/Engine/build-test`, `build/`, `dd-test*`).
+
+For a **clean** stamp (no trailing `+`), matching tag `vX.Y.Z`:
+
+```bash
+git checkout vX.Y.Z   # or clean master at the release commit
+git status            # must show clean for product files
+# build Release with a dedicated -derivedDataPath
+```
+
+Menu **「顯示目前生效設定…」** shows `version` + `build` + `GitRevision` from the running bundle.
 
 **Runtime:** macOS 10.15 (Catalina) or later
 

@@ -2,28 +2,38 @@
 
 你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-07-27**（制度下沉後半：prefsSchemaVersion 遷移 + 生效設定可觀測 + Enter-only rerank diff log）
+**最後更新：2026-07-27**（**版本可追溯制度**：正名 **v2.7.0** build 2292、CHANGELOG 人話化、annotated tag、卷一鐵則常設）
 
-**先前同日**：內部整頓（scoreSentence oracle + 死旋鈕拆除 + ⌘Return 殘根，commit `7ee58726`）。
+**先前同日**：制度下沉後半（prefs / 生效設定 / diff log，`72405791`）；內部整頓（`7ee58726`）。
 
-**先前：2026-07-24**（λ/ν 聯合重掃完成→最佳 391@0.70/0.50 待拍板；退役評測集已自清 HEAD；v2.7.0-dogfood 出貨仍 0.75/0.75→387）。
+**先前：2026-07-24**：v2.7.0-dogfood 大掃除 + Tab 預覽（`0d9540b6`）；λ/ν 重掃最佳 391 待拍板。
 
 ## 先讀文件
 
 開始前必讀：
 
-1. `AGENTS.md`（含 commit 作者、DerivedData、e2e、隱私紅線）
-2. `CHANGELOG.md`（最新正式版條目）
+1. `AGENTS.md`（含 **版本可追溯鐵則**、commit 作者、DerivedData、e2e、隱私紅線）
+2. `CHANGELOG.md`（最新正式版條目 + commit 範圍）
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 5. 功能地圖：`Source/Engine/eval/analysis/feature-inventory.md`（v2.7 後狀態）
-6. 總交接檔：`~/Documents/老王注音-總交接檔v3.1-完整版.md`（卷二／卷三已含 diff log 與生效設定）
+6. 總交接檔：`~/Documents/老王注音-總交接檔v3.1-完整版.md`（**卷一鐵則含版本可追溯**；卷二當前版本號）
+
+### 版本可追溯鐵則（常設 — 每棒必守，摘要）
+
+完整原文在交接檔卷一 §1-4 與 `AGENTS.md`。執行者收尾前自問：
+
+1. 有改產品行為／使用者可見內容？→ CHANGELOG **人話**條目必寫；若為發布點 → bump **兩個** Info.plist 版本號 + **annotated tag** + CHANGELOG 標 commit 範圍。
+2. 不可長期沿用舊版號矇混累積改動。
+3. 純研究／harness／文件 → 可不 bump 版號，但仍在 CHANGELOG「內部」留一筆 + commit。
+4. major/minor **Johnny 拍板**；執行者只建議。
+5. 本鐵則非 Johnny 同意不得刪弱。
 
 ## 三行同步狀態（2026-07-27）
 
-1. **發版**：產品仍 **v2.7.0-dogfood 線**（未另 bump 版號／未發 Release）。KEEP 不變：情境化選字 + 神經路徑重排(v2c int8) + 語音 + 上游三項。本棒只加**制度／可觀測／本機記錄**，**不改打分**。
-2. **成果**：tw538 開棒／收尾 **387/537** 全等；engine ctest **136** 全綠；PreferencesTests（含 migration v1 + diff log 語意）全綠；Release app **BUILD SUCCEEDED**。`prefsSchemaVersion=1`；選單「顯示目前生效設定…」「記錄重排差異」「清除重排差異 log」；Enter-only diff log → `~/Library/Application Support/McBopomofo/rerank-diff.log`。
-3. **下一刀（優先序）**：① **dogfood 完整版**（含本棒 A+B+C，勿再測缺 diff log 的舊安裝）。② Johnny 拍板 λ/ν 是否改 0.70/0.50（391）。③ 數週後用 diff log 粗算 real-world rescue/regress。④ B 類研究線封存。
+1. **發版**：**v2.7.0**（build **2292**，tag **`v2.7.0`**）。KEEP：情境化選字 + 神經路徑重排(v2c int8) + 語音 + 上游三項 + Tab 預覽 + 生效設定／diff log。打分仍 λ/ν 0.75 → **387/537**。GitHub Release 是否公開由 Johnny 決定。
+2. **追溯**：CHANGELOG `[2.7.0]` 含使用者／內部分區與 commit 範圍（`v2.6.0` → 本 tag）；選單「顯示目前生效設定」含 version + GitRevision。
+3. **下一刀（優先序）**：① 本機 dogfood **2.7.0** 完整版。② Johnny 核可版號敘事（若要改 **2.8.0** 可下一棒 retag，不重寫歷史）。③ λ/ν 是否改 0.70/0.50（391）。④ diff log 累積後真實 rescue/regress。
 
 ### tw538 基準線
 

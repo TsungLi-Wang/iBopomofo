@@ -350,8 +350,13 @@ class Preferences: NSObject {
         let model = Preferences.shippingModelFingerprint()
         let diffLog = Preferences.enableRerankDiffLog ? "ON" : "OFF"
         let path = RerankDiffLog.logFilePath
+        let shortVer =
+            Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        let gitRev = Bundle.main.infoDictionary?["GitRevision"] as? String ?? "?"
         return """
         生效設定 (effective, not raw plist):
+          version: \(shortVer) (build \(build))  GitRevision: \(gitRev)
           contextualWalk: \(contextual ? "ON" : "OFF")  (λ=\(String(format: "%.2f", lambda)) code constant)
           neuralPathRerank: \(neural ? "ON" : "OFF")
           ν: \(String(format: "%.2f", nu))

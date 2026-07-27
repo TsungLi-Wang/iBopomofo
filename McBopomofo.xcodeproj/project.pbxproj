@@ -859,7 +859,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nREV=$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null || echo unknown)\nif ! git -C \"${SRCROOT}\" diff --quiet HEAD 2>/dev/null; then REV=\"${REV}+\"; fi\n/usr/libexec/PlistBuddy -c \"Set :GitRevision ${REV}\" \"${PLIST}\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :GitRevision string ${REV}\" \"${PLIST}\"\n";
+			shellScript = "set -e\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nREV=$(git -C \"${SRCROOT}\" rev-parse --short HEAD 2>/dev/null || echo unknown)\n# Dirty '+' only for product tree; ignore regenerable build caches so formal\n# Release from a clean product checkout stamps a clean short hash (no trailing +).\nif ! git -C \"${SRCROOT}\" diff --quiet HEAD -- . \\\n  ':(exclude)Source/Engine/build-test' \\\n  ':(exclude)Source/Engine/build' \\\n  ':(exclude)build' \\\n  ':(exclude)dd-test*' \\\n  2>/dev/null; then REV=\"${REV}+\"; fi\n/usr/libexec/PlistBuddy -c \"Set :GitRevision ${REV}\" \"${PLIST}\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :GitRevision string ${REV}\" \"${PLIST}\"\n";
 		};
 		6A225A2023679F5F00F685C6 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
