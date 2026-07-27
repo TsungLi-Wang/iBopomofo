@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 import Cocoa
+import CryptoKit
 
 private let kKeyboardLayoutPreferenceKey = "KeyboardLayout"
 /// alphanumeric ("ASCII") input basic keyboard layout.
@@ -59,6 +60,15 @@ private let kCustomUserPhraseLocation = "CustomUserPhraseLocation"
 private let kEnableContextualWalkKey = "EnableContextualWalk"
 private let kEnableNeuralPathRerankKey = "EnableNeuralPathRerank"
 private let kNeuralPathRerankNuKey = "NeuralPathRerankNu"
+private let kPrefsSchemaVersionKey = "PrefsSchemaVersion"
+private let kEnableRerankDiffLogKey = "EnableRerankDiffLog"
+
+/// Code-level shipping constants (not UserDefaults — effective values for observability).
+enum ShippingRerankConstants {
+    static let contextualLambda = 0.75
+    static let pathRerankNBest = 10
+    static let prefsSchemaVersion = 1
+}
 
 private let kDefaultCandidateListTextSize: CGFloat = 16
 private let kMinCandidateListTextSize: CGFloat = 12
@@ -275,7 +285,8 @@ class Preferences: NSObject {
     }
 
 
-    /// Orphan keys from removed llama/Claude/AI features (v2.7.0 cleanup).
+    /// Orphan keys from removed llama/Claude/AI features (v2.7.0+).
+    /// Kept as the first prefsSchema migration step and re-run every launch for defense-in-depth.
     private static let removedPreferenceKeys: [String] = [
         "EnableAICandidateRerank",
         "EnableAIAutoCorrection",
@@ -286,6 +297,32 @@ class Preferences: NSObject {
         "AICorrectionClaudeOpusModel",
         "NeuralDeferredDiagnostics",
     ]
+
+    /// Accumulative preference migrations. v2.7 purge was every-launch orphan removal but did
+    /// not version the store — future default flips need numbered steps so old values cannot
+    /// silently cover new defaults (v2.6 residual-flag class of bug).
+    @objc static func migratePreferencesIfNeeded() {
+        let d = UserDefaults.standard
+        var version = d.object(forKey: kPrefsSchemaVersionKey) as? Int ?? 0
+        while version < ShippingRerankConstants.prefsSchemaVersion {
+            switch version {
+            case 0:
+                // v1: drop removed AI/llama preference keys (safe if already gone).
+                migratePrefsToV1_PurgeRemovedAIKeys()
+                version = 1
+            default:
+                version = ShippingRerankConstants.prefsSchemaVersion
+            }
+        }
+        d.set(version, forKey: kPrefsSchemaVersionKey)
+        // Defense-in-depth: re-purge orphans every launch (idempotent).
+        purgeRemovedFeaturePreferences()
+    }
+
+    private static func migratePrefsToV1_PurgeRemovedAIKeys() {
+        purgeRemovedFeaturePreferences()
+        NSLog("Preferences: migrated prefsSchemaVersion → 1 (orphan AI keys purge)")
+    }
 
     @objc static func purgeRemovedFeaturePreferences() {
         let d = UserDefaults.standard
@@ -302,26 +339,52 @@ class Preferences: NSObject {
         }
     }
 
-    /// Boot log: active shipping knobs + model fingerprint (surfaces residual-pref bugs fast).
-    @objc static func logShippingConfiguration() {
+    /// Effective (live) shipping configuration — not raw plist dump.
+    @objc static func effectiveShippingConfigurationSummary() -> String {
         let neural = Preferences.enableNeuralPathRerank
         let nu = Preferences.neuralPathRerankNu
         let contextual = Preferences.enableContextualWalk
-        var fingerprint = "missing"
-        if let url = Bundle.main.url(forResource: "path-char-lstm", withExtension: "bin"),
-            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-            let size = attrs[.size] as? NSNumber
-        {
-            // Size + first 8 file bytes hex (LWLSTM8 magic check) — full SHA is in analysis docs.
-            if let fh = try? FileHandle(forReadingFrom: url) {
-                let head = fh.readData(ofLength: 8)
-                try? fh.close()
-                let magic = head.map { String(format: "%02x", $0) }.joined()
-                fingerprint = "size=\(size.intValue),magic=\(magic)"
-            }
+        let lambda = ShippingRerankConstants.contextualLambda
+        let n = ShippingRerankConstants.pathRerankNBest
+        let schema = UserDefaults.standard.object(forKey: kPrefsSchemaVersionKey) as? Int ?? 0
+        let model = Preferences.shippingModelFingerprint()
+        let diffLog = Preferences.enableRerankDiffLog ? "ON" : "OFF"
+        let path = RerankDiffLog.logFilePath
+        return """
+        生效設定 (effective, not raw plist):
+          contextualWalk: \(contextual ? "ON" : "OFF")  (λ=\(String(format: "%.2f", lambda)) code constant)
+          neuralPathRerank: \(neural ? "ON" : "OFF")
+          ν: \(String(format: "%.2f", nu))
+          N: \(n)
+          model: \(model)
+          prefsSchemaVersion: \(schema)
+          rerankDiffLog: \(diffLog)
+          rerankDiffLogPath: \(path)
+        """
+    }
+
+    @objc static func logShippingConfiguration() {
+        NSLog("%@", Preferences.effectiveShippingConfigurationSummary().replacingOccurrences(of: "\n", with: " | "))
+    }
+
+    /// Short fingerprint of bundled path-char-lstm.bin (size + SHA256 prefix).
+    static func shippingModelFingerprint() -> String {
+        guard let url = Bundle.main.url(forResource: "path-char-lstm", withExtension: "bin"),
+            let data = try? Data(contentsOf: url)
+        else {
+            return "missing"
         }
-        NSLog(
-            "ShippingConfig: contextualWalk=\(contextual ? "ON" : "OFF") neuralPathRerank=\(neural ? "ON" : "OFF") nu=\(String(format: "%.2f", nu)) N=10 model=\(fingerprint)")
+        let digest = SHA256.hash(data: data)
+        let hex = digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+        return "path-char-lstm.bin size=\(data.count) sha256_8=\(hex)"
+    }
+
+    @UserDefault(key: kEnableRerankDiffLogKey, defaultValue: true)
+    @objc static var enableRerankDiffLog: Bool
+
+    @objc static func toggleRerankDiffLogEnabled() -> Bool {
+        enableRerankDiffLog = !enableRerankDiffLog
+        return enableRerankDiffLog
     }
 
     @EnumUserDefault(key: kKeyboardLayoutPreferenceKey, defaultValue: KeyboardLayout.standard)

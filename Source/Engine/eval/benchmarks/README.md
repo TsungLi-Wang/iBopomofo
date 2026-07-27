@@ -32,6 +32,15 @@ rebuild on this set.
 # Unigram-only walk : 41.5% ([retired-set score removed]); contextual λ=0.75: 44.1% ([retired-set score removed]).
 ```
 
+### Real-world companion (not a harness judge)
+
+Shipping app may write **Enter-only** rerank flips to
+`~/Library/Application Support/McBopomofo/rerank-diff.log`
+(ISO8601, walk, reranked; only when walk ≠ rerank). Tab preview never logs.
+This is Johnny-local plaintext for future rescue/regress tallies — **not** part
+of tw538, never uploaded, never in repo. Prefer `nbest_path_rerank` for lab
+scores; use the log only for post-dogfood personal evidence.
+
 ## Reproduce spoken LSTM n-best
 
 ### Current best: **387/537** (ν=0.75, N=10) — v2c

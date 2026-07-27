@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+### 制度下沉後半（2026-07-27）— 偏好 schema 遷移 + 生效設定可觀測 + Enter-only rerank diff log
+
+- **A（prefsSchemaVersion）**：`PrefsSchemaVersion` 整數 + 可累加遷移；v0→v1 = 清除已移除 AI/llama 孤兒鍵。啟動時 `migratePreferencesIfNeeded()` + 每次仍 re-purge 防禦。**不改任何出貨預設值、不重置 UOM**。A-1 判定：v2.7 每次啟動只清 orphan，無法防「仍存在鍵的舊值蓋新預設」→ 做完整版。
+- **B（生效設定）**：啟動 log 一行 effective 配置（contextual/λ、neural/ν、N、model sha256_8、schema、diff log 路徑）；選單唯讀「顯示目前生效設定…」。
+- **C（rerank diff log）**：僅 Enter commit 且 walk≠rerank 時 append 一行至 `~/Library/Application Support/McBopomofo/rerank-diff.log`（ISO8601\\twalk\\treranked）。**Tab 預覽不記**。5MB 輪替、選單開關／清除；純本機 append-only，不上傳、不進 repo、不進 crash report。
+- tw538 開棒／收尾 **387/537** 全等（本棒不改打分）。
+
 ### 內部整頓（2026-07-27）— scoreSentence oracle 化 + 死旋鈕拆除 + ⌘Return 殘根
 
 - **A**：產品 walk 僅 `scoreNBest`；`scoreSentence` 標 TEST-ORACLE；新增 `NeuralLMPathScorerEqualityTest`（nbest≡sequential），進 engine ctest。

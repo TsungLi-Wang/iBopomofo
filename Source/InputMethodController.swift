@@ -104,6 +104,21 @@ class McBopomofoInputMethodController: IMKInputController {
             action: #selector(toggleNeuralPathRerankEnabled(_:)), keyEquivalent: "")
         neuralPathItem.state = Preferences.enableNeuralPathRerank.state
 
+        let diffLogItem = menu.addItem(
+            withTitle: Preferences.enableRerankDiffLog
+                ? "記錄重排差異 (ON)"
+                : "記錄重排差異 (OFF)",
+            action: #selector(toggleRerankDiffLog(_:)), keyEquivalent: "")
+        diffLogItem.state = Preferences.enableRerankDiffLog.state
+
+        menu.addItem(
+            withTitle: "清除重排差異 log…",
+            action: #selector(clearRerankDiffLog(_:)), keyEquivalent: "")
+
+        menu.addItem(
+            withTitle: "顯示目前生效設定…",
+            action: #selector(showEffectiveShippingSettings(_:)), keyEquivalent: "")
+
         let voiceInputTitle =
             WhisperVoiceInputManager.shared.isRecording
             ? NSLocalizedString("Stop Voice Input", comment: "")
@@ -357,6 +372,22 @@ class McBopomofoInputMethodController: IMKInputController {
 
     @objc func toggleNeuralPathRerankEnabled(_ sender: Any?) {
         _ = Preferences.toggleNeuralPathRerankEnabled()
+    }
+
+    @objc func toggleRerankDiffLog(_ sender: Any?) {
+        let on = Preferences.toggleRerankDiffLogEnabled()
+        NotifierController.notify(message: on ? "重排差異記錄:開" : "重排差異記錄:關")
+    }
+
+    @objc func clearRerankDiffLog(_ sender: Any?) {
+        RerankDiffLog.clearLog()
+        NotifierController.notify(message: "已清除重排差異 log")
+    }
+
+    @objc func showEffectiveShippingSettings(_ sender: Any?) {
+        let text = Preferences.effectiveShippingConfigurationSummary()
+        NotifierController.notify(message: text.replacingOccurrences(of: "\n", with: " · "))
+        NSLog("%@", text)
     }
 
     /// Phase 3 push-to-talk:偵測「連按兩下乾淨的右 Shift」(keyCode 60)。乾淨 = 兩次

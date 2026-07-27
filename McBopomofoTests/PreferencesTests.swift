@@ -218,6 +218,55 @@ final class PreferencesTests {
         #expect(UserDefaults.standard.object(forKey: "AICorrectionBackend") == nil)
     }
 
+    /// Locks migration v1: orphan AI keys cleaned and schema version bumped.
+    /// Also documents that missing keys still resolve to current defaults (not
+    /// residual false from a deleted store entry for a still-live key).
+    @Test("Test prefs schema migration v1 and default resolution")
+    func testPrefsSchemaMigrationV1() {
+        UserDefaults.standard.removeObject(forKey: "PrefsSchemaVersion")
+        UserDefaults.standard.set(true, forKey: "EnableGlobalNeuralRerank")
+        UserDefaults.standard.set(3, forKey: "AICorrectionBackend")
+        // Live key without residual: remove so default ON applies.
+        UserDefaults.standard.removeObject(forKey: "EnableNeuralPathRerank")
+
+        Preferences.migratePreferencesIfNeeded()
+
+        #expect(UserDefaults.standard.integer(forKey: "PrefsSchemaVersion") == 1)
+        #expect(UserDefaults.standard.object(forKey: "EnableGlobalNeuralRerank") == nil)
+        #expect(UserDefaults.standard.object(forKey: "AICorrectionBackend") == nil)
+        // Missing live key → code default true (old residual OFF would be explicit false).
+        #expect(Preferences.enableNeuralPathRerank == true)
+
+        // Idempotent second run.
+        Preferences.migratePreferencesIfNeeded()
+        #expect(UserDefaults.standard.integer(forKey: "PrefsSchemaVersion") == 1)
+    }
+
+    @Test("Test rerank diff log append only when changed")
+    func testRerankDiffLogEnterOnlySemantics() {
+        let prev = Preferences.enableRerankDiffLog
+        Preferences.enableRerankDiffLog = true
+        defer { Preferences.enableRerankDiffLog = prev }
+        RerankDiffLog.clearLog()
+        #expect(RerankDiffLog.lineCountForTesting() == 0)
+
+        // Equal walk/rerank → no line (mirrors Tab-preview no-op case).
+        RerankDiffLog.appendIfChanged(walk: "百貨門市不適用", reranked: "百貨門市不適用")
+        #expect(RerankDiffLog.lineCountForTesting() == 0)
+
+        // Changed → one line (mirrors Enter commit with real flip).
+        RerankDiffLog.appendIfChanged(walk: "瘋狂財源", reranked: "瘋狂裁員")
+        #expect(RerankDiffLog.lineCountForTesting() == 1)
+
+        // Disabled → no further lines.
+        Preferences.enableRerankDiffLog = false
+        RerankDiffLog.appendIfChanged(walk: "a", reranked: "b")
+        #expect(RerankDiffLog.lineCountForTesting() == 1)
+
+        RerankDiffLog.clearLog()
+        #expect(RerankDiffLog.lineCountForTesting() == 0)
+    }
+
 }
 
 final class CandidateKeyValidationTests {

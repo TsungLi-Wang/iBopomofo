@@ -1296,7 +1296,10 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // with the char-LSTM reranker ON, then commit the reranked buffer. Hard
     // user overrides survive (their high walk score dominates ν·neural). The
     // per-keystroke composing path above never runs this.
-    NSString *composingBuffer = ((InputStateInputting *)state).composingBuffer;
+    // Tab preview reuses the same _rerankThisWalk path but MUST NOT write the
+    // rerank-diff log (only true Enter commit records changes).
+    NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
+    NSString *composingBuffer = walkBuffer;
     if (Preferences.enableNeuralPathRerank && _inputMode != InputModePlainBopomofo) {
         _rerankThisWalk = YES;
         [self _walk];
@@ -1305,6 +1308,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if ([reranked isKindOfClass:[InputStateInputting class]]) {
             composingBuffer = ((InputStateInputting *)reranked).composingBuffer;
         }
+        // Local append-only log when rerank actually changed the commit text.
+        [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:composingBuffer];
     }
 
     [self clear];

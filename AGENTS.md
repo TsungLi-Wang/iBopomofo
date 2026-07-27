@@ -4,12 +4,13 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## Project Overview
 
-LaoWang Zhuyin (老王注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds product features on top: **contextual selection** (corpus word-bigram inside `walk()`, **default on since v2.3.0**), **soft personalization** (user picks feed a private on-device cache into the DP), AI sentence correction (⌘Return), optional L1 n-gram candidate rerank, and on-device whisper.cpp voice input. The project is built with Swift (UI/state), Objective-C++ (bridge), and C++ (engine), using macOS Input Method Kit (IMK).
+LaoWang Zhuyin (老王注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds product features on top: **contextual selection** (corpus word-bigram inside `walk()`, **default on since v2.3.0**), **soft personalization** (user picks feed a private on-device cache into the DP), **neural path rerank** (v2c int8, Enter commit + Tab preview), optional on-device whisper.cpp voice input, and local observability (effective shipping settings + Enter-only rerank diff log). The project is built with Swift (UI/state), Objective-C++ (bridge), and C++ (engine), using macOS Input Method Kit (IMK).
 
 The repository still intentionally keeps many upstream identifiers (`McBopomofo` target/module names, bundle id, input source ids, C++ namespaces) because they are tied to IMK registration, user data paths, and upstream merge cost. Prefer product-facing cleanup first; do not rename these internal identifiers without a migration plan.
 
-**Current release:** v2.3.0 (build 2286). Handoff truth lives in `AI_HANDOFF_PROMPT.md` (top section) and `CHANGELOG.md`.
-## System Requirements
+**Current line:** v2.7.0-dogfood (shipping scores still λ/ν 0.75 → tw538 **387/537**). Handoff truth lives in `AI_HANDOFF_PROMPT.md` (top section) and `CHANGELOG.md`.
+
+**Privacy (local-only plaintext):** `~/Library/Application Support/McBopomofo/rerank-diff.log` records Enter-time walk→rerank flips only. Never commit, upload, or attach to crash reports. Toggle/clear via input menu.## System Requirements
 
 **Runtime:** macOS 10.15 (Catalina) or later
 

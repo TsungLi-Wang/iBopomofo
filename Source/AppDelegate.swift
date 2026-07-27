@@ -193,8 +193,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
             return
         }
 
-        // v2.7.0: drop orphan prefs from removed llama/Claude features; log shipping knobs.
-        Preferences.purgeRemovedFeaturePreferences()
+        // Accumulative prefs migrations + orphan purge; log effective shipping knobs.
+        Preferences.migratePreferencesIfNeeded()
         Preferences.logShippingConfiguration()
 
         checkForUpdate()

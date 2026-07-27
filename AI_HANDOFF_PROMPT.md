@@ -2,7 +2,9 @@
 
 你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-07-27**（內部整頓：scoreSentence oracle + 死旋鈕拆除 + ⌘Return/Claude 殘根清完）
+**最後更新：2026-07-27**（制度下沉後半：prefsSchemaVersion 遷移 + 生效設定可觀測 + Enter-only rerank diff log）
+
+**先前同日**：內部整頓（scoreSentence oracle + 死旋鈕拆除 + ⌘Return 殘根，commit `7ee58726`）。
 
 **先前：2026-07-24**（λ/ν 聯合重掃完成→最佳 391@0.70/0.50 待拍板；退役評測集已自清 HEAD；v2.7.0-dogfood 出貨仍 0.75/0.75→387）。
 
@@ -15,12 +17,13 @@
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 5. 功能地圖：`Source/Engine/eval/analysis/feature-inventory.md`（v2.7 後狀態）
+6. 總交接檔：`~/Documents/老王注音-總交接檔v3.1-完整版.md`（卷二／卷三已含 diff log 與生效設定）
 
-## 三行同步狀態（2026-07-24）
+## 三行同步狀態（2026-07-27）
 
-1. **發版**：**v2.7.0-dogfood（build 2291）** 已實機覆蓋安裝、**未**打正式 tag／未發 Release。KEEP：情境化選字 + 神經路徑重排(v2c int8) + 語音 + 上游三項(簡體/半形/聯想)。**已移除**：整套 llama/Claude（候選建議、句末自動校正、⌘Return AI、神經候選重排、同音消歧、AI 模型選單）。
-2. **成果**：tw538 **387/537** 全等；override **32/32**；Swift tests **89** 全綠（含新 Tab 路徑）；engine ctest **135** 全綠。Tab = 組字中神經路徑預覽（同 `scoreNBest`，釘 hard override，不 commit）；Enter 仍 rerank+送出。常駐 **無 llama-server**（IME RSS ~50MB 級 vs 舊 ~3GB）。dogfood：`~/Desktop/LaoWang-v2.7.0-dogfood/` + 驗收單 `analysis/v2.7.0-dogfood-acceptance.md`。
-3. **下一刀（優先序）**：① Johnny 拍板是否採用 λ=0.70/ν=0.50（391，+4）或維持 0.75/0.75（387）。② dogfood 續驗 Tab/記憶體。③ 過了再決定正式 Release。④ B 類研究線維持封存。
+1. **發版**：產品仍 **v2.7.0-dogfood 線**（未另 bump 版號／未發 Release）。KEEP 不變：情境化選字 + 神經路徑重排(v2c int8) + 語音 + 上游三項。本棒只加**制度／可觀測／本機記錄**，**不改打分**。
+2. **成果**：tw538 開棒／收尾 **387/537** 全等；engine ctest **136** 全綠；PreferencesTests（含 migration v1 + diff log 語意）全綠；Release app **BUILD SUCCEEDED**。`prefsSchemaVersion=1`；選單「顯示目前生效設定…」「記錄重排差異」「清除重排差異 log」；Enter-only diff log → `~/Library/Application Support/McBopomofo/rerank-diff.log`。
+3. **下一刀（優先序）**：① **dogfood 完整版**（含本棒 A+B+C，勿再測缺 diff log 的舊安裝）。② Johnny 拍板 λ/ν 是否改 0.70/0.50（391）。③ 數週後用 diff log 粗算 real-world rescue/regress。④ B 類研究線封存。
 
 ### tw538 基準線
 
