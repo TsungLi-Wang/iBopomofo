@@ -218,8 +218,8 @@ void NeuralLMPathScorer::forwardLogits(const std::vector<int>& ids,
   (void)ids.back();
 }
 
-// Shared teacher-forced pass. includeEos=true → BOS..chars..EOS (sentence
-// score). includeEos=false → BOS..chars only, one log10 per content char.
+// TEST-ORACLE sequential path (not called by product walk — that uses
+// scoreNBest). Kept bit-stable so NeuralLMPathScorerEqualityTest can compare.
 double NeuralLMPathScorer::scoreSentence(
     const std::vector<std::string>& words) {
   if (!loaded_ || words.empty()) return 0.0;

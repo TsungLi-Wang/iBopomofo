@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+### 內部整頓（2026-07-27）— scoreSentence oracle 化 + 死旋鈕拆除 + ⌘Return 殘根
+
+- **A**：產品 walk 僅 `scoreNBest`；`scoreSentence` 標 TEST-ORACLE；新增 `NeuralLMPathScorerEqualityTest`（nbest≡sequential），進 engine ctest。
+- **B**：拆除融合公式 len/zscore/minmax 可執行 harness 旋鈕（`tw538_fusion_variants` 改為 FATAL stub）；池外 α 掃描自 zenzai harness 移除（僅保留 α=1.0 residual）。**不碰 ν/N/λ/μ_user**。
+- **C**：⌘Return / Claude 雲端在 v2.7 已刪；本棒再清 `AICorrectionError` 雲端文案殘根。選單無雲端項。語音 whisper 本機 HTTP 保留。
+
+
 ### 研究 / 清理（2026-07-24）— λ/ν 聯合重掃 + 退役評測集清除
 
 - **λ/ν 聯合重掃**（純 harness，不動出貨）：控制組 (0.75,0.75)=**387/537**；全表最佳 **λ=0.70 ν=0.50 → 391（+4）**；N=10 池覆蓋峰 **473@λ=0.55**（λ→0 反而 434，高 λ→1.5 降至 429）。出貨配置**暫不改**，待 Johnny 拍板。產物 `analysis/lambda-nu-joint-sweep*.tsv` / `*-report.md`。

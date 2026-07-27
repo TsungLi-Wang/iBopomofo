@@ -103,6 +103,7 @@ if (ENABLE_TEST)
                 CompositeContextModelTest.cpp
                 McBopomofoLMTest.cpp
                 MemoryMappedFileTest.cpp
+                NeuralLMPathScorerEqualityTest.cpp
                 ParselessLMTest.cpp
                 ParselessPhraseDBTest.cpp
                 PhraseReplacementMapTest.cpp
@@ -111,6 +112,9 @@ if (ENABLE_TEST)
                 UserPhrasesLMTest.cpp
                 VariantAnnotatorTest.cpp)
         target_link_libraries(McBopomofoLMLibTest GTest::gtest_main McBopomofoLMLib gramambular2_lib)
+        # Equality test loads shipping LSTM next to Source/Data (from build-test cwd).
+        target_compile_definitions(McBopomofoLMLibTest PRIVATE
+                "MCBO_TEST_DATA_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../Data\"")
         include(GoogleTest)
         gtest_discover_tests(McBopomofoLMLibTest)
 

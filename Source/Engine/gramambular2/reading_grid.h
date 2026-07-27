@@ -203,11 +203,13 @@ class ReadingGrid {
   class PathScorer {
    public:
     virtual ~PathScorer() = default;
-    // Log-domain sentence score over the path word sequence (higher = better).
+    // TEST-ORACLE ONLY for shipping scorers. Product walk() never calls this
+    // (it always uses scoreNBest). Kept so tests can assert batch vs sequential
+    // equality. Do not call from KeyHandler / product rerank path.
     virtual double scoreSentence(const std::vector<std::string>& words) = 0;
-    // Batched scoring of the n-best paths at once. The default loops
-    // scoreSentence (bit-identical to per-path); scorers that share work
-    // across candidates (e.g. prefix-state caching) override this.
+    // Product n-best scoring entry. Shipping NeuralLMPathScorer overrides this
+    // with trie+BLAS. Default falls back to looping scoreSentence (eval-only
+    // scorers without a batch path).
     virtual std::vector<double> scoreNBest(
         const std::vector<std::vector<std::string>>& paths) {
       std::vector<double> out;

@@ -1,0 +1,12 @@
+Running main() from /Users/johnny.w_macmini/laowang-zhuyin/Source/Engine/build-test/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = NeuralLMPathScorerEquality*
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from NeuralLMPathScorerEquality
+[ RUN      ] NeuralLMPathScorerEquality.ScoreNBestMatchesScoreSentenceOracle
+[       OK ] NeuralLMPathScorerEquality.ScoreNBestMatchesScoreSentenceOracle (559 ms)
+[----------] 1 test from NeuralLMPathScorerEquality (559 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (559 ms total)
+[  PASSED  ] 1 test.

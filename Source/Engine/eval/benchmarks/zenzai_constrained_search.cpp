@@ -983,8 +983,11 @@ int main(int argc, char** argv) {
   std::cout << "SWEEP_BASE397 " << base397correct << "/" << cases.size()
             << " nbest_miss " << nbestMiss << " reached_bclass " << reachedB
             << " never_reached " << (nbestMiss - reachedB) << "\n";
-  std::cout << "SWEEP_VARIANT_A pool-external walk downweight (alpha):\n";
-  for (double a : {1.0, 0.75, 0.5, 0.25, 0.0}) evalAlpha(a, false);
+  // DEAD KNOB REMOVED (2026-07): pool-external walk downweight α sweep.
+  // Death list: α≤0.75 collapses; only α=1.0 (no downweight) remains for residual dump.
+  // Do not reintroduce runtime α tuning in product or routine harnesses.
+  std::cout << "SWEEP_VARIANT_A_REMOVED pool-external walk downweight alpha "
+               "(death list; only alpha=1.0 residual dump retained)\n";
   std::cout << "SWEEP_VARIANT_B neural two-vote (v2c AND cond prefer, margin m):\n";
   for (double m : {0.0, 0.25, 0.5, 1.0, 2.0}) evalTwoVote(m);
   std::cout << "SWEEP_RESIDUAL veto list @ alpha=1.0 (the 400 config):\n";

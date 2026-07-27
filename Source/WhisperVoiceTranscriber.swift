@@ -40,7 +40,8 @@ enum WhisperVoiceTranscriber {
                 .unavailable(backend: name, detail: "本機辨識引擎未就緒,請稍候幾秒再試一次"))
         }
         guard let url = URL(string: base + "/inference") else {
-            return .failure(.invalidEndpoint(backend: name, endpoint: base))
+            return .failure(
+                .unavailable(backend: name, detail: "本機辨識端點無效(\(base))"))
         }
 
         let boundary = "Boundary-\(UUID().uuidString)"

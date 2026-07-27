@@ -27,13 +27,13 @@ class NeuralLMPathScorer
   [[nodiscard]] int vocabSize() const { return vocab_; }
   [[nodiscard]] size_t parameterCount() const;
 
-  // Sum of log10 next-char probabilities under the LSTM LM (higher = better).
+  // TEST-ORACLE: sequential teacher-forced score. Not used by product walk()
+  // (product uses scoreNBest only). Required so CI can assert scoreNBest ≡ this.
   double scoreSentence(const std::vector<std::string>& words) override;
 
-  // Batched n-best scoring with prefix-state sharing + BLAS. Candidates share
-  // most of the sentence, so each distinct char-id prefix runs its LSTM step +
-  // full-vocab softmax exactly once. Arithmetically equal to looping
-  // scoreSentence (float reassociation only). This is the shipped rerank path.
+  // SHIPPED product path: batched n-best with prefix-state sharing + BLAS.
+  // Arithmetically equal to looping scoreSentence (float reassociation only).
+  // reading_grid::walk() is the only product caller.
   std::vector<double> scoreNBest(
       const std::vector<std::vector<std::string>>& paths) override;
 

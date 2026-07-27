@@ -2,7 +2,9 @@
 
 你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-07-24**（λ/ν 聯合重掃完成→最佳 391@0.70/0.50 待拍板；退役評測集已自清 HEAD；v2.7.0-dogfood 出貨仍 0.75/0.75→387）。
+**最後更新：2026-07-27**（內部整頓：scoreSentence oracle + 死旋鈕拆除 + ⌘Return/Claude 殘根清完）
+
+**先前：2026-07-24**（λ/ν 聯合重掃完成→最佳 391@0.70/0.50 待拍板；退役評測集已自清 HEAD；v2.7.0-dogfood 出貨仍 0.75/0.75→387）。
 
 ## 先讀文件
 
