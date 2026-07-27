@@ -26,11 +26,11 @@
 "Close Installer" = "關閉安裝程式";
 
 /* No comment provided by engineer. */
-"McBopomofo is ready to use." = "老王注音已安裝完成。\n\n已為您開啟「系統設定 → 鍵盤 → 輸入法」。\n請按左下角「編輯」→ 按「+」→ 選「中文」→ 選「老王注音」→ 按「加入」。";
+"McBopomofo is ready to use." = "i注音已安裝完成。\n\n已為您開啟「系統設定 → 鍵盤 → 輸入法」。\n請按左下角「編輯」→ 按「+」→ 選「中文」→ 選「i注音」→ 按「加入」。";
 
 "Finish" = "結束";
 "Attention" = "請注意";
-"McBopomofo is upgraded, but please log out or reboot for the new version to be fully functional." = "老王注音安裝完成，但建議您登出或重新開機，以便順利使用新版。";
+"McBopomofo is upgraded, but please log out or reboot for the new version to be fully functional." = "i注音安裝完成，但建議您登出或重新開機，以便順利使用新版。";
 
 "Fatal Error" = "安裝錯誤";
 "Abort" = "放棄安裝";

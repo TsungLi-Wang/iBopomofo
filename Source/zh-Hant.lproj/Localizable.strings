@@ -1,8 +1,8 @@
 /* No comment provided by engineer. */
-"About McBopomofo…" = "關於老王注音…";
+"About McBopomofo…" = "關於i注音…";
 
 /* No comment provided by engineer. */
-"McBopomofo Preferences" = "老王注音偏好設定";
+"McBopomofo Preferences" = "i注音偏好設定";
 
 /* No comment provided by engineer. */
 "Check for Updates…" = "檢查是否有新版…";
@@ -29,7 +29,7 @@
 "Visit Website" = "前往網站";
 
 /* No comment provided by engineer. */
-"You're currently using McBopomofo %@ (%@), a new version %@ (%@) is now available. Do you want to visit McBopomofo's website to download the version?%@" = "目前使用的老王注音版本是 %1$@ (%2$@)，網路上有更新版本 %3$@ (%4$@) 可供下載。是否要前往老王注音網站下載新版來安裝？%5$@";
+"You're currently using McBopomofo %@ (%@), a new version %@ (%@) is now available. Do you want to visit McBopomofo's website to download the version?%@" = "目前使用的i注音版本是 %1$@ (%2$@)，網路上有更新版本 %3$@ (%4$@) 可供下載。是否要前往i注音網站下載新版來安裝？%5$@";
 
 "Convert to Simplified Chinese" = "輸出簡體中文";
 
@@ -94,9 +94,9 @@
 "Advanced" = "進階";
 
 "Check for Update Completed" = "版本檢查完成";
-"Visit LaoWang Zhuyin releases to download the latest version." = "請前往老王注音 GitHub Releases 下載最新版本。";
+"Visit iBopomofo releases to download the latest version." = "請前往i注音 GitHub Releases 下載最新版本。";
 
-"McBopomofo is up to date." = "您的老王注音不需要更新。";
+"McBopomofo is up to date." = "您的i注音不需要更新。";
 
 "Look up \"%1$@\" in %2$@" = "在%2$@查詢「%1$@」";
 
@@ -140,7 +140,7 @@
 
 "Issues were found in the following user phrase files:" = "以下是用戶自訂詞庫檔案中發現的問題：";
 
-"Check McBopomofo menu for user file issues" = "自訂詞庫有誤，請從老王注音選單點選「列出自訂詞庫中的問題」";
+"Check McBopomofo menu for user file issues" = "自訂詞庫有誤，請從i注音選單點選「列出自訂詞庫中的問題」";
 
 "User phrase file" = "使用者自訂詞彙檔";
 

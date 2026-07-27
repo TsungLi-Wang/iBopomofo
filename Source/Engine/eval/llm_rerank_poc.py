@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LLM Single-Position Constrained Pick PoC Harness for LaoWang Zhuyin.
+LLM Single-Position Constrained Pick PoC Harness for iBopomofo.
 
 New focus after first run:
 - Only perform constrained pick on the positions listed in "focus".

@@ -29,7 +29,7 @@ private let kCheckUpdateAutomatically = "CheckUpdateAutomatically"
 private let kNextUpdateCheckDateKey = "NextUpdateCheckDate"
 private let kUpdateInfoEndpointKey = "UpdateInfoEndpoint"
 private let kUpdateInfoSiteKey = "UpdateInfoSite"
-private let kLaoWangReleaseURLString = "https://github.com/TsungLi-Wang/laowang-zhuyin/releases"
+private let kLaoWangReleaseURLString = "https://github.com/TsungLi-Wang/iBopomofo/releases"
 private let kNextCheckInterval: TimeInterval = 86400.0
 private let kTimeoutInterval: TimeInterval = 60.0
 
@@ -282,7 +282,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
                 updateNextStepURL = releaseURL
                 NonModalAlertWindowController.shared.show(
                     title: NSLocalizedString("Check for Update Completed", comment: ""),
-                    content: NSLocalizedString("Visit LaoWang Zhuyin releases to download the latest version.", comment: ""),
+                    content: NSLocalizedString("Visit iBopomofo releases to download the latest version.", comment: ""),
                     confirmButtonTitle: NSLocalizedString("Visit Website", comment: ""),
                     cancelButtonTitle: NSLocalizedString("Not Now", comment: ""),
                     cancelAsDefault: false,

@@ -1,6 +1,6 @@
 # llama-runtime — 內嵌本機 AI 推理
 
-老王注音的「本機 AI（內建・離線）」後端：把 llama.cpp 的 `llama-server`（OpenAI 相容 HTTP）
+i注音的「本機 AI（內建・離線）」後端：把 llama.cpp 的 `llama-server`（OpenAI 相容 HTTP）
 連同精簡 dylib 打包進 app，由 `LlamaServerManager` 自動啟動／關閉。
 **模型本身不打包進 app**——它太大（~2.9GB）會讓 dmg 爆過 GitHub Release 的 2GiB 上限，
 改成 app 首次使用本機 AI 時自動從 HuggingFace 下載到
@@ -44,7 +44,7 @@ Phase 0 用 9 句注音校正測試集（同音字／平翹舌／鄰鍵手誤 + 
 **決定**：不申請 Apple Developer 帳號（$99/年），所以不做 Developer ID 簽章 / notarize。
 改成讓人下載 `.dmg`，安裝時用一行指令解除 macOS 隔離。
 
-用 `../package-dmg.sh`（repo 根）產出 `dist/LaoWangZhuyin.dmg`（**~18MB**，因模型不打包），內含：
+用 `../package-dmg.sh`（repo 根）產出 `dist/iBopomofo.dmg`（**~18MB**，因模型不打包），內含：
 - `McBopomofo.app`（含 llama-server runtime，但不含模型）
 - `安裝.command`（右鍵→打開即可一鍵安裝）
 - `安裝說明.txt`（手動 Terminal 指令，最可靠）

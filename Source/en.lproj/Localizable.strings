@@ -1,8 +1,8 @@
 /* No comment provided by engineer. */
-"About McBopomofo…" = "About LaoWang Zhuyin…";
+"About McBopomofo…" = "About iBopomofo…";
 
 /* No comment provided by engineer. */
-"McBopomofo Preferences" = "LaoWang Zhuyin Preferences";
+"McBopomofo Preferences" = "iBopomofo Preferences";
 
 /* No comment provided by engineer. */
 "Check for Updates…" = "Check for Updates…";
@@ -29,7 +29,7 @@
 "Visit Website" = "Visit Website";
 
 /* No comment provided by engineer. */
-"You're currently using McBopomofo %@ (%@), a new version %@ (%@) is now available. Do you want to visit McBopomofo's website to download the version?%@" = "You're currently using LaoWang Zhuyin %@ (%@), a new version %@ (%@) is now available. Do you want to visit LaoWang Zhuyin's website to download the version?%@";
+"You're currently using McBopomofo %@ (%@), a new version %@ (%@) is now available. Do you want to visit McBopomofo's website to download the version?%@" = "You're currently using iBopomofo %@ (%@), a new version %@ (%@) is now available. Do you want to visit iBopomofo's website to download the version?%@";
 
 "Convert to Simplified Chinese" = "Convert to Simplified Chinese";
 
@@ -94,9 +94,9 @@
 "Advanced" = "Advanced";
 
 "Check for Update Completed" = "Check for Update Completed";
-"Visit LaoWang Zhuyin releases to download the latest version." = "Visit LaoWang Zhuyin releases to download the latest version.";
+"Visit iBopomofo releases to download the latest version." = "Visit iBopomofo releases to download the latest version.";
 
-"McBopomofo is up to date." = "LaoWang Zhuyin is up to date.";
+"McBopomofo is up to date." = "iBopomofo is up to date.";
 
 "Look up \"%1$@\" in %2$@" = "Look up \"%1$@\" in %2$@";
 
@@ -142,7 +142,7 @@
 
 "Issues were found in the following user phrase files:" = "Issues were found in the following user phrase files:";
 
-"Check McBopomofo menu for user file issues" = "Check LaoWang Zhuyin menu for user file issues";
+"Check McBopomofo menu for user file issues" = "Check iBopomofo menu for user file issues";
 
 "User phrase file" = "User phrase file";
 

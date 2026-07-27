@@ -1,0 +1,29 @@
+# NOTICE — iBopomofo (i注音)
+
+## Upstream
+
+This project is a **derivative work** of
+[openvanilla/McBopomofo](https://github.com/openvanilla/McBopomofo)
+(Traditional Chinese Bopomofo input method for macOS).
+
+The McBopomofo source code is released under the **MIT License**.
+Copyright (c) 2011–2026 Mengjuei Hsieh et al. and The McBopomofo Authors.
+
+The original copyright notices and the full MIT license text are preserved in
+`LICENSE` / `LICENSE.txt` and in individual source file headers. Those notices
+must not be removed from redistributions of this Software.
+
+## This fork
+
+Product name: **i注音** (English/ASCII: **iBopomofo**).
+
+Additional code, models, product wiring, and documentation contributed in this
+repository are also released under the **MIT License**, unless a specific file
+states otherwise.
+
+Copyright (c) 2025–2026 the iBopomofo contributors.
+
+## Third-party components
+
+See `ACKNOWLEDGEMENTS.md` for other open-source libraries bundled or used at
+build/runtime (for example OpenCC, whisper.cpp runtime pieces, etc.).

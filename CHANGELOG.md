@@ -1,6 +1,6 @@
 # 版本更新歷程
 
-本檔記錄老王注音的版本變更。格式參考 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本號遵循 [語意化版本](https://semver.org/lang/zh-TW/)。
+本檔記錄i注音的版本變更。格式參考 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本號遵循 [語意化版本](https://semver.org/lang/zh-TW/)。
 
 正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
 
@@ -9,6 +9,25 @@
 ## [Unreleased]
 
 （尚無。新改動先寫這裡，發版時整段上移到新版本號下。）
+
+## [2.8.0] — 2026-07-27
+
+- **版本標記**：`CFBundleShortVersionString` = **2.8.0**；`CFBundleVersion` = **2293**
+- **tag**：`v2.8.0`（annotated）
+- **commit 範圍**：tag `v2.7.0`（`549e4637`）之後 → 本版 tag
+- **打分**：tw538 仍 **387/537**（本版不改引擎）
+
+### 使用者可感知的改動
+
+- **品牌更名**：產品對外名稱由「老王注音 / LaoWang Zhuyin」改為 **「i注音 / iBopomofo」**（選單、關於、安裝器、文件）。
+- **正式公開開源**：repository 以 MIT 公開；保留上游 McBopomofo 授權與著作權，並新增 [NOTICE](NOTICE) 說明衍生關係。
+- **安裝體驗文案**同步為 i注音（內部安裝路徑／bundle id 為相容性**刻意保留**，見 README 技術備註）。
+
+### 內部 / 開發者改動
+
+- 全歷史機密掃描（gitleaks + 人工高風險字樣）：**零真實金鑰入庫**；Claude 時代 API key 僅 Keychain，未 commit。
+- 強化 `.gitignore`（`.env`、憑證、`rerank-diff.log`、`.gguf` 等）。
+- 公開 README 重寫；版本可追溯鐵則持續適用。
 
 ## [2.7.0] — 2026-07-27
 

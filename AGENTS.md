@@ -4,17 +4,19 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## Project Overview
 
-LaoWang Zhuyin (老王注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds product features on top: **contextual selection** (corpus word-bigram inside `walk()`, **default on since v2.3.0**), **soft personalization** (user picks feed a private on-device cache into the DP), **neural path rerank** (v2c int8, Enter commit + Tab preview), optional on-device whisper.cpp voice input, and local observability (effective shipping settings + Enter-only rerank diff log). The project is built with Swift (UI/state), Objective-C++ (bridge), and C++ (engine), using macOS Input Method Kit (IMK).
+iBopomofo (i注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds product features on top: **contextual selection** (corpus word-bigram inside `walk()`, **default on since v2.3.0**), **soft personalization** (user picks feed a private on-device cache into the DP), **neural path rerank** (v2c int8, Enter commit + Tab preview), optional on-device whisper.cpp voice input, and local observability (effective shipping settings + Enter-only rerank diff log). The project is built with Swift (UI/state), Objective-C++ (bridge), and C++ (engine), using macOS Input Method Kit (IMK).
 
 The repository still intentionally keeps many upstream identifiers (`McBopomofo` target/module names, bundle id, input source ids, C++ namespaces) because they are tied to IMK registration, user data paths, and upstream merge cost. Prefer product-facing cleanup first; do not rename these internal identifiers without a migration plan.
 
-**Current line:** **v2.7.0** (build 2292; tag `v2.7.0`). Shipping scores still λ/ν 0.75 → tw538 **387/537**. Handoff truth lives in `AI_HANDOFF_PROMPT.md` (top section) and `CHANGELOG.md`.
+**Current line:** **i注音 / iBopomofo v2.8.0** (build 2293; tag `v2.8.0`). Shipping scores still λ/ν 0.75 → tw538 **387/537**. Handoff truth lives in `AI_HANDOFF_PROMPT.md` (top section) and `CHANGELOG.md`.
+
+**Brand vs technical IDs:** User-visible name is **i注音 / iBopomofo**. Internal Xcode target, bundle id `org.openvanilla.inputmethod.McBopomofo`, install path `~/Library/Input Methods/McBopomofo.app`, and many C++/module names remain for IMK continuity — do not rename those without a migration plan.
 
 **Privacy (local-only plaintext):** `~/Library/Application Support/McBopomofo/rerank-diff.log` records Enter-time walk→rerank flips only. Never commit, upload, or attach to crash reports. Toggle/clear via input menu.
 
 ## Version traceability (standing rule — every baton)
 
-This is a **permanent** rule, not a one-off cleanup. Full text also lives in the handoff volume 1 iron-rules section (`~/Documents/老王注音-總交接檔v3.1-完整版.md` §1-4).
+This is a **permanent** rule, not a one-off cleanup. Full text also lives in the handoff volume 1 iron-rules section (`~/Documents/i注音-總交接檔v3.1-完整版.md` §1-4).
 
 1. Any baton that changes product behavior or user-visible content **must** on close-out:
    - (a) Update `CHANGELOG.md` in plain language (what changed, impact on the user);

@@ -6,7 +6,7 @@
 
 ## 前置
 
-1. 已安裝並啟用本次 build 的老王注音（Info.plist 1.8.x）。
+1. 已安裝並啟用本次 build 的i注音（Info.plist 1.8.x）。
 2. 本機 AI 模型已就緒：`pgrep -lf llama-server` 有結果（本機目前有）。
 3. 開啟實驗開關：**輸入法選單 ▸「AI 句末自動校正（實驗）」打勾**（等同 `Preferences.enableAIAutoCorrection = true`）。
 

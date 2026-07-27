@@ -26,7 +26,7 @@
 4. AppleScript 變數**不可命名 `result`**（保留字，會炸）。
 5. killall 重裝輸入法後，第一輪打字前多等幾秒（IMK 重新接上 client 需要時間），
    第一輪若吃字為空屬正常，重跑一次。
-6. 跑之前確認目前輸入法是老王注音：
+6. 跑之前確認目前輸入法是i注音：
    ```bash
    swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }'
    # 應輸出 org.openvanilla.inputmethod.McBopomofo.McBopomofo.Bopomofo

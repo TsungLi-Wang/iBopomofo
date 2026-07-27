@@ -1,4 +1,4 @@
-老王注音基於 McBopomofo,並使用下列開源程式庫：
+i注音基於 McBopomofo,並使用下列開源程式庫：
 
 - [SwiftyOpenCC](https://github.com/ddddxxx/SwiftyOpenCC) by DengXiang under
   the MIT License.

@@ -1,13 +1,13 @@
 #!/bin/bash
-# 老王注音一鍵安裝（不需打開 .app，不受 Gatekeeper 阻擋）
+# i注音一鍵安裝（不需打開 .app，不受 Gatekeeper 阻擋）
 #
 # 用法:
-#   curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/laowang-zhuyin/master/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/iBopomofo/master/scripts/install.sh | bash
 #   或在本機: ./scripts/install.sh
 set -euo pipefail
 
-REPO="TsungLi-Wang/laowang-zhuyin"
-DMG_NAME="LaoWangZhuyin.dmg"
+REPO="TsungLi-Wang/iBopomofo"
+DMG_NAME="iBopomofo.dmg"
 DEST="$HOME/Library/Input Methods/McBopomofo.app"
 TMP="$(mktemp -d)"
 MOUNT=""
@@ -20,7 +20,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "老王注音 — 安裝中（不需打開安裝程式，免 Gatekeeper）…"
+echo "i注音 — 安裝中（不需打開安裝程式，免 Gatekeeper）…"
 
 DMG="$TMP/$DMG_NAME"
 URL="https://github.com/$REPO/releases/latest/download/$DMG_NAME"
@@ -48,14 +48,14 @@ xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$DEST/Contents/Info.plist" 2>/dev/null || echo '?')"
 echo ""
-echo "完成！老王注音 v${VERSION} 已安裝。"
+echo "完成！i注音 v${VERSION} 已安裝。"
 echo ""
 echo "請到：系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯"
-echo "按「+」→「中文」→「老王注音」→「加入」"
+echo "按「+」→「中文」→「i注音」→「加入」"
 echo ""
 
 if command -v osascript >/dev/null 2>&1; then
-  osascript -e 'display dialog "老王注音已安裝完成！\n\n請到「系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯」加入「老王注音」。" buttons {"好的"} default button 1 with title "老王注音"' 2>/dev/null || true
+  osascript -e 'display dialog "i注音已安裝完成！\n\n請到「系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯」加入「i注音」。" buttons {"好的"} default button 1 with title "i注音"' 2>/dev/null || true
   if [ "$(uname -r | cut -d. -f1)" -ge 22 ] 2>/dev/null; then
     open "x-apple.systempreferences:com.apple.Keyboard-Settings.extension?InputSources" 2>/dev/null || true
   fi

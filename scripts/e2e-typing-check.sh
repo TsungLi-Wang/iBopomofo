@@ -1,10 +1,10 @@
 #!/bin/bash
-# 實機端到端打字驗證:把美式鍵序送進已安裝的老王注音,回報實際 commit 的文字。
+# 實機端到端打字驗證:把美式鍵序送進已安裝的i注音,回報實際 commit 的文字。
 # 用法: ./scripts/e2e-typing-check.sh "a04a042k7y.3eji4x96"   # 慢慢的走過來
 # 完整說明(注音→鍵序對照、原理、陷阱): docs/e2e-typing-verification.md
 #
 # 鐵則:用 key code 不用 keystroke(keystroke 的數字鍵事件輸入法吃不到聲調)。
-# 需求:目前輸入法 = 老王注音;終端機有輔助使用權限。會短暫開啟 TextEdit,
+# 需求:目前輸入法 = i注音;終端機有輔助使用權限。會短暫開啟 TextEdit,
 # 結束時自動關閉不存檔。
 
 set -euo pipefail
@@ -15,7 +15,7 @@ WAIT="${2:-4}"  # 打完到 commit 的等待秒數(延遲重審需 debounce 0.6s
 # 確認輸入法
 CURRENT=$(swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }' 2>/dev/null)
 if [[ "$CURRENT" != *"McBopomofo"* ]]; then
-    echo "目前輸入法不是老王注音: $CURRENT" >&2
+    echo "目前輸入法不是i注音: $CURRENT" >&2
     echo "請先切換輸入法再跑。" >&2
     exit 1
 fi

@@ -1,12 +1,12 @@
-# 老王注音後續 AI 接棒 Prompt
+# i注音後續 AI 接棒 Prompt
 
-你是老王注音 LaoWang Zhuyin 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/laowang-zhuyin`，目前仍保留 McBopomofo 內部 target、bundle id、input source id、C++ namespace 與安裝路徑。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
+你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-07-27**（**版本可追溯制度**：正名 **v2.7.0** build 2292、CHANGELOG 人話化、annotated tag、卷一鐵則常設）
+**最後更新：2026-07-27**（**v2.8.0 公開 + 品牌 i注音/iBopomofo**；全歷史機密掃描零洩漏）
 
-**先前同日**：制度下沉後半（prefs / 生效設定 / diff log，`72405791`）；內部整頓（`7ee58726`）。
+**先前同日**：v2.7.0 版本可追溯正名（`549e4637`）；制度下沉（`72405791`）；內部整頓（`7ee58726`）。
 
-**先前：2026-07-24**：v2.7.0-dogfood 大掃除 + Tab 預覽（`0d9540b6`）；λ/ν 重掃最佳 391 待拍板。
+**先前：2026-07-24**：v2.7.0-dogfood 大掃除 + Tab 預覽（`0d9540b6`）。
 
 ## 先讀文件
 
@@ -17,7 +17,7 @@
 3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
 4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
 5. 功能地圖：`Source/Engine/eval/analysis/feature-inventory.md`（v2.7 後狀態）
-6. 總交接檔：`~/Documents/老王注音-總交接檔v3.1-完整版.md`（**卷一鐵則含版本可追溯**；卷二當前版本號）
+6. 總交接檔：`~/Documents/i注音-總交接檔v3.1-完整版.md`（**卷一鐵則含版本可追溯**；卷二當前版本號）
 
 ### 版本可追溯鐵則（常設 — 每棒必守，摘要）
 
@@ -31,9 +31,9 @@
 
 ## 三行同步狀態（2026-07-27）
 
-1. **發版**：**v2.7.0**（build **2292**，tag **`v2.7.0`**）。KEEP：情境化選字 + 神經路徑重排(v2c int8) + 語音 + 上游三項 + Tab 預覽 + 生效設定／diff log。打分仍 λ/ν 0.75 → **387/537**。GitHub Release 是否公開由 Johnny 決定。
-2. **追溯**：CHANGELOG `[2.7.0]` 含使用者／內部分區與 commit 範圍（`v2.6.0` → 本 tag）；選單「顯示目前生效設定」含 version + GitRevision。
-3. **下一刀（優先序）**：① 本機 dogfood **2.7.0** 完整版。② Johnny 核可版號敘事（若要改 **2.8.0** 可下一棒 retag，不重寫歷史）。③ λ/ν 是否改 0.70/0.50（391）。④ diff log 累積後真實 rescue/regress。
+1. **發版 / 品牌**：**i注音（iBopomofo）v2.8.0**（build **2293**，tag **`v2.8.0`**）。對外全面改名；內部 bundle id / 安裝路徑仍 McBopomofo 以相容。KEEP 功能線同 2.7.0；tw538 **387/537**。
+2. **公開**：repo 公開開源（MIT + NOTICE）；gitleaks 全歷史零機密。
+3. **下一刀**：① 本機安裝 2.8.0 體感。② λ/ν 是否改 0.70/0.50（391）。③ diff log 累積後真實 rescue/regress。
 
 ### tw538 基準線
 
@@ -54,7 +54,7 @@
 
 | 項目 | 狀態 |
 |------|------|
-| 發佈 | GitHub Release **Latest** = **v2.3.0**，附 `LaoWangZhuyin.dmg`（約 31MB，含 25MB `word-bigrams.tsv`） |
+| 發佈 | GitHub Release **Latest** = **v2.3.0**，附 `iBopomofo.dmg`（約 31MB，含 25MB `word-bigrams.tsv`） |
 | 版本來源 | `Source/McBopomofo-Info.plist` + `Source/Installer/Installer-Info.plist`（兩者必須一起 bump） |
 | master | 與 `origin/master` 同步於發版 commit `e33e9cb` |
 | 北極星 tw | cold 空 cache：walk ON **44.1%（[retired-set score removed]）**、walk OFF **41.5%（[retired-set score removed]）** |
@@ -503,7 +503,7 @@ Johnny 提出改用外部 AI 產生「在/再」合成語料,先跑小型實驗,
 **已完成（全部驗過）**：
 
 1. **版本號推進 1.7.5 → 1.8.0 / build 2276 → 2277**。版本真實來源是 `Source/McBopomofo-Info.plist` 字面值（不是 pbxproj 的 MARKETING_VERSION）。`CHANGELOG.md` 的 `[Unreleased]` 隱形警察那批已移進 `[v1.8.0] - 2026-06-26`。
-2. **GitHub Release v1.8.0 已發佈並標記 Latest**，附 `LaoWangZhuyin.dmg`（18MB，內嵌 v1.8.0 安裝器）。tag `v1.8.0` 指向 commit `f09565b`。發佈前 `xcodebuild test` 129 tests / 11 suites 全綠。發佈意義：以後 `scripts/install.sh` 抓的就是 1.8.0，不會再卡在 1.7.5。
+2. **GitHub Release v1.8.0 已發佈並標記 Latest**，附 `iBopomofo.dmg`（18MB，內嵌 v1.8.0 安裝器）。tag `v1.8.0` 指向 commit `f09565b`。發佈前 `xcodebuild test` 129 tests / 11 suites 全綠。發佈意義：以後 `scripts/install.sh` 抓的就是 1.8.0，不會再卡在 1.7.5。
 3. **本機 `~/Library/Input Methods/McBopomofo.app` 已是 v1.8.0**（先 killall + 就地 ditto 覆蓋，不 rm -rf；再跑 `McBopomofo install` 註冊）。
 4. 雜項：`.gitignore` 加 `*.profraw`（覆蓋率殘留檔，會誤入 commit）；移除 `AI_HANDOFF_PROMPT.md` 對兩份已棄用 `~/Documents/` 設計/交班文件的殘留引用（那兩份早已不存在，設計哲學已融進本檔與 CHANGELOG）。
 
@@ -1038,7 +1038,7 @@ Johnny 在場跑 live e2e 驗收：5 句實機打字全部 live==harness（指�
 - **版本 bump**：兩個 plist 都 2.1.1→2.2.0、2283→2284（`chore(release): v2.2.0` = commit `817b935`）。Johnny 原話說「tag 在 3196010」,但 3196010 的 plist 還是 2.1.1（會讓 About 顯示錯版本）,故照專案鐵則先補 bump commit,tag 打在 `817b935`（plist 已是 2.2.0）。功能碼在 `3196010`。
 - **master ff 併回**：`eefe623 → 817b935`,已 push origin。feature/contextual-walk-v1 也在 817b935。
 - **tag `v2.2.0` @ 817b935**,已 push origin。
-- **GitHub release v2.2.0（Latest）**：附 `LaoWangZhuyin.dmg`（31MB,含 25MB 語料表）。release notes 明載「預設關閉」＋兩種開啟法（選單三語項／`defaults write ... EnableContextualWalk -bool YES`）。
+- **GitHub release v2.2.0（Latest）**：附 `iBopomofo.dmg`（31MB,含 25MB 語料表）。release notes 明載「預設關閉」＋兩種開啟法（選單三語項／`defaults write ... EnableContextualWalk -bool YES`）。
 - Johnny 機器上維持實驗 build（未還原 2.1.1,他要日常試用）。
 
 **下一棒優先**（發版後獨立事項,Johnny 指定留待下一版）：
