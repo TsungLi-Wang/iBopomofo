@@ -14,6 +14,7 @@
 - 同音判別線 GO/NO-GO 量測（純研究）：`eval/tools/measure_homophone_entropy.py` + `homophone_measure.cpp`；`reading2chars` 自 conversion_pairs；tw538 殘餘熵 + 單點翻字 oracle。**結論 NO-GO**（第 2 輪淨增益 −45；出貨仍 387）。報告 `eval/analysis/tw538-single-flip-oracle.md`。
 - 同音翻字閘門掃描（棒 A-2，純分析）：全提案 dump + Δ×H 曲面 + 五變體 split-half；V4（walk 融合）對 n-best 空操作；V5 半 oracle held-out ~+8。**判定仍 NO-GO**。產物 `tw538-flip-gate-*.md/tsv`、四格/Fano/位置剖面/句難度。
 - 代理判別器上限（棒 A-3）：Qwen2.5-7B-Instruct-4bit（MLX）作上限代理；**有效性閘門未過**（出貨已對位置 75.6% ≪ 96%），T2/T3 依規未跑。結論：通用 instruct LLM **不能**當有效上限代理。報告 `tw538-proxy-judge-report.md`。
+- 位置級同音判別器（棒 C 最終版，純研究）：BiLSTM ~13.3M、純淨／混合噪聲各 30 萬筆；四關評估 + split-half + 延遲。**主判準（n-best 重排 held-out）與次判準（單點翻字）皆 NO-GO**；路徑排序遠遜基線 B，重排延遲 ~1.9s/句 ≫45ms。提案 A（判別器路線）正式死亡。報告 `eval/analysis/tw538-position-judge-report.md`；腳本 `position_judge_batonC.py` / `position_judge_eval_fast.py`；權重與資料在 `~/laowang-data/batonC-final/`（不入 app）。
 
 ## [2.8.0] — 2026-07-27
 
