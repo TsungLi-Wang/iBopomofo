@@ -47,3 +47,23 @@ rerank-diff.log
 # Eval/experiment scratch: per-experiment Xcode DerivedData (regenerable, GB-scale)
 /dd-test*/
 /kenlm-runtime/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# 訓練與實驗產物
+*.log
+*.out
+*.pid
+*.ckpt
+*.pt
+*.pth
+*.bin
+
+# macOS 建置
+DerivedData/
+dd-*/

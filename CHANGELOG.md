@@ -8,7 +8,9 @@
 
 ## [Unreleased]
 
-（尚無。新改動先寫這裡，發版時整段上移到新版本號下。）
+### 內部 / 開發者改動
+
+- repo 衛生：擴充 `.gitignore`（Python venv/pyc、訓練產物 `*.ckpt/*.pt/*.pth/*.bin`、實驗 log/out、`dd-*/` DerivedData 模式）；**未**重寫歷史、**未**移除版控中檔案。體積稽核：`.git` ≈ 241 MiB，HEAD 檔案總和 ≈ 238 MiB，粗算歷史殭屍 ≈ 3 MiB（pack 壓縮使差值偏小；最大 blob 多為仍在 HEAD 的模型權重）。
 
 ## [2.8.0] — 2026-07-27
 
