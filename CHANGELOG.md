@@ -11,6 +11,7 @@
 ### 內部 / 開發者改動
 
 - repo 衛生：擴充 `.gitignore`（Python venv/pyc、訓練產物 `*.ckpt/*.pt/*.pth/*.bin`、實驗 log/out、`dd-*/` DerivedData 模式）；**未**重寫歷史、**未**移除版控中檔案。體積稽核：`.git` ≈ 241 MiB，HEAD 檔案總和 ≈ 238 MiB，粗算歷史殭屍 ≈ 3 MiB（pack 壓縮使差值偏小；最大 blob 多為仍在 HEAD 的模型權重）。
+- 同音判別線 GO/NO-GO 量測（純研究）：`eval/tools/measure_homophone_entropy.py` + `homophone_measure.cpp`；`reading2chars` 自 conversion_pairs；tw538 殘餘熵 + 單點翻字 oracle。**結論 NO-GO**（第 2 輪淨增益 −45；出貨仍 387）。報告 `eval/analysis/tw538-single-flip-oracle.md`。
 
 ## [2.8.0] — 2026-07-27
 
