@@ -246,12 +246,29 @@ def main() -> int:
                     help="use flat token stream dataset (faster on large corpora)")
     ap.add_argument("--log-every", type=int, default=0,
                     help="print mid-epoch progress every N batches (0=off)")
+    ap.add_argument("--max-hours", type=float, default=0.0,
+                    help="stop training after this many hours (0=no limit); "
+                         "exports best-so-far. For baton short runs.")
+    ap.add_argument("--max-batches", type=int, default=0,
+                    help="stop after this many optimizer steps total (0=no limit); "
+                         "aligns multi-variant short runs to the same step budget")
+    ap.add_argument("--extra-corpus", type=Path, default=None,
+                    help="optional hard-sample lines; oversampled by --extra-weight "
+                         "and appended before shuffle (weighting, not rebalance)")
+    ap.add_argument("--extra-weight", type=int, default=1,
+                    help="how many times to repeat each extra-corpus line (default 1)")
     args = ap.parse_args()
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
     text = load_text(args.corpus, args.wiki_dump, args.max_wiki_chars)
+    if args.extra_corpus and args.extra_corpus.exists():
+        extra = args.extra_corpus.read_text(encoding="utf-8", errors="ignore")
+        w = max(1, int(args.extra_weight))
+        # weighting = append w copies; base distribution still dominates if base ≫ extra
+        text = text + ("\n" + extra) * w
+        print(f"extra_corpus={args.extra_corpus} weight={w} extra_lines≈{extra.count(chr(10))+1}")
     han = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
     print(f"corpus chars≈{len(text)} han≈{han}")
     itos, stoi = build_vocab(text, min_count=2)
@@ -303,10 +320,23 @@ def main() -> int:
 
     model.train()
     best_val = float("inf")
+    t0 = __import__("time").time()
+    global_step = 0
+    stopped = ""
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    best_path = args.out.with_name(args.out.stem + ".best.bin")
+
+    def maybe_export(tag: str):
+        mcpu = CharLSTM(len(itos), args.emb, args.hidden, args.layers)
+        mcpu.load_state_dict({k: v.detach().cpu() for k, v in model.state_dict().items()})
+        export_binary(best_path if tag == "best" else args.out, mcpu, itos,
+                      args.emb, args.hidden, args.layers)
+
     for ep in range(1, args.epochs + 1):
         total = 0.0
         tokens = 0
         n_batches = len(dl)
+        stop_ep = False
         for bi, (bx, by) in enumerate(dl, 1):
             bx, by = bx.to(device), by.to(device)
             opt.zero_grad()
@@ -315,13 +345,24 @@ def main() -> int:
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
+            global_step += 1
             total += loss.item() * by.numel()
             tokens += by.numel()
             if args.log_every and bi % args.log_every == 0:
+                elapsed_h = (__import__("time").time() - t0) / 3600.0
                 print(
-                    f"  ep{ep} batch {bi}/{n_batches} loss={loss.item():.4f}",
+                    f"  ep{ep} batch {bi}/{n_batches} step={global_step} "
+                    f"loss={loss.item():.4f} h={elapsed_h:.2f}",
                     flush=True,
                 )
+            if args.max_batches and global_step >= args.max_batches:
+                stopped = f"max_batches={args.max_batches}"
+                stop_ep = True
+                break
+            if args.max_hours and (__import__("time").time() - t0) >= args.max_hours * 3600:
+                stopped = f"max_hours={args.max_hours}"
+                stop_ep = True
+                break
         avg = total / max(1, tokens)
         ppl = math.exp(min(20.0, avg))
         msg = f"epoch {ep}/{args.epochs} train_loss={avg:.4f} train_ppl≈{ppl:.2f}"
@@ -331,23 +372,34 @@ def main() -> int:
             if vloss < best_val:
                 best_val = vloss
                 msg += " *best"
+                maybe_export("best")
         print(msg, flush=True)
+        if stop_ep:
+            print(f"STOP {stopped} step={global_step}", flush=True)
+            break
 
-    # export on CPU tensors
+    # export final (and best if never val-improved)
     model.cpu()
-    args.out.parent.mkdir(parents=True, exist_ok=True)
     export_binary(args.out, model, itos, args.emb, args.hidden, args.layers)
+    if best_path.exists():
+        # prefer best checkpoint for eval
+        import shutil
+        shutil.copy2(best_path, args.out)
+        print(f"using best checkpoint {best_path}", flush=True)
     meta = args.out.with_suffix(".meta.txt")
     meta.write_text(
         f"arch=CharLSTM layers={args.layers} emb={args.emb} hidden={args.hidden}\n"
         f"vocab={len(itos)} params={n_params}\n"
         f"epochs={args.epochs} lr={args.lr} seq_len={args.seq_len}\n"
         f"corpus={args.corpus} wiki={args.wiki_dump} max_wiki={args.max_wiki_chars}\n"
+        f"extra_corpus={args.extra_corpus} extra_weight={args.extra_weight}\n"
         f"han_chars≈{han} val_ratio={args.val_ratio} best_val_loss={best_val}\n"
-        f"device={device}\n",
+        f"device={device} global_step={global_step} stopped={stopped}\n"
+        f"max_hours={args.max_hours} max_batches={args.max_batches}\n",
         encoding="utf-8",
     )
     print(f"meta {meta}")
+    print(f"DONE step={global_step} stopped={stopped or 'epochs_complete'}")
     return 0
 
 
