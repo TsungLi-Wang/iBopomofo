@@ -68,11 +68,47 @@ class McBopomofoInputMethodController: IMKInputController {
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
 
+    /// Idle pause timer for sentence-end soft-finalize (baseline always-on).
+    private var sentenceEndIdleTimer: Timer?
+
     // MARK: - IMKInputController methods
 
     override init!(server: IMKServer!, delegate: Any!, client inputClient: Any!) {
         super.init(server: server, delegate: delegate, client: inputClient)
         keyHandler.delegate = self
+    }
+
+    private func cancelSentenceEndIdleTimer() {
+        sentenceEndIdleTimer?.invalidate()
+        sentenceEndIdleTimer = nil
+    }
+
+    /// Restart pause timer after each key handled while composing.
+    private func scheduleSentenceEndIdleTimer(client: Any?) {
+        cancelSentenceEndIdleTimer()
+        let ms = max(200, Preferences.sentenceEndPauseMs)
+        let interval = TimeInterval(ms) / 1000.0
+        // weak self via capturing controller; IMK controllers live with session
+        let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
+            self?.fireSentenceEndIdleTimer(client: client)
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        sentenceEndIdleTimer = timer
+    }
+
+    private func fireSentenceEndIdleTimer(client: Any?) {
+        sentenceEndIdleTimer = nil
+        guard state is InputState.Inputting else { return }
+        guard !keyHandler.softFinalized else { return }
+        let ok = keyHandler.softFinalizeSentence(state: state) { newState in
+            self.handle(state: newState, client: client)
+        } errorCallback: {
+            // swallow: idle finalize is best-effort
+        }
+        if ok {
+            // Soft-finalized: do not reschedule until next keystroke.
+            cancelSentenceEndIdleTimer()
+        }
     }
 
     override func menu() -> NSMenu! {
@@ -114,6 +150,30 @@ class McBopomofoInputMethodController: IMKInputController {
         menu.addItem(
             withTitle: "清除重排差異 log…",
             action: #selector(clearRerankDiffLog(_:)), keyEquivalent: "")
+
+        menu.addItem(NSMenuItem.separator())
+        // Sentence-end triggers (soft-finalize). Pause is always on (baseline).
+        let enterEndItem = menu.addItem(
+            withTitle: "句子結束：Enter",
+            action: #selector(toggleSentenceEndTriggerEnter(_:)), keyEquivalent: "")
+        enterEndItem.state = Preferences.sentenceEndTriggerEnter.state
+        let periodEndItem = menu.addItem(
+            withTitle: "句子結束：句號（。）",
+            action: #selector(toggleSentenceEndTriggerPeriod(_:)), keyEquivalent: "")
+        periodEndItem.state = Preferences.sentenceEndTriggerPeriod.state
+        let commaEndItem = menu.addItem(
+            withTitle: "句子結束：逗號（，）",
+            action: #selector(toggleSentenceEndTriggerComma(_:)), keyEquivalent: "")
+        commaEndItem.state = Preferences.sentenceEndTriggerComma.state
+        let correctionLogItem = menu.addItem(
+            withTitle: Preferences.enableManualCorrectionLog
+                ? "記錄手動改字樣本 (ON)"
+                : "記錄手動改字樣本 (OFF)",
+            action: #selector(toggleManualCorrectionLog(_:)), keyEquivalent: "")
+        correctionLogItem.state = Preferences.enableManualCorrectionLog.state
+        menu.addItem(
+            withTitle: "清除手動改字 log…",
+            action: #selector(clearManualCorrectionLog(_:)), keyEquivalent: "")
 
         menu.addItem(
             withTitle: "顯示目前生效設定…",
@@ -329,6 +389,14 @@ class McBopomofoInputMethodController: IMKInputController {
                 NSSound.beep()
             }
         }
+        // Pause soft-finalize: restart idle clock while still composing & not settled.
+        if result {
+            if self.state is InputState.Inputting, !keyHandler.softFinalized {
+                scheduleSentenceEndIdleTimer(client: client)
+            } else {
+                cancelSentenceEndIdleTimer()
+            }
+        }
         return result
     }
 
@@ -382,6 +450,31 @@ class McBopomofoInputMethodController: IMKInputController {
     @objc func clearRerankDiffLog(_ sender: Any?) {
         RerankDiffLog.clearLog()
         NotifierController.notify(message: "已清除重排差異 log")
+    }
+
+    @objc func toggleSentenceEndTriggerEnter(_ sender: Any?) {
+        let on = Preferences.toggleSentenceEndTriggerEnter()
+        NotifierController.notify(message: on ? "句子結束：Enter 開" : "句子結束：Enter 關")
+    }
+
+    @objc func toggleSentenceEndTriggerPeriod(_ sender: Any?) {
+        let on = Preferences.toggleSentenceEndTriggerPeriod()
+        NotifierController.notify(message: on ? "句子結束：句號 開" : "句子結束：句號 關")
+    }
+
+    @objc func toggleSentenceEndTriggerComma(_ sender: Any?) {
+        let on = Preferences.toggleSentenceEndTriggerComma()
+        NotifierController.notify(message: on ? "句子結束：逗號 開" : "句子結束：逗號 關")
+    }
+
+    @objc func toggleManualCorrectionLog(_ sender: Any?) {
+        let on = Preferences.toggleManualCorrectionLog()
+        NotifierController.notify(message: on ? "手動改字樣本記錄:開" : "手動改字樣本記錄:關")
+    }
+
+    @objc func clearManualCorrectionLog(_ sender: Any?) {
+        ManualCorrectionLog.clearLog()
+        NotifierController.notify(message: "已清除手動改字 log")
     }
 
     @objc func showEffectiveShippingSettings(_ sender: Any?) {

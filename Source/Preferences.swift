@@ -63,11 +63,20 @@ private let kNeuralPathRerankNuKey = "NeuralPathRerankNu"
 private let kPrefsSchemaVersionKey = "PrefsSchemaVersion"
 private let kEnableRerankDiffLogKey = "EnableRerankDiffLog"
 
+// Sentence-end triggers for auto soft-finalize (智慧改字定案).
+// Pause is baseline (always on). Comma / period / Enter are independent toggles.
+private let kSentenceEndTriggerEnterKey = "SentenceEndTriggerEnter"
+private let kSentenceEndTriggerPeriodKey = "SentenceEndTriggerPeriod"
+private let kSentenceEndTriggerCommaKey = "SentenceEndTriggerComma"
+private let kSentenceEndPauseMsKey = "SentenceEndPauseMs"
+private let kEnableManualCorrectionLogKey = "EnableManualCorrectionLog"
+
 /// Code-level shipping constants (not UserDefaults — effective values for observability).
 enum ShippingRerankConstants {
     static let contextualLambda = 0.75
     static let pathRerankNBest = 10
-    static let prefsSchemaVersion = 1
+    /// v2: sentence-end soft-finalize prefs (enter/period/comma + pause ms).
+    static let prefsSchemaVersion = 2
 }
 
 private let kDefaultCandidateListTextSize: CGFloat = 16
@@ -310,6 +319,11 @@ class Preferences: NSObject {
                 // v1: drop removed AI/llama preference keys (safe if already gone).
                 migratePrefsToV1_PurgeRemovedAIKeys()
                 version = 1
+            case 1:
+                // v2: sentence-end soft-finalize prefs (defaults via @UserDefault).
+                NSLog(
+                    "Preferences: migrated prefsSchemaVersion → 2 (sentence-end soft finalize)")
+                version = 2
             default:
                 version = ShippingRerankConstants.prefsSchemaVersion
             }
@@ -365,6 +379,8 @@ class Preferences: NSObject {
           prefsSchemaVersion: \(schema)
           rerankDiffLog: \(diffLog)
           rerankDiffLogPath: \(path)
+          sentenceEnd: enter=\(sentenceEndTriggerEnter ? "ON" : "OFF") period=\(sentenceEndTriggerPeriod ? "ON" : "OFF") comma=\(sentenceEndTriggerComma ? "ON" : "OFF") pauseMs=\(sentenceEndPauseMs)
+          manualCorrectionLog: \(enableManualCorrectionLog ? "ON" : "OFF")
         """
     }
 
@@ -612,6 +628,52 @@ extension Preferences {
     /// (nu 0.5→386, 0.75→387, 1.0→385; see shipping-latency-pareto-tw538.md).
     @UserDefault(key: kNeuralPathRerankNuKey, defaultValue: 0.75)
     @objc static var neuralPathRerankNu: Double
+
+    // MARK: - Sentence-end soft finalize (auto smart selection)
+
+    /// Enter ends a sentence → soft-finalize (rerank + no underline, stay composing).
+    /// Default ON. Second Enter after soft-finalize still hard-commits.
+    @UserDefault(key: kSentenceEndTriggerEnterKey, defaultValue: true)
+    @objc static var sentenceEndTriggerEnter: Bool
+
+    @objc static func toggleSentenceEndTriggerEnter() -> Bool {
+        sentenceEndTriggerEnter = !sentenceEndTriggerEnter
+        return sentenceEndTriggerEnter
+    }
+
+    /// Full-width period （。） ends a sentence → soft-finalize (period stays in buffer).
+    /// Default ON (suggested dogfood default).
+    @UserDefault(key: kSentenceEndTriggerPeriodKey, defaultValue: true)
+    @objc static var sentenceEndTriggerPeriod: Bool
+
+    @objc static func toggleSentenceEndTriggerPeriod() -> Bool {
+        sentenceEndTriggerPeriod = !sentenceEndTriggerPeriod
+        return sentenceEndTriggerPeriod
+    }
+
+    /// Full-width comma （，） ends a sentence → soft-finalize.
+    /// Default OFF (many users type commas mid-clause).
+    @UserDefault(key: kSentenceEndTriggerCommaKey, defaultValue: false)
+    @objc static var sentenceEndTriggerComma: Bool
+
+    @objc static func toggleSentenceEndTriggerComma() -> Bool {
+        sentenceEndTriggerComma = !sentenceEndTriggerComma
+        return sentenceEndTriggerComma
+    }
+
+    /// Idle pause (ms) before auto soft-finalize. Baseline always-on behavior.
+    /// First-ship default 800ms; Johnny dogfood may retune.
+    @UserDefault(key: kSentenceEndPauseMsKey, defaultValue: 800)
+    @objc static var sentenceEndPauseMs: Int
+
+    /// Collect manual candidate picks as training samples (difficult forks).
+    @UserDefault(key: kEnableManualCorrectionLogKey, defaultValue: true)
+    @objc static var enableManualCorrectionLog: Bool
+
+    @objc static func toggleManualCorrectionLog() -> Bool {
+        enableManualCorrectionLog = !enableManualCorrectionLog
+        return enableManualCorrectionLog
+    }
 
 }
 

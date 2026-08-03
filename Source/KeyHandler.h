@@ -78,6 +78,17 @@ extern InputMode InputModePlainBopomofo;
                          associatedPhraseValue:(NSString *)phraseValue;
 - (void)clear;
 
+/// Soft-finalize: neural rerank + pin path, stay composing with no underline.
+/// Used by pause / comma / period / Enter (when that trigger is enabled).
+/// Returns YES if soft-finalize ran (or buffer already soft-finalized).
+- (BOOL)softFinalizeSentenceWithState:(InputState *)state
+                        stateCallback:(void (^)(InputState *))stateCallback
+                        errorCallback:(void (^)(void))errorCallback
+    NS_SWIFT_NAME(softFinalizeSentence(state:stateCallback:errorCallback:));
+
+/// YES when composing buffer is soft-finalized (no underline, still editable).
+@property (assign, nonatomic, readonly) BOOL softFinalized;
+
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback
     NS_SWIFT_NAME(handleForceCommit(stateCallback:));
 

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		FACE0211FACE0211FACE0211 /* RerankDiffLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0210FACE0210FACE0210 /* RerankDiffLog.swift */; };
+		FACE0311FACE0311FACE0311 /* ManualCorrectionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0310FACE0310FACE0310 /* ManualCorrectionLog.swift */; };
 		FACE0021FACE0021FACE0021 /* AICorrectionError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0020FACE0020FACE0020 /* AICorrectionError.swift */; };
 		6A0D4F0815FC0DA600ABF4B3 /* Bopomofo.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 6A0D4EEF15FC0DA600ABF4B3 /* Bopomofo.tiff */; };
 		6A0D4F0915FC0DA600ABF4B3 /* Bopomofo@2x.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 6A0D4EF015FC0DA600ABF4B3 /* Bopomofo@2x.tiff */; };
@@ -146,6 +147,7 @@
 
 /* Begin PBXFileReference section */
 		FACE0210FACE0210FACE0210 /* RerankDiffLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RerankDiffLog.swift; sourceTree = "<group>"; };
+		FACE0310FACE0310FACE0310 /* ManualCorrectionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualCorrectionLog.swift; sourceTree = "<group>"; };
 		FACE0020FACE0020FACE0020 /* AICorrectionError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrectionError.swift; sourceTree = "<group>"; };
 		6A0D4EA215FC0D2D00ABF4B3 /* McBopomofo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = McBopomofo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6A0D4EEF15FC0DA600ABF4B3 /* Bopomofo.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = Bopomofo.tiff; sourceTree = "<group>"; };
@@ -397,6 +399,7 @@
 				D47B92BF27972AC800458394 /* main.swift */,
 				FACE0020FACE0020FACE0020 /* AICorrectionError.swift */,
 				FACE0210FACE0210FACE0210 /* RerankDiffLog.swift */,
+				FACE0310FACE0310FACE0310 /* ManualCorrectionLog.swift */,
 				6A0D4EF615FC0DA600ABF4B3 /* McBopomofo-Prefix.pch */,
 				D427A9BF25ED28CC005D43E0 /* McBopomofo-Bridging-Header.h */,
 			);
@@ -910,6 +913,7 @@
 				D4E569DC27A34D0E00AC2CEF /* KeyHandler.mm in Sources */,
 				FACE0021FACE0021FACE0021 /* AICorrectionError.swift in Sources */,
 				FACE0211FACE0211FACE0211 /* RerankDiffLog.swift in Sources */,
+				FACE0311FACE0311FACE0311 /* ManualCorrectionLog.swift in Sources */,
 				6A4F5F982879E838008C4307 /* reading_grid.cpp in Sources */,
 				D47F7DD0278C0897002F9DD7 /* NonModalAlertWindowController.swift in Sources */,
 				D456576E279E4F7B00DF6BC9 /* KeyHandlerInput.swift in Sources */,

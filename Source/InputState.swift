@@ -332,23 +332,27 @@ class InputState: NSObject {
     class Inputting: NotEmpty {
         @objc var tooltip: String = ""
 
+        /// Soft-finalized: smart selection has run; text stays in composing buffer
+        /// but underline is hidden so it looks "settled" (stage-2 re-edit still works).
+        @objc var softFinalized: Bool = false
 
         @objc override init(composingBuffer: String, cursorIndex: UInt) {
             super.init(composingBuffer: composingBuffer, cursorIndex: cursorIndex)
         }
 
         @objc var attributedString: NSAttributedString {
-            let attributedSting = NSAttributedString(
-                string: composingBuffer,
-                attributes: [
-                    .underlineStyle: NSUnderlineStyle.single.rawValue,
-                    .markedClauseSegment: 0,
-                ])
-            return attributedSting
+            var attrs: [NSAttributedString.Key: Any] = [
+                .markedClauseSegment: 0
+            ]
+            // Soft-finalized → no underline (定案後底線消失) but still composing.
+            if !softFinalized {
+                attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
+            }
+            return NSAttributedString(string: composingBuffer, attributes: attrs)
         }
 
         override var description: String {
-            "<InputState.Inputting, composingBuffer:\(composingBuffer), cursorIndex:\(cursorIndex)>"
+            "<InputState.Inputting, composingBuffer:\(composingBuffer), cursorIndex:\(cursorIndex), softFinalized:\(softFinalized)>"
         }
     }
 

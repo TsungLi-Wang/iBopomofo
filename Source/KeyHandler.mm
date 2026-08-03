@@ -74,10 +74,19 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // Last composing buffer after a Tab neural preview pin (for idempotent Tab).
     NSString *_lastTabPinnedBuffer;
 
+    // Soft-finalize: smart selection done; stay composing without underline so
+    // the user can still move the cursor and re-pick candidates (stage 2).
+    BOOL _softFinalized;
+
     NSString *_inputMode;
 }
 
 @synthesize delegate = _delegate;
+
+- (BOOL)softFinalized
+{
+    return _softFinalized;
+}
 
 - (NSString *)inputMode
 {
@@ -204,6 +213,17 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         [LanguageModelManager saveUserOverrideCache];
     }
 
+    // Stage-3 feedback: every manual candidate pick is a hard-fork sample.
+    {
+        NSMutableString *ctx = [NSMutableString string];
+        for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
+            [ctx appendString:@(_latestWalk.chosenValueAt(i).c_str())];
+        }
+        [ManualCorrectionLog appendWithReading:reading context:ctx chosen:value];
+    }
+    // Manual pick leaves soft-finalize (user is editing again).
+    _softFinalized = NO;
+
     if (currentNode != nullptr && flag && Preferences.moveCursorAfterSelectingCandidate) {
         _grid->setCursor(accumulatedCursor);
     } else {
@@ -309,6 +329,55 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _grid->clear();
     _latestWalk = Formosa::Gramambular2::ReadingGrid::WalkResult {};
     _lastTabPinnedBuffer = nil;
+    _softFinalized = NO;
+}
+
+// Soft-finalize: same smart selection as Enter (scoreNBest rerank + hard pin),
+// but keep the composing buffer so the user can still re-edit (no insertText).
+// Underline is hidden via InputStateInputting.softFinalized.
+- (BOOL)softFinalizeSentenceWithState:(InputState *)state
+                        stateCallback:(void (^)(InputState *))stateCallback
+                        errorCallback:(void (^)(void))errorCallback
+{
+    (void)errorCallback;
+    if (![state isKindOfClass:[InputStateInputting class]] || !_grid->length()) {
+        return NO;
+    }
+    // Mid-syllable: don't auto-finalize.
+    if (!_bpmfReadingBuffer->isEmpty()) {
+        return NO;
+    }
+    if (_inputMode == InputModePlainBopomofo) {
+        return NO;
+    }
+
+    if (_softFinalized) {
+        // Already settled; refresh UI with no-underline state.
+        InputStateInputting *again = (InputStateInputting *)[self buildInputtingState];
+        again.softFinalized = YES;
+        stateCallback(again);
+        return YES;
+    }
+
+    NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
+    if (Preferences.enableNeuralPathRerank) {
+        _rerankThisWalk = YES;
+        [self _walk];
+        _rerankThisWalk = NO;
+        [self _pinLatestWalkWithHardOverrides];
+        InputState *reranked = [self buildInputtingState];
+        if ([reranked isKindOfClass:[InputStateInputting class]]) {
+            NSString *after = ((InputStateInputting *)reranked).composingBuffer;
+            [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:after];
+            _lastTabPinnedBuffer = [after copy];
+        }
+    }
+
+    _softFinalized = YES;
+    InputStateInputting *settled = (InputStateInputting *)[self buildInputtingState];
+    settled.softFinalized = YES;
+    stateCallback(settled);
+    return YES;
 }
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback
@@ -541,6 +610,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
         _grid->insertReading(reading);
         [self _walk];
+        // Fresh syllable → leave soft-finalize (underline returns while editing).
+        _softFinalized = NO;
 
         // User override model: soft personalization already participates inside
         // walk() via CompositeContextModel (mu_user * userScore). Hard post-walk
@@ -1292,12 +1363,26 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return NO;
     }
 
-    // Commit-time neural rerank (candidate A): re-walk the whole sentence once
-    // with the char-LSTM reranker ON, then commit the reranked buffer. Hard
-    // user overrides survive (their high walk score dominates ν·neural). The
-    // per-keystroke composing path above never runs this.
-    // Tab preview reuses the same _rerankThisWalk path but MUST NOT write the
-    // rerank-diff log (only true Enter commit records changes).
+    // Sentence-end Enter (default ON): soft-finalize first (same smart selection
+    // as pause/period). Second Enter after soft-finalize hard-commits.
+    // When the Enter trigger is OFF: legacy hard-commit path (rerank + insertText).
+    if (Preferences.sentenceEndTriggerEnter && _inputMode != InputModePlainBopomofo) {
+        if (!_softFinalized) {
+            return [self softFinalizeSentenceWithState:state
+                                         stateCallback:stateCallback
+                                         errorCallback:errorCallback];
+        }
+        // Already soft-finalized → hard commit (send text to app).
+        NSString *composingBuffer = ((InputStateInputting *)state).composingBuffer;
+        [self clear];
+        InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];
+        stateCallback(committing);
+        InputStateEmpty *empty = [[InputStateEmpty alloc] init];
+        stateCallback(empty);
+        return YES;
+    }
+
+    // Legacy Enter (trigger disabled): hard commit with neural rerank.
     NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
     NSString *composingBuffer = walkBuffer;
     if (Preferences.enableNeuralPathRerank && _inputMode != InputModePlainBopomofo) {
@@ -1308,7 +1393,6 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if ([reranked isKindOfClass:[InputStateInputting class]]) {
             composingBuffer = ((InputStateInputting *)reranked).composingBuffer;
         }
-        // Local append-only log when rerank actually changed the commit text.
         [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:composingBuffer];
     }
 
@@ -1352,10 +1436,29 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     if (_bpmfReadingBuffer->isEmpty()) {
         _grid->insertReading(customPunctuation);
         [self _walk];
+        // New typing/punct clears soft-finalize (user is editing again).
+        _softFinalized = NO;
     } else { // If there is still unfinished bpmf reading, ignore the punctuation
         errorCallback();
         stateCallback(state);
         return YES;
+    }
+
+    // Sentence-end punctuation triggers: soft-finalize (punct stays in buffer).
+    // Detect full-width/half-width period and comma in the reading key.
+    BOOL isPeriod = (customPunctuation.find("。") != std::string::npos)
+        || (customPunctuation.find("．") != std::string::npos)
+        || (customPunctuation.size() >= 1 && customPunctuation.back() == '.');
+    BOOL isComma = (customPunctuation.find("，") != std::string::npos)
+        || (customPunctuation.size() >= 1 && customPunctuation.back() == ',');
+    if (_inputMode == InputModeBopomofo) {
+        if ((isPeriod && Preferences.sentenceEndTriggerPeriod)
+            || (isComma && Preferences.sentenceEndTriggerComma)) {
+            InputStateInputting *pre = (InputStateInputting *)[self buildInputtingState];
+            return [self softFinalizeSentenceWithState:pre
+                                         stateCallback:stateCallback
+                                         errorCallback:errorCallback];
+        }
     }
 
     InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
@@ -2563,6 +2666,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     NSInteger cursorIndex = head.length + reading.length;
     InputStateInputting *newState = [[InputStateInputting alloc] initWithComposingBuffer:composedText cursorIndex:cursorIndex];
     newState.tooltip = tooltip;
+    newState.softFinalized = _softFinalized;
     return newState;
 }
 
