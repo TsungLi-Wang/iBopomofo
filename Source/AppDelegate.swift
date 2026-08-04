@@ -210,12 +210,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
         WhisperServerManager.shared.stop()
     }
 
+    /// Opens the preferences window. Optionally jumps to the Sentence End (定案) tab.
     @objc func showPreferences() {
+        showPreferences(selectSentenceEnd: false)
+    }
+
+    @objc func showPreferences(selectSentenceEnd: Bool) {
         if preferencesWindowController == nil {
             preferencesWindowController = PreferencesWindowController(windowNibName: "preferences")
         }
+        // Force load the window (awakeFromNib builds the 定案 pane + toolbar).
+        _ = preferencesWindowController?.window
         preferencesWindowController?.window?.center()
         preferencesWindowController?.window?.orderFront(self)
+        NSApp.activate(ignoringOtherApps: true)
+        if selectSentenceEnd {
+            preferencesWindowController?.showSentenceEndView(nil)
+        }
     }
 
     @objc(checkForUpdate)

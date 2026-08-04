@@ -154,8 +154,12 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: "清除重排差異 log…",
             action: #selector(clearRerankDiffLog(_:)), keyEquivalent: "")
 
-        // Sentence-end triggers + manual-correction log live in Preferences
-        // (toolbar tab "Sentence End"), not the status menu.
+        // Sentence-end settings live in Preferences; keep a direct menu entry
+        // so users can open the「定案」tab in one click (not buried only in toolbar).
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(
+            withTitle: NSLocalizedString("Sentence End Settings…", comment: ""),
+            action: #selector(showSentenceEndPreferences(_:)), keyEquivalent: "")
 
         let voiceInputTitle =
             WhisperVoiceInputManager.shared.isRecording
@@ -381,6 +385,20 @@ class McBopomofoInputMethodController: IMKInputController {
     // MARK: - Menu Items
 
     @objc override func showPreferences(_ sender: Any?) {
+        // Prefer AppDelegate's window so toolbar tabs (incl. 定案) are consistent.
+        if let app = NSApp.delegate as? AppDelegate {
+            app.showPreferences(selectSentenceEnd: false)
+        } else {
+            super.showPreferences(sender)
+        }
+    }
+
+    /// Menu:「定案設定…」→ open Preferences on the Sentence End tab.
+    @objc func showSentenceEndPreferences(_ sender: Any?) {
+        if let app = NSApp.delegate as? AppDelegate {
+            app.showPreferences(selectSentenceEnd: true)
+            return
+        }
         super.showPreferences(sender)
     }
 

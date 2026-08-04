@@ -594,11 +594,18 @@ extension PreferencesWindowController: NSToolbarDelegate {
             }
             item.action = #selector(showUserPhrasesView(_:))
         case .sentenceEnd:
+            // zh:「定案」— keep short for toolbar; full name is in Localizable.
             let title = NSLocalizedString("Sentence End", comment: "")
             item.label = title
+            item.paletteLabel = title
+            item.toolTip = NSLocalizedString("Auto-finalize on sentence end", comment: "")
             if #available(macOS 11.0, *) {
-                item.image = NSImage(
-                    systemSymbolName: "text.badge.checkmark", accessibilityDescription: title)
+                // text.badge.checkmark may be missing on some OS builds; fall back.
+                let img =
+                    NSImage(systemSymbolName: "text.badge.checkmark", accessibilityDescription: title)
+                    ?? NSImage(systemSymbolName: "checkmark.circle", accessibilityDescription: title)
+                    ?? NSImage(systemSymbolName: "text.alignleft", accessibilityDescription: title)
+                item.image = img
             } else {
                 item.image = NSImage(named: NSImage.advancedName)
             }

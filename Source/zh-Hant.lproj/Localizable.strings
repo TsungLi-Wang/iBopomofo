@@ -208,7 +208,7 @@
 "Transcribing the recording…" = "辨識中…";
 
 /* v2.9.2 sentence-end preferences pane */
-"Sentence End" = "定案";
+"Sentence End" = "定案設定";
 "Auto-finalize on sentence end" = "句子結束時自動定案";
 "When a trigger fires, smart selection runs on the whole composing buffer. Pause/period/comma keep the text editable (soft finalize). Enter always commits in one keypress." = "觸發時會對整段組字做智慧選字。停頓／句號／逗號為軟定案（仍可改字）；Enter 按一下即送出。";
 "Pause (idle)" = "停頓";
@@ -223,3 +223,5 @@
 "Show effective settings…" = "顯示目前生效設定…";
 "Manual correction log cleared" = "已清除手動改字 log";
 "Effective settings" = "目前生效設定";
+
+"Sentence End Settings…" = "定案設定…";
