@@ -1,17 +1,17 @@
 // Copyright (c) 2026 and onwards The iBopomofo Authors.
 //
-// v2.10.0 Option B: post-commit clawback is retired.
-// Soft-finalize keeps text marked; reselect uses the native reading grid.
-// These stubs remain so any residual call sites compile.
+// v2.10.0+: post-commit clawback retired (Option B).
+// Path β (v2.12+): reselect is only delete-and-recompose via ShadowReselect.
+// These stubs stay so any residual call sites compile; they are permanent no-ops.
 
-import Cocoa
-import InputMethodKit
+import Foundation
 
 extension McBopomofoInputMethodController {
 
-    /// Always no-op (post-commit intercept removed).
+    /// Retired clawback path — always false. Use shadow reselect after hard commit.
+    @discardableResult
     func tryHandlePostCommitReselect(input: KeyHandlerInput, client: Any?) -> Bool {
-        return false
+        false
     }
 
     func armPostCommitReselect() {

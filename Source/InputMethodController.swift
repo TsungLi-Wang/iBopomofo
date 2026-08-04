@@ -68,13 +68,13 @@ class McBopomofoInputMethodController: IMKInputController {
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
 
-    /// Idle pause timer for sentence-end soft-finalize (when pause trigger is ON).
+    /// Idle pause timer for sentence-end hard-commit (when pause trigger is ON).
     private var sentenceEndIdleTimer: Timer?
 
-    // v2.10.0: post-commit clawback removed (Option B soft-finalize while marked).
+    // Legacy post-commit clawback (2.9.x) — retired; flag kept for stub API.
     var postCommitReselectArmed = false
 
-    /// After hard commit: shadow reading table for delete-and-recompose reselect.
+    /// After hard commit: shadow reading table for delete-and-recompose reselect (path β only).
     let shadowReselect = ShadowReselectSession()
     /// True while ↓ recompose has deleted a char and is waiting for a candidate pick.
     var shadowRecomposePendingIndex: Int?
@@ -94,7 +94,7 @@ class McBopomofoInputMethodController: IMKInputController {
     /// Restart pause timer after each key handled while composing.
     private func scheduleSentenceEndIdleTimer(client: Any?) {
         cancelSentenceEndIdleTimer()
-        // Pause is a user toggle (default ON). When OFF, never auto-finalize on idle.
+        // Pause is a user toggle (default ON). When OFF, never auto-commit on idle.
         guard Preferences.sentenceEndPauseEnabled else { return }
         let ms = Preferences.sentenceEndPauseMs  // already clamped ≥ 200
         let interval = TimeInterval(ms) / 1000.0
@@ -110,14 +110,13 @@ class McBopomofoInputMethodController: IMKInputController {
         sentenceEndIdleTimer = nil
         guard Preferences.sentenceEndPauseEnabled else { return }
         guard state is InputState.Inputting else { return }
-        guard !keyHandler.softFinalized else { return }
-        let ok = keyHandler.softFinalizeSentence(state: state) { newState in
+        // Path β: pause → immediate hard commit (no soft-finalize mid-state).
+        let ok = keyHandler.hardCommitSentence(state: state) { newState in
             self.handle(state: newState, client: client)
         } errorCallback: {
-            // swallow: idle finalize is best-effort
+            // swallow: idle commit is best-effort
         }
         if ok {
-            // Soft-finalized: do not reschedule until next keystroke.
             cancelSentenceEndIdleTimer()
         }
     }
@@ -386,14 +385,14 @@ class McBopomofoInputMethodController: IMKInputController {
                 NSSound.beep()
             }
         }
-        // Any successful composition key disarms shadow (new typing).
-        if result, state is InputState.Inputting, !keyHandler.softFinalized {
+        // Any successful composition key disarms shadow (new typing starts).
+        if result, self.state is InputState.Inputting {
             shadowReselect.disarm()
             shadowRecomposePendingIndex = nil
         }
-        // Pause soft-finalize: restart idle clock while still composing & not settled.
+        // Path β: pause hard-commit — restart idle clock while still composing.
         if result {
-            if self.state is InputState.Inputting, !keyHandler.softFinalized {
+            if self.state is InputState.Inputting {
                 scheduleSentenceEndIdleTimer(client: client)
             } else {
                 cancelSentenceEndIdleTimer()

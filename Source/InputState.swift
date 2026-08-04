@@ -332,8 +332,8 @@ class InputState: NSObject {
     class Inputting: NotEmpty {
         @objc var tooltip: String = ""
 
-        /// Soft-finalized: smart selection has run; text stays in composing buffer
-        /// but underline is hidden so it looks "settled" (stage-2 re-edit still works).
+        /// Path β: soft-finalize mid-state retired; always leave false.
+        /// (Property kept so ObjC buildInputtingState still compiles.)
         @objc var softFinalized: Bool = false
 
         @objc override init(composingBuffer: String, cursorIndex: UInt) {

@@ -91,15 +91,23 @@ extern InputMode InputModePlainBopomofo;
                           useVerticalMode:(BOOL)useVerticalMode
     NS_SWIFT_NAME(beginRecompose(reading:useVerticalMode:));
 
-/// Soft-finalize: neural rerank + pin path, stay composing with no underline.
-/// Used by pause / comma / period / Enter (when that trigger is enabled).
-/// Returns YES if soft-finalize ran (or buffer already soft-finalized).
+/// Path β hard-commit: neural rerank + pin path, snapshot shadow, insertText, Empty.
+/// Used by pause / comma / period (when that trigger is enabled). Enter uses
+/// _handleEnter (same outcome, return NO to pass key to host).
+/// Returns YES if hard-commit ran. Mid-syllable / empty grid → NO.
+- (BOOL)hardCommitSentenceWithState:(InputState *)state
+                      stateCallback:(void (^)(InputState *))stateCallback
+                      errorCallback:(void (^)(void))errorCallback
+    NS_SWIFT_NAME(hardCommitSentence(state:stateCallback:errorCallback:));
+
+/// Legacy name kept for any residual call sites; always returns NO (path β
+/// cancelled soft-finalize-as-定案). Prefer hardCommitSentence.
 - (BOOL)softFinalizeSentenceWithState:(InputState *)state
                         stateCallback:(void (^)(InputState *))stateCallback
                         errorCallback:(void (^)(void))errorCallback
     NS_SWIFT_NAME(softFinalizeSentence(state:stateCallback:errorCallback:));
 
-/// YES when composing buffer is soft-finalized (no underline, still editable).
+/// Path β: soft-finalize mid-state is retired; always NO.
 @property (assign, nonatomic, readonly) BOOL softFinalized;
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback

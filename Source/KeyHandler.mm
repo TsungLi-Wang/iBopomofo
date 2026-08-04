@@ -317,10 +317,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         _grid->setCursor(originalCursorIndex);
     }
 
-    // v2.10.0: do not toggle softFinalized here. Soft-finalize is only set by
-    // softFinalizeSentence (pause/period/comma). A pick while soft-finalized
-    // keeps softFinalized so the user can re-edit more chars without underline
-    // flashing back; a pick during normal composing leaves softFinalized off.
+    // Path β: softFinalized is never set; leave NO. Reselect after hard commit
+    // goes through shadow delete-and-recompose, not marked soft-finalize.
 }
 
 - (void)fixNodeForAssociatedPhraseWithPrefixAt:(size_t)prefixCursorIndex prefixReading:(NSString *)pfxReading prefixValue:(NSString *)pfxValue associatedPhraseReading:(NSString *)phraseReading associatedPhraseValue:(NSString *)phraseValue
@@ -424,18 +422,17 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _softFinalized = NO;
 }
 
-// Soft-finalize: same smart selection as Enter (scoreNBest rerank + hard pin),
-// but keep the composing buffer so the user can still re-edit (no insertText).
-// Underline is hidden via InputStateInputting.softFinalized.
-- (BOOL)softFinalizeSentenceWithState:(InputState *)state
-                        stateCallback:(void (^)(InputState *))stateCallback
-                        errorCallback:(void (^)(void))errorCallback
+// Path β: hard-commit sentence end (pause / 。 / ，). Smart-select then
+// insertText + Empty — no soft-finalize mid-state, no underline hide-while-marked.
+- (BOOL)hardCommitSentenceWithState:(InputState *)state
+                      stateCallback:(void (^)(InputState *))stateCallback
+                      errorCallback:(void (^)(void))errorCallback
 {
     (void)errorCallback;
     if (![state isKindOfClass:[InputStateInputting class]] || !_grid->length()) {
         return NO;
     }
-    // Mid-syllable: don't auto-finalize.
+    // Mid-syllable: don't auto-commit (user still composing a reading).
     if (!_bpmfReadingBuffer->isEmpty()) {
         return NO;
     }
@@ -443,15 +440,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return NO;
     }
 
-    if (_softFinalized) {
-        // Already settled; refresh UI with no-underline state.
-        InputStateInputting *again = (InputStateInputting *)[self buildInputtingState];
-        again.softFinalized = YES;
-        stateCallback(again);
-        return YES;
-    }
-
     NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
+    NSString *composingBuffer = walkBuffer;
     if (Preferences.enableNeuralPathRerank) {
         _rerankThisWalk = YES;
         [self _walk];
@@ -462,14 +452,36 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
             NSString *after = ((InputStateInputting *)reranked).composingBuffer;
             [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:after];
             _lastTabPinnedBuffer = [after copy];
+            composingBuffer = after;
+        }
+    } else {
+        InputState *cur = [self buildInputtingState];
+        if ([cur isKindOfClass:[InputStateInputting class]]) {
+            composingBuffer = ((InputStateInputting *)cur).composingBuffer;
         }
     }
 
-    _softFinalized = YES;
-    InputStateInputting *settled = (InputStateInputting *)[self buildInputtingState];
-    settled.softFinalized = YES;
-    stateCallback(settled);
+    // Snapshot per-char readings *before* clear for shadow reselect.
+    _lastHardCommitShadowUnits = [self snapshotCharacterShadowUnits];
+    _softFinalized = NO;
+    [self clear];
+
+    InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];
+    stateCallback(committing);
+    InputStateEmpty *empty = [[InputStateEmpty alloc] init];
+    stateCallback(empty);
     return YES;
+}
+
+// Path β: soft-finalize-as-定案 cancelled — never settle marked without commit.
+- (BOOL)softFinalizeSentenceWithState:(InputState *)state
+                        stateCallback:(void (^)(InputState *))stateCallback
+                        errorCallback:(void (^)(void))errorCallback
+{
+    (void)state;
+    (void)stateCallback;
+    (void)errorCallback;
+    return NO;
 }
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback
@@ -1474,59 +1486,50 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return NO;
     }
 
-    // v2.10.1 Option B — Enter is two intentional steps (not the old "underline
-    // stuck" bug):
-    //   1) From composing (!softFinalized): soft-finalize — smart-select, hide
-    //      underline NOW, keep marked/editable, consume Enter (app must NOT send).
-    //   2) From already soft-finalized: hard-commit text, then return NO so the
-    //      same key is delivered to the app (chat send / search / newline).
-    // Pause / period / comma also soft-finalize; the next Enter is then step 2.
-    if (!_softFinalized && _inputMode != InputModePlainBopomofo) {
-        // First Enter: always soft-finalize when there is composition.
-        // (sentenceEndTriggerEnter gates whether Enter is advertised as a
-        // sentence-end trigger in prefs; product rule still soft-finalizes.)
-        BOOL ok = [self softFinalizeSentenceWithState:state
-                                        stateCallback:stateCallback
-                                        errorCallback:errorCallback];
-        if (ok) {
-            return YES; // underline cleared; do not pass Enter to app
+    // Path β: Enter = one-shot hard commit (no soft-finalize mid-state).
+    // Deliver text, then return NO so the same key goes to the host app
+    // (chat send / search / newline). One physical keypress = 定案 + 送出.
+    if (_grid->length() == 0) {
+        // Mid-syllable only, or empty: drop unfinished reading if any; no commit.
+        if (!_bpmfReadingBuffer->isEmpty()) {
+            _bpmfReadingBuffer->clear();
+            stateCallback([self buildInputtingState]);
+            return YES;
         }
-        // Mid-syllable / empty grid: fall through to hard-commit or no-op
-    }
-
-    if (_softFinalized || _grid->length() > 0) {
-        // Second Enter (or plain-bopomofo): deliver text to the host app.
-        NSString *composingBuffer = ((InputStateInputting *)state).composingBuffer;
-        if (_softFinalized) {
-            // Already smart-selected at soft-finalize; commit current buffer.
-            composingBuffer = ((InputStateInputting *)[self buildInputtingState]).composingBuffer;
-        } else if (Preferences.enableNeuralPathRerank && _inputMode != InputModePlainBopomofo) {
-            // Rare path: soft-finalize failed but grid has text.
-            NSString *walkBuffer = composingBuffer;
-            _rerankThisWalk = YES;
-            [self _walk];
-            _rerankThisWalk = NO;
-            [self _pinLatestWalkWithHardOverrides];
-            InputState *reranked = [self buildInputtingState];
-            if ([reranked isKindOfClass:[InputStateInputting class]]) {
-                composingBuffer = ((InputStateInputting *)reranked).composingBuffer;
-            }
-            [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:composingBuffer];
-        }
-
-        // Snapshot per-char readings *before* clear for shadow reselect after hard commit.
-        _lastHardCommitShadowUnits = [self snapshotCharacterShadowUnits];
-        _softFinalized = NO;
-        [self clear];
-
-        InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];
-        stateCallback(committing);
-        InputStateEmpty *empty = [[InputStateEmpty alloc] init];
-        stateCallback(empty);
-        // Pass Enter to host (send / newline). One physical keypress after 定案.
         return NO;
     }
 
+    // Drop unfinished BPMF reading; commit the grid text.
+    if (!_bpmfReadingBuffer->isEmpty()) {
+        _bpmfReadingBuffer->clear();
+    }
+
+    NSString *composingBuffer = ((InputStateInputting *)state).composingBuffer;
+    if (Preferences.enableNeuralPathRerank && _inputMode != InputModePlainBopomofo) {
+        NSString *walkBuffer = composingBuffer;
+        _rerankThisWalk = YES;
+        [self _walk];
+        _rerankThisWalk = NO;
+        [self _pinLatestWalkWithHardOverrides];
+        InputState *reranked = [self buildInputtingState];
+        if ([reranked isKindOfClass:[InputStateInputting class]]) {
+            composingBuffer = ((InputStateInputting *)reranked).composingBuffer;
+        }
+        [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:composingBuffer];
+    } else {
+        composingBuffer = ((InputStateInputting *)[self buildInputtingState]).composingBuffer;
+    }
+
+    // Snapshot per-char readings *before* clear for shadow reselect.
+    _lastHardCommitShadowUnits = [self snapshotCharacterShadowUnits];
+    _softFinalized = NO;
+    [self clear];
+
+    InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];
+    stateCallback(committing);
+    InputStateEmpty *empty = [[InputStateEmpty alloc] init];
+    stateCallback(empty);
+    // Pass Enter to host (send / newline).
     return NO;
 }
 
@@ -1569,7 +1572,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return YES;
     }
 
-    // Sentence-end punctuation triggers: soft-finalize (punct stays in buffer).
+    // Path β: sentence-end punctuation → hard-commit (punct already in buffer).
     // Detect full-width/half-width period and comma in the reading key.
     BOOL isPeriod = (customPunctuation.find("。") != std::string::npos)
         || (customPunctuation.find("．") != std::string::npos)
@@ -1580,9 +1583,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if ((isPeriod && Preferences.sentenceEndTriggerPeriod)
             || (isComma && Preferences.sentenceEndTriggerComma)) {
             InputStateInputting *pre = (InputStateInputting *)[self buildInputtingState];
-            return [self softFinalizeSentenceWithState:pre
-                                         stateCallback:stateCallback
-                                         errorCallback:errorCallback];
+            return [self hardCommitSentenceWithState:pre
+                                       stateCallback:stateCallback
+                                       errorCallback:errorCallback];
         }
     }
 

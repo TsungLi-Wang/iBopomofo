@@ -1,7 +1,9 @@
 // Copyright (c) 2026 and onwards The iBopomofo Authors.
 //
-// Delete-and-recompose reselect after hard commit (shadow reading table).
-// Narrow intercept: only while shadowReselect.armed && Empty (or recompose candidates).
+// Path β delete-and-recompose reselect after hard commit (shadow reading table).
+// Single path: Empty + armed → ←/→ move shadow caret; ↓ delete + recompose.
+// Shadow model is the only caret truth — no host selectedRange overwrite,
+// no synthetic arrow keys (dual-track removed).
 
 import Cocoa
 import InputMethodKit
@@ -9,8 +11,10 @@ import InputMethodKit
 extension McBopomofoInputMethodController {
 
     func armShadowFromLastHardCommit(client: Any?) {
-        guard let units = keyHandler.lastHardCommitShadowUnits as? [[String: String]],
-            !units.isEmpty
+        // P0-a: never use `as? [[String: String]]` — ObjC NSArray/NSDictionary
+        // does not reliably cast to nested Swift dictionaries.
+        guard let nsArray = keyHandler.lastHardCommitShadowUnits,
+            nsArray.count > 0
         else {
             shadowReselect.disarm()
             return
@@ -22,18 +26,16 @@ extension McBopomofoInputMethodController {
                 docEnd = sel.location
             }
         }
-        shadowReselect.arm(units: units, docEndCaret: docEnd)
+        shadowReselect.arm(fromNSArray: nsArray as NSArray, docEndCaret: docEnd)
         shadowRecomposePendingIndex = nil
+        if !shadowReselect.armed {
+            NSLog("i注音 shadow reselect: arm failed (empty units after parse)")
+        }
     }
 
     /// Returns true if the event was fully handled for shadow reselect.
     func tryHandleShadowReselect(input: KeyHandlerInput, client: Any?) -> Bool {
         if keyHandler.inputMode != .bopomofo {
-            return false
-        }
-
-        // Soft-finalized marked composition: native grid path owns keys.
-        if keyHandler.softFinalized, state is InputState.Inputting {
             return false
         }
 
@@ -62,10 +64,11 @@ extension McBopomofoInputMethodController {
             return false
         }
 
-        // Fail-safe: re-sync from live caret when readable.
+        // Fail-safe only: if host caret left the tracked phrase, disarm.
+        // Do NOT rewrite shadow caretIndex from host (single-source shadow).
         let live = client.selectedRange().location
         let liveOpt: Int? = live == NSNotFound ? nil : live
-        if !shadowReselect.syncFromClientCaret(liveOpt) {
+        if !shadowReselect.clientCaretStillInTrackedPhrase(liveOpt) {
             shadowReselect.disarm()
             shadowRecomposePendingIndex = nil
             return false // pass key through; no delete
@@ -74,19 +77,14 @@ extension McBopomofoInputMethodController {
         // Only intercept ←/→/↓ while armed on Empty.
         if input.isLeft {
             if !shadowReselect.moveLeft() {
-                if Preferences.beepUponInputError { NSSound.beep() }
-            } else {
-                // Move host caret left one grapheme by synthesizing left arrow
-                // only when we also own reselect — keeps host in sync when possible.
-                postArrowKey(left: true)
+                signalReselectUnavailable(reason: "already at start of tracked phrase")
             }
+            // Shadow-only: do not synthesize host arrow keys.
             return true
         }
         if input.isRight {
             if !shadowReselect.moveRight() {
-                if Preferences.beepUponInputError { NSSound.beep() }
-            } else {
-                postArrowKey(left: false)
+                signalReselectUnavailable(reason: "already at end of tracked phrase")
             }
             return true
         }
@@ -107,24 +105,36 @@ extension McBopomofoInputMethodController {
     }
 
     private func beginShadowRecompose(client: IMKTextInput, useVerticalMode: Bool) -> Bool {
-        guard let unit = shadowReselect.pendingUnit else {
-            if Preferences.beepUponInputError { NSSound.beep() }
+        // P0-b: if caret at end (no right-of-caret pending), target last char.
+        // Capture "at end" *before* resolve snaps caret onto the last unit.
+        let atEnd =
+            shadowReselect.caretIndex == shadowReselect.units.count
+            && !shadowReselect.units.isEmpty
+        guard shadowReselect.resolveReselectTarget() != nil,
+            let unit = shadowReselect.reselectTargetUnit
+        else {
+            signalReselectUnavailable(reason: "no reselect target")
             return true
         }
-        let range = shadowReselect.pendingDocumentRange
+        let range = shadowReselect.reselectTargetDocumentRange
+        // When range is known, replacementRange wins (direction ignored).
+        // When range nil and host caret is past the char: backspace fallback.
+        let deleteDirection: ShadowDelete.Direction =
+            (range == nil && atEnd) ? .backward : .forward
 
-        // Delete the committed grapheme (right of caret).
-        let deleted = ShadowDelete.deletePendingGrapheme(
-            client: client, documentRange: range)
-        if !deleted {
-            // Cannot safely delete — fail closed, no partial recompose.
-            if Preferences.beepUponInputError { NSSound.beep() }
-            // If Accessibility would help, leave a one-time log.
-            if !ShadowDelete.accessibilityTrusted {
-                NSLog(
-                    "i注音 shadow reselect: delete failed; enable Accessibility for CGEvent forward-delete fallback"
-                )
-            }
+        let result = ShadowDelete.deletePendingGrapheme(
+            client: client, documentRange: range, direction: deleteDirection)
+        switch result {
+        case .deleted:
+            break
+        case .failedNoRangeOrAccess:
+            signalReselectUnavailable(
+                reason:
+                    "this app cannot in-place reselect (no range / Accessibility)"
+            )
+            return true
+        case .failed:
+            signalReselectUnavailable(reason: "delete failed")
             return true
         }
 
@@ -132,7 +142,6 @@ extension McBopomofoInputMethodController {
         let pendingIndex = shadowReselect.caretIndex
         let reading = unit.reading
         shadowReselect.removePendingUnit()
-        // After remove, units shifted; keep index for value update on pick.
         shadowRecomposePendingIndex = pendingIndex
 
         let next = keyHandler.beginRecompose(
@@ -141,15 +150,11 @@ extension McBopomofoInputMethodController {
         return true
     }
 
-    private func postArrowKey(left: Bool) {
-        // Optional host caret sync. Only when Accessibility trusted to avoid noise.
-        guard ShadowDelete.accessibilityTrusted else { return }
-        let code: CGKeyCode = left ? 0x7B : 0x7C // left / right arrow
-        guard let src = CGEventSource(stateID: .hidSystemState) else { return }
-        guard let down = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: true),
-            let up = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: false)
-        else { return }
-        down.post(tap: .cghidEventTap)
-        up.post(tap: .cghidEventTap)
+    /// Explicit, lightweight feedback when reselect cannot proceed (not silent).
+    private func signalReselectUnavailable(reason: String) {
+        // Always beep for this path so users know the app does not support
+        // in-place reselect — not "broken silently".
+        NSSound.beep()
+        NSLog("i注音 shadow reselect unavailable: \(reason)")
     }
 }

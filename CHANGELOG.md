@@ -10,6 +10,33 @@
 
 ### 內部 / 開發者改動
 
+（無）
+
+## [2.12.0] — 2026-08-04
+
+- **版本標記**：`CFBundleShortVersionString` = **2.12.0**；`CFBundleVersion` = **2306**
+- **tag**：`v2.12.0`（annotated）
+- **commit 範圍**：tag `v2.11.0`（`bf1ce31f`）→ 本版 tag
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **單一路徑 β**：取消 soft-finalize「藏底線當定案」中間態。停頓／。／，／Enter → **立刻 hard commit（無底線）**；Enter **一下**送出（文字入 app ＋ 把 Enter 交給 app）。
+- **改字只留刪回重組**：有底線＝組字中原生行為；無底線後 ↓ 一律影子讀音刪回重組。不再「有時原生、有時新路」。
+- **句尾直接 ↓ 改最後一字**（不必先 ←）；中間字用 ←／→ 移影子游標後再 ↓。
+- **刪不動的 app**：beep ＋ log，明確回饋「不支援就地改字」，不再靜默。
+- **失準安全**：滑鼠點別處／失焦／新組字／對齊不確定 → disarm，**絕不合成刪除**。
+
+### 內部 / 開發者改動
+
+- P0-a：`armShadowFromLastHardCommit` 改走 `NSArray`／`NSDictionary` 解析，修 `as? [[String:String]]` cast 失敗永不 arm。
+- P0-b：↓ 無 pending 時預設 target = 游標左／句尾前一字；CGEvent fallback 句尾用 backspace。
+- P1：影子 caret 為單一真源；移除 `syncFromClientCaret` 覆寫影子 + `postArrowKey` 雙軌。
+- `hardCommitSentence` 取代 soft-finalize 定案；`softFinalizeSentence` 永 NO。
+- PostCommit clawback stub 維持 no-op。
+
+### 內部 / 開發者改動（延續 Unreleased 研究條）
+
 - repo 衛生：擴充 `.gitignore`（Python venv/pyc、訓練產物 `*.ckpt/*.pt/*.pth/*.bin`、實驗 log/out、`dd-*/` DerivedData 模式）；**未**重寫歷史、**未**移除版控中檔案。體積稽核：`.git` ≈ 241 MiB，HEAD 檔案總和 ≈ 238 MiB，粗算歷史殭屍 ≈ 3 MiB（pack 壓縮使差值偏小；最大 blob 多為仍在 HEAD 的模型權重）。
 - 同音判別線 GO/NO-GO 量測（純研究）：`eval/tools/measure_homophone_entropy.py` + `homophone_measure.cpp`；`reading2chars` 自 conversion_pairs；tw538 殘餘熵 + 單點翻字 oracle。**結論 NO-GO**（第 2 輪淨增益 −45；出貨仍 387）。報告 `eval/analysis/tw538-single-flip-oracle.md`。
 - 同音翻字閘門掃描（棒 A-2，純分析）：全提案 dump + Δ×H 曲面 + 五變體 split-half；V4（walk 融合）對 n-best 空操作；V5 半 oracle held-out ~+8。**判定仍 NO-GO**。產物 `tw538-flip-gate-*.md/tsv`、四格/Fano/位置剖面/句難度。
