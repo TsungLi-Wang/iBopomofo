@@ -1384,39 +1384,57 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return NO;
     }
 
-    // v2.10.0 Option B: Enter = hard-commit marked text to the app, then
-    // return NO so the same Enter is delivered to the client (chat send /
-    // search submit / newline). One keypress — never two-stage soft-then-hard.
-    // Smart-select when sentence-end Enter trigger is ON (and neural path on).
-    // Pause / period / comma remain soft-finalize (text stays marked).
-    NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
-    NSString *composingBuffer = walkBuffer;
-    BOOL wantSmartSelect = Preferences.sentenceEndTriggerEnter
-        && Preferences.enableNeuralPathRerank
-        && _inputMode != InputModePlainBopomofo;
-    // Even when Enter trigger is OFF, still hard-commit current buffer so the
-    // user is not stuck in marked text; skip n-best unless neural global is on
-    // and we want parity with pre-2.10 typing (prefer trigger-gated smart select).
-    if (wantSmartSelect) {
-        _rerankThisWalk = YES;
-        [self _walk];
-        _rerankThisWalk = NO;
-        [self _pinLatestWalkWithHardOverrides];
-        InputState *reranked = [self buildInputtingState];
-        if ([reranked isKindOfClass:[InputStateInputting class]]) {
-            composingBuffer = ((InputStateInputting *)reranked).composingBuffer;
+    // v2.10.1 Option B — Enter is two intentional steps (not the old "underline
+    // stuck" bug):
+    //   1) From composing (!softFinalized): soft-finalize — smart-select, hide
+    //      underline NOW, keep marked/editable, consume Enter (app must NOT send).
+    //   2) From already soft-finalized: hard-commit text, then return NO so the
+    //      same key is delivered to the app (chat send / search / newline).
+    // Pause / period / comma also soft-finalize; the next Enter is then step 2.
+    if (!_softFinalized && _inputMode != InputModePlainBopomofo) {
+        // First Enter: always soft-finalize when there is composition.
+        // (sentenceEndTriggerEnter gates whether Enter is advertised as a
+        // sentence-end trigger in prefs; product rule still soft-finalizes.)
+        BOOL ok = [self softFinalizeSentenceWithState:state
+                                        stateCallback:stateCallback
+                                        errorCallback:errorCallback];
+        if (ok) {
+            return YES; // underline cleared; do not pass Enter to app
         }
-        [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:composingBuffer];
+        // Mid-syllable / empty grid: fall through to hard-commit or no-op
     }
 
-    _softFinalized = NO;
-    [self clear];
+    if (_softFinalized || _grid->length() > 0) {
+        // Second Enter (or plain-bopomofo): deliver text to the host app.
+        NSString *composingBuffer = ((InputStateInputting *)state).composingBuffer;
+        if (_softFinalized) {
+            // Already smart-selected at soft-finalize; commit current buffer.
+            composingBuffer = ((InputStateInputting *)[self buildInputtingState]).composingBuffer;
+        } else if (Preferences.enableNeuralPathRerank && _inputMode != InputModePlainBopomofo) {
+            // Rare path: soft-finalize failed but grid has text.
+            NSString *walkBuffer = composingBuffer;
+            _rerankThisWalk = YES;
+            [self _walk];
+            _rerankThisWalk = NO;
+            [self _pinLatestWalkWithHardOverrides];
+            InputState *reranked = [self buildInputtingState];
+            if ([reranked isKindOfClass:[InputStateInputting class]]) {
+                composingBuffer = ((InputStateInputting *)reranked).composingBuffer;
+            }
+            [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:composingBuffer];
+        }
 
-    InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];
-    stateCallback(committing);
-    InputStateEmpty *empty = [[InputStateEmpty alloc] init];
-    stateCallback(empty);
-    // Pass Enter through to the host app (LINE send, browser search, newline).
+        _softFinalized = NO;
+        [self clear];
+
+        InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];
+        stateCallback(committing);
+        InputStateEmpty *empty = [[InputStateEmpty alloc] init];
+        stateCallback(empty);
+        // Pass Enter to host (send / newline). One physical keypress after 定案.
+        return NO;
+    }
+
     return NO;
 }
 
