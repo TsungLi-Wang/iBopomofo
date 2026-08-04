@@ -56,38 +56,8 @@ extension McBopomofoInputMethodController: CandidateControllerDelegate {
         case let state as InputState.ChoosingCandidate:
             let selectedCandidate = state.candidates[Int(index)]
 
-            // Post-commit reselect: replace pending grapheme 1→1 (never double-insert).
-            // Prefer pull-to-mark then insertText (apps honor mark replace); else
-            // delete+insert with verification. Abort without insert if delete fails.
-            if state.isPostCommitReselect {
-                let chosen = selectedCandidate.value
-                let oldChar = state.postCommitOriginalChar.isEmpty
-                    ? state.composingBuffer : state.postCommitOriginalChar
-                let docRange = NSRange(
-                    location: state.postCommitDocLocation,
-                    length: state.postCommitDocLength)
-                gCurrentCandidateController?.visible = false
-                if let imk = client as? IMKTextInput {
-                    let outcome = PostCommitReselect.replacePendingCharacter(
-                        client: imk,
-                        documentRange: docRange,
-                        oldChar: oldChar,
-                        newChar: chosen)
-                    if outcome == .replaced {
-                        ManualCorrectionLog.append(
-                            reading: state.postCommitReading.isEmpty
-                                ? selectedCandidate.reading : state.postCommitReading,
-                            context: oldChar,
-                            chosen: chosen)
-                    }
-                    // else abortedNoOp: leave document unchanged (no extra char)
-                }
-                armPostCommitReselect()
-                // Never InputState.Empty here — that re-commits NotEmpty buffer.
-                handle(state: InputState.EmptyIgnoringPreviousState(), client: client)
-                self.state = InputState.Empty()
-                return
-            }
+            // v2.10.0: post-commit clawback removed. Candidate picks always go
+            // through the reading grid (including soft-finalized reselect).
 
             keyHandler.fixNode(
                 reading: selectedCandidate.reading, value: selectedCandidate.value,

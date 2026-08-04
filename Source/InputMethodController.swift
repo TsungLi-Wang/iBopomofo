@@ -71,8 +71,8 @@ class McBopomofoInputMethodController: IMKInputController {
     /// Idle pause timer for sentence-end soft-finalize (when pause trigger is ON).
     private var sentenceEndIdleTimer: Timer?
 
-    /// After hard commit (Enter etc.), allow ←/→/↓ reconversion on committed text
-    /// until the user starts a new composition or the session deactivates.
+    // v2.10.0: post-commit clawback removed (Option B — stay marked until Enter/focus-loss).
+    // Kept as always-false stubs so residual call sites compile cleanly.
     var postCommitReselectArmed = false
 
     // MARK: - IMKInputController methods
@@ -368,13 +368,8 @@ class McBopomofoInputMethodController: IMKInputController {
             (attributes?["IMKTextOrientation"] as? NSNumber)?.intValue == 0 || false
         let input = KeyHandlerInput(event: event, isVerticalMode: useVerticalMode)
 
-        // Post-commit reselect (does not change Enter hard-commit): when armed and
-        // not mid-composition grid input, intercept ←/→/↓ for surrounding-text edit.
-        if event.type == .keyDown,
-            tryHandlePostCommitReselect(input: input, client: client)
-        {
-            return true
-        }
+        // v2.10.0: no post-commit clawback intercept. Reselect is soft-finalize
+        // + native grid ←/→/↓ while text remains marked.
 
         let result = keyHandler.handle(input: input, state: state) { newState in
             self.handle(state: newState, client: client)
@@ -727,12 +722,12 @@ extension McBopomofoInputMethodController {
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Committing:
             handle(state: newState, previous: previous, client: client)
-            // After hard commit, arm post-commit reselect (←/→/↓ on sent text).
-            armPostCommitReselect()
         case let newState as InputState.Inputting:
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.PostCommitHighlight:
-            handle(state: newState, previous: previous, client: client)
+            // Legacy state from 2.9.x clawback — treat as empty (feature removed).
+            handle(state: InputState.EmptyIgnoringPreviousState(), previous: previous, client: client)
+            self.state = InputState.Empty()
         case let newState as InputState.Marking:
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.ChoosingCandidate:
@@ -885,22 +880,13 @@ extension McBopomofoInputMethodController {
     }
 
     private func handle(state: InputState.PostCommitHighlight, previous: InputState, client: Any?) {
+        // Legacy 2.9.x clawback state — no longer used (Option B).
         gCurrentCandidateController?.visible = false
         hideTooltip()
         guard let client = client as? IMKTextInput else { return }
-        let mark = client.markedRange()
-        let docRange = NSRange(
-            location: state.documentLocation,
-            length: (state.composingBuffer as NSString).length)
-        // Prefer keeping an existing mark; if none, pull committed char into mark.
-        if mark.location == NSNotFound || mark.length == 0 {
-            _ = PostCommitReselect.pullCommittedIntoMark(
-                client: client, documentRange: docRange, char: state.composingBuffer)
-        } else {
-            client.setMarkedText(
-                state.attributedString, selectionRange: NSMakeRange(0, 0),
-                replacementRange: NSMakeRange(NSNotFound, NSNotFound))
-        }
+        client.setMarkedText(
+            "", selectionRange: NSMakeRange(0, 0),
+            replacementRange: NSMakeRange(NSNotFound, NSNotFound))
     }
 
     private func handle(state: InputState.Marking, previous: InputState, client: Any?) {
@@ -932,28 +918,10 @@ extension McBopomofoInputMethodController {
             return
         }
 
-        // Post-commit: the pending char MUST sit in marked composition (pulled
-        // from committed text via replacementRange). If no mark yet, pull now.
-        if state.isPostCommitReselect {
-            let mark = client.markedRange()
-            let docRange = NSRange(
-                location: state.postCommitDocLocation, length: state.postCommitDocLength)
-            if mark.location == NSNotFound || mark.length == 0,
-                docRange.location != NSNotFound, docRange.length > 0
-            {
-                _ = PostCommitReselect.pullCommittedIntoMark(
-                    client: client, documentRange: docRange, char: state.composingBuffer)
-            } else {
-                client.setMarkedText(
-                    state.attributedString, selectionRange: NSMakeRange(0, 0),
-                    replacementRange: NSMakeRange(NSNotFound, NSNotFound))
-            }
-        } else {
-            // Normal composition: cursor in buffer; client owns placement.
-            client.setMarkedText(
-                state.attributedString, selectionRange: NSMakeRange(Int(state.cursorIndex), 0),
-                replacementRange: NSMakeRange(NSNotFound, NSNotFound))
-        }
+        // Marked composition (incl. soft-finalized reselect): whole buffer stays IME-owned.
+        client.setMarkedText(
+            state.attributedString, selectionRange: NSMakeRange(Int(state.cursorIndex), 0),
+            replacementRange: NSMakeRange(NSNotFound, NSNotFound))
         show(candidateWindowWith: state, client: client)
     }
 

@@ -228,12 +228,10 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         _grid->setCursor(originalCursorIndex);
     }
 
-    // After a Stage-2 re-pick, stay soft-finalized so the user can move and
-    // fix more characters without underline flashing back on.
-    // (New BPMF typing still clears _softFinalized elsewhere.)
-    if (_inputMode != InputModePlainBopomofo) {
-        _softFinalized = YES;
-    }
+    // v2.10.0: do not toggle softFinalized here. Soft-finalize is only set by
+    // softFinalizeSentence (pause/period/comma). A pick while soft-finalized
+    // keeps softFinalized so the user can re-edit more chars without underline
+    // flashing back; a pick during normal composing leaves softFinalized off.
 }
 
 - (void)fixNodeForAssociatedPhraseWithPrefixAt:(size_t)prefixCursorIndex prefixReading:(NSString *)pfxReading prefixValue:(NSString *)pfxValue associatedPhraseReading:(NSString *)phraseReading associatedPhraseValue:(NSString *)phraseValue
@@ -1386,16 +1384,19 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return NO;
     }
 
-    // Enter = one-shot hard commit (product iron rule since 2.9.2 / restored 2.9.5).
-    // Smart-select when the Enter sentence-end trigger is ON and neural path is on,
-    // then insertText immediately. Post-commit reselect (←/→/↓ on committed text)
-    // is handled by InputMethodController via NSTextInputClient surrounding text —
-    // do NOT soft-finalize here.
+    // v2.10.0 Option B: Enter = hard-commit marked text to the app, then
+    // return NO so the same Enter is delivered to the client (chat send /
+    // search submit / newline). One keypress — never two-stage soft-then-hard.
+    // Smart-select when sentence-end Enter trigger is ON (and neural path on).
+    // Pause / period / comma remain soft-finalize (text stays marked).
     NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
     NSString *composingBuffer = walkBuffer;
     BOOL wantSmartSelect = Preferences.sentenceEndTriggerEnter
         && Preferences.enableNeuralPathRerank
         && _inputMode != InputModePlainBopomofo;
+    // Even when Enter trigger is OFF, still hard-commit current buffer so the
+    // user is not stuck in marked text; skip n-best unless neural global is on
+    // and we want parity with pre-2.10 typing (prefer trigger-gated smart select).
     if (wantSmartSelect) {
         _rerankThisWalk = YES;
         [self _walk];
@@ -1415,7 +1416,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     stateCallback(committing);
     InputStateEmpty *empty = [[InputStateEmpty alloc] init];
     stateCallback(empty);
-    return YES;
+    // Pass Enter through to the host app (LINE send, browser search, newline).
+    return NO;
 }
 
 - (BOOL)_handlePunctuation:(std::string)customPunctuation state:(InputState *)state usingVerticalMode:(BOOL)useVerticalMode stateCallback:(void (^)(InputState *))stateCallback errorCallback:(void (^)(void))errorCallback

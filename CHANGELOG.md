@@ -17,6 +17,25 @@
 - 位置級同音判別器（棒 C 最終版，純研究）：BiLSTM ~13.3M、純淨／混合噪聲各 30 萬筆；四關評估 + split-half + 延遲。**主判準（n-best 重排 held-out）與次判準（單點翻字）皆 NO-GO**；路徑排序遠遜基線 B，重排延遲 ~1.9s/句 ≫45ms。提案 A（判別器路線）正式死亡。報告 `eval/analysis/tw538-position-judge-report.md`；腳本 `position_judge_batonC.py` / `position_judge_eval_fast.py`；權重與資料在 `~/laowang-data/batonC-final/`（不入 app）。
 - 辨識語料重訓（棒 D，純研究）：凍結 v2c 架構（emb256/hid512/L2），只換資料；D0 短跑重訓控制 **380/537**；困難樣本加權 2×/5×/10×。最佳 **D1_w2 = 385（相對 D0 +5）→ 判定邊際**；5×/10× 反而掉分。合成跳過。報告 `eval/analysis/tw538-disambig-corpus-report.md`、混淆對表 `confusion-pair-frequency.tsv`；產物 `~/laowang-data/batonD-final/`（不入 app）。
 
+## [2.10.0] — 2026-08-04
+
+- **版本標記**：`CFBundleShortVersionString` = **2.10.0**；`CFBundleVersion` = **2303**
+- **tag**：`v2.10.0`（annotated）
+- **commit 範圍**：tag `v2.9.8`（`70a4cd53`）→ 本版 tag
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **Option B：送出前字都留在輸入法**。停頓／句號／逗號＝soft-finalize（智慧選字、底線淡化、**仍 marked 可編輯**）。
+- **定案後改字**走原生組字區：←／→ 移游標（右方一字反白）、↓ 開同音候選、↑ 不攔截為「上移」慣例（組字中吸收）。**不再** post-commit clawback。
+- **Enter＝硬送出**：智慧選字（若開關開）＋ hard commit 文字給 app，並 **return NO 把同一下 Enter 交給 app**（聊天送出／搜尋／換行）。一下到位、不兩段。
+- 失焦／`commitComposition` 仍 hard commit 目前 marked 文字。
+
+### 內部 / 開發者改動
+
+- 廢棄 2.9.5–2.9.8 post-commit 攔截（`tryHandlePostCommitReselect` 永 false）。
+- NSTextView 腳本驗證 soft-mark 內改字 1→1 與 Enter commit。
+
 ## [2.9.8] — 2026-08-04
 
 - **版本標記**：`CFBundleShortVersionString` = **2.9.8**；`CFBundleVersion` = **2302**

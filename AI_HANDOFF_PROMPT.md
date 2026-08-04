@@ -2,9 +2,9 @@
 
 你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-08-04**（**v2.9.8 重選真刪舊字：pull-to-mark**）
+**最後更新：2026-08-04**（**v2.10.0 Option B：送出前留 marked**）
 
-**先前同日**：v2.9.7 仍疊字；v2.9.6 方向鍵；v2.9.5 post-commit。
+**先前同日**：v2.9.5–2.9.8 post-commit clawback（**已廢棄**）；v2.9.6 方向鍵。
 
 **更早**：v2.9.0 三段式；引擎凍結 tw538 387。
 
@@ -31,9 +31,9 @@
 
 ## 三行同步狀態（2026-08-04）
 
-1. **發版**：**i注音（iBopomofo）v2.9.8**（build **2302**，tag **`v2.9.8`**）。重選：`setMarkedText(replacementRange:)` 拉回 marked → `insertText` 替換 mark；刪不掉則不插入。NSTextView（TextEdit 同系）腳本驗證 1→1。引擎 **未改**；tw538 **387/537**。
-2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.9.8`。
-3. **下一刀**：① Johnny dogfood TextEdit 重選一換一。② 手動改字 log 累積後重訓。
+1. **發版**：**i注音（iBopomofo）v2.10.0**（build **2303**，tag **`v2.10.0`**）。Option B：soft-finalize 不 hard commit；四鍵重選在 marked 組字區；Enter＝commit＋把 Enter 交給 app。廢棄 post-commit clawback。引擎 **未改**；tw538 **387/537**。
+2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.10.0`。
+3. **下一刀**：① Johnny dogfood 各 app soft-finalize 改字 + Enter 送出。② 手動改字 log 累積後重訓。
 
 ### tw538 基準線
 
