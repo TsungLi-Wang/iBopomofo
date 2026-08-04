@@ -888,11 +888,19 @@ extension McBopomofoInputMethodController {
         gCurrentCandidateController?.visible = false
         hideTooltip()
         guard let client = client as? IMKTextInput else { return }
-        // Marked text already placed by postCommitMove/Open with replacementRange;
-        // refresh attributes only (replacement NSNotFound keeps current mark).
-        client.setMarkedText(
-            state.attributedString, selectionRange: NSMakeRange(0, 0),
-            replacementRange: NSMakeRange(NSNotFound, NSNotFound))
+        let mark = client.markedRange()
+        let docRange = NSRange(
+            location: state.documentLocation,
+            length: (state.composingBuffer as NSString).length)
+        // Prefer keeping an existing mark; if none, pull committed char into mark.
+        if mark.location == NSNotFound || mark.length == 0 {
+            _ = PostCommitReselect.pullCommittedIntoMark(
+                client: client, documentRange: docRange, char: state.composingBuffer)
+        } else {
+            client.setMarkedText(
+                state.attributedString, selectionRange: NSMakeRange(0, 0),
+                replacementRange: NSMakeRange(NSNotFound, NSNotFound))
+        }
     }
 
     private func handle(state: InputState.Marking, previous: InputState, client: Any?) {
@@ -924,11 +932,28 @@ extension McBopomofoInputMethodController {
             return
         }
 
-        // the selection range is where the cursor is, with the length being 0 and replacement range NSNotFound,
-        // i.e. the client app needs to take care of where to put this composing buffer
-        client.setMarkedText(
-            state.attributedString, selectionRange: NSMakeRange(Int(state.cursorIndex), 0),
-            replacementRange: NSMakeRange(NSNotFound, NSNotFound))
+        // Post-commit: the pending char MUST sit in marked composition (pulled
+        // from committed text via replacementRange). If no mark yet, pull now.
+        if state.isPostCommitReselect {
+            let mark = client.markedRange()
+            let docRange = NSRange(
+                location: state.postCommitDocLocation, length: state.postCommitDocLength)
+            if mark.location == NSNotFound || mark.length == 0,
+                docRange.location != NSNotFound, docRange.length > 0
+            {
+                _ = PostCommitReselect.pullCommittedIntoMark(
+                    client: client, documentRange: docRange, char: state.composingBuffer)
+            } else {
+                client.setMarkedText(
+                    state.attributedString, selectionRange: NSMakeRange(0, 0),
+                    replacementRange: NSMakeRange(NSNotFound, NSNotFound))
+            }
+        } else {
+            // Normal composition: cursor in buffer; client owns placement.
+            client.setMarkedText(
+                state.attributedString, selectionRange: NSMakeRange(Int(state.cursorIndex), 0),
+                replacementRange: NSMakeRange(NSNotFound, NSNotFound))
+        }
         show(candidateWindowWith: state, client: client)
     }
 

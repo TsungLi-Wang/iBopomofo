@@ -155,12 +155,10 @@ extension McBopomofoInputMethodController {
             return true
         }
 
+        _ = PostCommitReselect.pullCommittedIntoMark(
+            client: client, documentRange: pending.range, char: pending.char)
         let hi = PostCommitReselect.highlightState(
             char: pending.char, at: pending.range.location)
-        client.setMarkedText(
-            hi.attributedString,
-            selectionRange: NSRange(location: 0, length: 0),
-            replacementRange: pending.range)
         handle(state: hi, client: client)
         return true
     }
@@ -189,17 +187,59 @@ extension McBopomofoInputMethodController {
                 beepPostCommit()
                 return true
             }
+            // Pull committed grapheme into marked composition (real delete from committed).
+            let pulled = PostCommitReselect.pullCommittedIntoMark(
+                client: client, documentRange: pending.range, char: pending.char)
+            if !pulled, allowPassThrough {
+                // App ignored setMarkedText(replacementRange:) — do not fake highlight.
+                return false
+            }
             let hi = PostCommitReselect.highlightState(
                 char: pending.char, at: pending.range.location)
-            client.setMarkedText(
-                hi.attributedString,
-                selectionRange: NSRange(location: 0, length: 0),
-                replacementRange: pending.range)
             handle(state: hi, client: client)
             char = pending.char
             reading = hi.reading
+            // Capture range for replacePendingCharacter fallback.
+            var docLoc = pending.range.location
+            var docLen = pending.range.length
+            // Prefer live mark range after pull.
+            let mark = client.markedRange()
+            if mark.location != NSNotFound, mark.length > 0 {
+                docLoc = mark.location
+                docLen = mark.length
+            }
+            return finishOpenCandidates(
+                client: client, char: char, reading: reading,
+                docLoc: docLoc, docLen: docLen, useVerticalMode: useVerticalMode,
+                allowPassThrough: allowPassThrough)
         }
 
+        // Already highlighting.
+        let docLoc: Int
+        let docLen: Int
+        if let hi = state as? InputState.PostCommitHighlight {
+            let mark = client.markedRange()
+            if mark.location != NSNotFound, mark.length > 0 {
+                docLoc = mark.location
+                docLen = mark.length
+            } else {
+                docLoc = hi.documentLocation
+                docLen = (char as NSString).length
+            }
+        } else {
+            docLoc = NSNotFound
+            docLen = 0
+        }
+        return finishOpenCandidates(
+            client: client, char: char, reading: reading,
+            docLoc: docLoc, docLen: docLen, useVerticalMode: useVerticalMode,
+            allowPassThrough: allowPassThrough)
+    }
+
+    private func finishOpenCandidates(
+        client: IMKTextInput, char: String, reading: String,
+        docLoc: Int, docLen: Int, useVerticalMode: Bool, allowPassThrough: Bool
+    ) -> Bool {
         let cands = PostCommitReselect.candidates(forCharacter: char)
         if cands.isEmpty {
             if allowPassThrough, !(state is InputState.PostCommitHighlight) {
@@ -215,16 +255,8 @@ extension McBopomofoInputMethodController {
         choosing.isPostCommitReselect = true
         choosing.postCommitOriginalChar = char
         choosing.postCommitReading = reading
-        // Document range of the pending char (for insertText replacementRange).
-        if let hi = state as? InputState.PostCommitHighlight {
-            choosing.postCommitDocLocation = hi.documentLocation
-            choosing.postCommitDocLength = (char as NSString).length
-        } else if let loc = PostCommitReselect.caretLocation(client: client),
-            let pending = PostCommitReselect.readCluster(client: client, at: loc)
-        {
-            choosing.postCommitDocLocation = pending.range.location
-            choosing.postCommitDocLength = pending.range.length
-        }
+        choosing.postCommitDocLocation = docLoc
+        choosing.postCommitDocLength = docLen
         handle(state: choosing, client: client)
         return true
     }

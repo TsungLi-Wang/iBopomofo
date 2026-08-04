@@ -2,9 +2,9 @@
 
 你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-08-04**（**v2.9.7 修重選後一換一**）
+**最後更新：2026-08-04**（**v2.9.8 重選真刪舊字：pull-to-mark**）
 
-**先前同日**：v2.9.6 方向鍵原生；v2.9.5 post-commit 重選；v2.9.4 Enter 軟定案已反轉。
+**先前同日**：v2.9.7 仍疊字；v2.9.6 方向鍵；v2.9.5 post-commit。
 
 **更早**：v2.9.0 三段式；引擎凍結 tw538 387。
 
@@ -31,9 +31,9 @@
 
 ## 三行同步狀態（2026-08-04）
 
-1. **發版**：**i注音（iBopomofo）v2.9.7**（build **2301**，tag **`v2.9.7`**）。修重選「插入不取代」：`insertText` 帶待修改字 range + `EmptyIgnoringPreviousState`。Enter／方向鍵行為同 2.9.6。引擎 **未改**；tw538 **387/537**。
-2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.9.7`。
-3. **下一刀**：① Johnny dogfood 重選一換一。② 手動改字 log 累積後重訓。
+1. **發版**：**i注音（iBopomofo）v2.9.8**（build **2302**，tag **`v2.9.8`**）。重選：`setMarkedText(replacementRange:)` 拉回 marked → `insertText` 替換 mark；刪不掉則不插入。NSTextView（TextEdit 同系）腳本驗證 1→1。引擎 **未改**；tw538 **387/537**。
+2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.9.8`。
+3. **下一刀**：① Johnny dogfood TextEdit 重選一換一。② 手動改字 log 累積後重訓。
 
 ### tw538 基準線
 
