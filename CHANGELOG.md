@@ -17,6 +17,24 @@
 - 位置級同音判別器（棒 C 最終版，純研究）：BiLSTM ~13.3M、純淨／混合噪聲各 30 萬筆；四關評估 + split-half + 延遲。**主判準（n-best 重排 held-out）與次判準（單點翻字）皆 NO-GO**；路徑排序遠遜基線 B，重排延遲 ~1.9s/句 ≫45ms。提案 A（判別器路線）正式死亡。報告 `eval/analysis/tw538-position-judge-report.md`；腳本 `position_judge_batonC.py` / `position_judge_eval_fast.py`；權重與資料在 `~/laowang-data/batonC-final/`（不入 app）。
 - 辨識語料重訓（棒 D，純研究）：凍結 v2c 架構（emb256/hid512/L2），只換資料；D0 短跑重訓控制 **380/537**；困難樣本加權 2×/5×/10×。最佳 **D1_w2 = 385（相對 D0 +5）→ 判定邊際**；5×/10× 反而掉分。合成跳過。報告 `eval/analysis/tw538-disambig-corpus-report.md`、混淆對表 `confusion-pair-frequency.tsv`；產物 `~/laowang-data/batonD-final/`（不入 app）。
 
+## [2.11.0] — 2026-08-04
+
+- **版本標記**：`CFBundleShortVersionString` = **2.11.0**；`CFBundleVersion` = **2305**
+- **tag**：`v2.11.0`（annotated）
+- **commit 範圍**：tag `v2.10.1`（`99d644f2`）→ 本版 tag
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **刪回重組字重選（hard commit 後也能改）**：hard commit 時記錄每字**實際注音**影子表；↓ 對游標右方字模擬刪除（先 `insertText("", range)`，失敗再 CGEvent forward-delete，需**輔助使用**權限）→ 拉回讀音 → 只開同音清單 → 選完就地插入。
+- **失準安全**：滑鼠／焦點／游標離開被追蹤句／開始新打字 → 影子作廢，**絕不合成刪除**。
+- 組字中 soft-finalize（停頓／。／，／第一下 Enter）仍可用原生 ←／→／↓ 改字；第二下 Enter 送出（2.10.1）。
+
+### 內部 / 開發者改動
+
+- `KeyHandler.snapshotCharacterShadowUnits` / `lastHardCommitShadowUnits` / `beginRecompose(reading:)`。
+- `ShadowReselectSession` + `ShadowDelete`；CGEvent 需 Accessibility（`AXIsProcessTrusted`）。
+
 ## [2.10.1] — 2026-08-04
 
 - **版本標記**：`CFBundleShortVersionString` = **2.10.1**；`CFBundleVersion` = **2304**

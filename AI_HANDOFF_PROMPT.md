@@ -2,9 +2,9 @@
 
 你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-08-04**（**v2.10.1 Enter 兩下：一定案、二送出**）
+**最後更新：2026-08-04**（**v2.11.0 刪回重組字 shadow reselect**）
 
-**先前同日**：v2.10.0 Option B 初版（Enter 誤為一下 hard commit，已修正）；v2.9.5–2.9.8 clawback 廢棄。
+**先前同日**：v2.10.1 Enter 兩下；v2.10.0 Option B；v2.9.x clawback 廢棄。
 
 **更早**：v2.9.0 三段式；引擎凍結 tw538 387。
 
@@ -31,9 +31,9 @@
 
 ## 三行同步狀態（2026-08-04）
 
-1. **發版**：**i注音（iBopomofo）v2.10.1**（build **2304**，tag **`v2.10.1`**）。Option B：第一下 Enter 定案清底線不送出；第二下 Enter commit＋送出。停頓／。／， soft-finalize；四鍵原生重選。引擎 **未改**；tw538 **387/537**。
-2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.10.1`。
-3. **下一刀**：① Johnny dogfood 搜尋框兩下 Enter。② 手動改字 log 累積後重訓。
+1. **發版**：**i注音（iBopomofo）v2.11.0**（build **2305**，tag **`v2.11.0`**）。hard commit 後可用影子讀音＋刪除重組字重選（↓）；失準即停用。CGEvent 刪除需**輔助使用**權限。引擎 **未改**；tw538 **387/537**。
+2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.11.0`。
+3. **下一刀**：① Johnny dogfood 搜尋欄／網址列刪回重選。② 權限引導 UX。③ 手動改字 log 累積後重訓。
 
 ### tw538 基準線
 

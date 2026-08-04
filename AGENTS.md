@@ -8,7 +8,7 @@ iBopomofo (i注音) is a macOS Traditional Chinese Bopomofo input method forked 
 
 The repository still intentionally keeps many upstream identifiers (`McBopomofo` target/module names, bundle id, input source ids, C++ namespaces) because they are tied to IMK registration, user data paths, and upstream merge cost. Prefer product-facing cleanup first; do not rename these internal identifiers without a migration plan.
 
-**Current line:** **i注音 / iBopomofo v2.10.1** (build 2304; tag `v2.10.1`). Option B: stay marked until second Enter/focus-loss. Soft-finalize (pause/。/，/first Enter) clears underline, stays editable. Second Enter = hard commit + pass Enter to app. No post-commit clawback. Shipping scores λ/ν 0.75 → tw538 **387/537**. Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md`.
+**Current line:** **i注音 / iBopomofo v2.11.0** (build 2305; tag `v2.11.0`). Soft-finalize (Option B) + post-hard-commit **delete-and-recompose** reselect via reading shadow table. CGEvent forward-delete may need Accessibility. Shipping scores λ/ν 0.75 → tw538 **387/537**. Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md`.
 
 **Brand vs technical IDs:** User-visible name is **i注音 / iBopomofo**. Internal Xcode target, bundle id `org.openvanilla.inputmethod.McBopomofo`, install path `~/Library/Input Methods/McBopomofo.app`, and many C++/module names remain for IMK continuity — do not rename those without a migration plan.
 

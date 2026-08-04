@@ -78,6 +78,19 @@ extern InputMode InputModePlainBopomofo;
                          associatedPhraseValue:(NSString *)phraseValue;
 - (void)clear;
 
+/// Per-character shadow of the current walk: [{@"reading":, @"value":}, ...]
+/// using the *actual* readings chosen for each surface char (for post-commit reselect).
+- (NSArray<NSDictionary<NSString *, NSString *> *> *)snapshotCharacterShadowUnits
+    NS_SWIFT_NAME(snapshotCharacterShadowUnits());
+
+/// Last hard-commit shadow (set just before clear on hard-commit paths).
+@property (strong, nonatomic, nullable, readonly) NSArray<NSDictionary<NSString *, NSString *> *> *lastHardCommitShadowUnits;
+
+/// Clear grid and start a one-syllable recompose with the given reading (↓ reselect).
+- (InputState *)beginRecomposeWithReading:(NSString *)reading
+                          useVerticalMode:(BOOL)useVerticalMode
+    NS_SWIFT_NAME(beginRecompose(reading:useVerticalMode:));
+
 /// Soft-finalize: neural rerank + pin path, stay composing with no underline.
 /// Used by pause / comma / period / Enter (when that trigger is enabled).
 /// Returns YES if soft-finalize ran (or buffer already soft-finalized).

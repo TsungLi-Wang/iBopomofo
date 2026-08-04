@@ -71,9 +71,13 @@ class McBopomofoInputMethodController: IMKInputController {
     /// Idle pause timer for sentence-end soft-finalize (when pause trigger is ON).
     private var sentenceEndIdleTimer: Timer?
 
-    // v2.10.0: post-commit clawback removed (Option B — stay marked until Enter/focus-loss).
-    // Kept as always-false stubs so residual call sites compile cleanly.
+    // v2.10.0: post-commit clawback removed (Option B soft-finalize while marked).
     var postCommitReselectArmed = false
+
+    /// After hard commit: shadow reading table for delete-and-recompose reselect.
+    let shadowReselect = ShadowReselectSession()
+    /// True while ↓ recompose has deleted a char and is waiting for a candidate pick.
+    var shadowRecomposePendingIndex: Int?
 
     // MARK: - IMKInputController methods
 
@@ -368,8 +372,12 @@ class McBopomofoInputMethodController: IMKInputController {
             (attributes?["IMKTextOrientation"] as? NSNumber)?.intValue == 0 || false
         let input = KeyHandlerInput(event: event, isVerticalMode: useVerticalMode)
 
-        // v2.10.0: no post-commit clawback intercept. Reselect is soft-finalize
-        // + native grid ←/→/↓ while text remains marked.
+        // Shadow reselect (post hard-commit): only when Empty + armed.
+        if event.type == .keyDown,
+            tryHandleShadowReselect(input: input, client: client)
+        {
+            return true
+        }
 
         let result = keyHandler.handle(input: input, state: state) { newState in
             self.handle(state: newState, client: client)
@@ -377,6 +385,11 @@ class McBopomofoInputMethodController: IMKInputController {
             if Preferences.beepUponInputError {
                 NSSound.beep()
             }
+        }
+        // Any successful composition key disarms shadow (new typing).
+        if result, state is InputState.Inputting, !keyHandler.softFinalized {
+            shadowReselect.disarm()
+            shadowRecomposePendingIndex = nil
         }
         // Pause soft-finalize: restart idle clock while still composing & not settled.
         if result {
@@ -722,6 +735,8 @@ extension McBopomofoInputMethodController {
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Committing:
             handle(state: newState, previous: previous, client: client)
+            // Arm shadow reselect from last hard-commit snapshot (if any).
+            armShadowFromLastHardCommit(client: client)
         case let newState as InputState.Inputting:
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.PostCommitHighlight:
@@ -782,6 +797,8 @@ extension McBopomofoInputMethodController {
     private func handle(state: InputState.Deactivated, previous: InputState, client: Any?) {
         currentClient = nil
         disarmPostCommitReselect()
+        shadowReselect.disarm()
+        shadowRecomposePendingIndex = nil
 
         gCurrentCandidateController?.delegate = nil
         gCurrentCandidateController?.visible = false

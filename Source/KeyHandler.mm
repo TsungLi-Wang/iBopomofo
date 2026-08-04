@@ -77,6 +77,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // Soft-finalize: smart selection done; stay composing without underline so
     // the user can still move the cursor and re-pick candidates (stage 2).
     BOOL _softFinalized;
+    NSArray<NSDictionary<NSString *, NSString *> *> *_lastHardCommitShadowUnits;
 
     NSString *_inputMode;
 }
@@ -86,6 +87,94 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 - (BOOL)softFinalized
 {
     return _softFinalized;
+}
+
+- (NSArray<NSDictionary<NSString *, NSString *> *> *)lastHardCommitShadowUnits
+{
+    return _lastHardCommitShadowUnits;
+}
+
+- (NSArray<NSDictionary<NSString *, NSString *> *> *)snapshotCharacterShadowUnits
+{
+    NSMutableArray<NSDictionary<NSString *, NSString *> *> *out = [NSMutableArray array];
+    if (_latestWalk.nodes.empty()) {
+        return out;
+    }
+    // Walk nodes: each has reading (syllables joined by '-') and chosen surface value.
+    size_t readingOffset = 0;
+    const auto& allReadings = _grid->readings();
+    for (size_t ni = 0; ni < _latestWalk.nodes.size(); ++ni) {
+        auto node = _latestWalk.nodes[ni];
+        if (!node) {
+            continue;
+        }
+        std::string value = _latestWalk.chosenValueAt(ni);
+        std::string nodeReading = node->reading();
+        // Split reading by '-' into syllables.
+        std::vector<std::string> syllables;
+        {
+            size_t start = 0;
+            while (start <= nodeReading.size()) {
+                size_t dash = nodeReading.find('-', start);
+                if (dash == std::string::npos) {
+                    syllables.push_back(nodeReading.substr(start));
+                    break;
+                }
+                syllables.push_back(nodeReading.substr(start, dash - start));
+                start = dash + 1;
+            }
+        }
+        std::vector<std::string> chars = McBopomofo::Split(value);
+        if (chars.empty()) {
+            continue;
+        }
+        if (syllables.size() == chars.size()) {
+            for (size_t i = 0; i < chars.size(); ++i) {
+                [out addObject:@{
+                    @"reading" : @(syllables[i].c_str()),
+                    @"value" : @(chars[i].c_str()),
+                }];
+            }
+        } else if (chars.size() == 1) {
+            // One surface for multi-syllable reading — keep full reading.
+            [out addObject:@{
+                @"reading" : @(nodeReading.c_str()),
+                @"value" : @(chars[0].c_str()),
+            }];
+        } else {
+            // Uneven: attach each char to its index reading if available, else full.
+            for (size_t i = 0; i < chars.size(); ++i) {
+                NSString *r = (i < syllables.size())
+                    ? @(syllables[i].c_str())
+                    : @(nodeReading.c_str());
+                [out addObject:@{ @"reading" : r, @"value" : @(chars[i].c_str()) }];
+            }
+        }
+        (void)readingOffset;
+        (void)allReadings;
+    }
+    return out;
+}
+
+- (InputState *)beginRecomposeWithReading:(NSString *)reading useVerticalMode:(BOOL)useVerticalMode
+{
+    _bpmfReadingBuffer->clear();
+    _grid->clear();
+    _latestWalk = Formosa::Gramambular2::ReadingGrid::WalkResult {};
+    _softFinalized = NO;
+    _lastTabPinnedBuffer = nil;
+    if (reading.length == 0) {
+        return [[InputStateEmpty alloc] init];
+    }
+    _grid->insertReading(reading.UTF8String);
+    [self _walk];
+    InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
+    InputStateChoosingCandidate *choosing =
+        [self _buildCandidateStateFromInputtingState:inputting useVerticalMode:useVerticalMode];
+    choosing.originalCursorIndex = 0;
+    // Mark as shadow recompose so UI can treat picks specially if needed.
+    choosing.isPostCommitReselect = NO;
+    return choosing;
 }
 
 - (NSString *)inputMode
@@ -393,6 +482,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // Upon force-commit, clear the BPMF reading, then "steal" the composing buffer text from the built inputting state.
     _bpmfReadingBuffer->clear();
     InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
+    _lastHardCommitShadowUnits = [self snapshotCharacterShadowUnits];
     [self clear];
 
     InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:inputting.composingBuffer];
@@ -1424,6 +1514,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
             [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:composingBuffer];
         }
 
+        // Snapshot per-char readings *before* clear for shadow reselect after hard commit.
+        _lastHardCommitShadowUnits = [self snapshotCharacterShadowUnits];
         _softFinalized = NO;
         [self clear];
 

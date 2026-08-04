@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		FACE0211FACE0211FACE0211 /* RerankDiffLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0210FACE0210FACE0210 /* RerankDiffLog.swift */; };
 		FACE0311FACE0311FACE0311 /* ManualCorrectionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0310FACE0310FACE0310 /* ManualCorrectionLog.swift */; };
+		FACE0321FACE0321FACE0321 /* ShadowReselect.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0320FACE0320FACE0320 /* ShadowReselect.swift */; };
+		FACE0323FACE0323FACE0323 /* InputMethodController+ShadowReselect.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0322FACE0322FACE0322 /* InputMethodController+ShadowReselect.swift */; };
 		FACE0313FACE0313FACE0313 /* PostCommitReselect.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0312FACE0312FACE0312 /* PostCommitReselect.swift */; };
 		FACE0315FACE0315FACE0315 /* InputMethodController+PostCommitReselect.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0314FACE0314FACE0314 /* InputMethodController+PostCommitReselect.swift */; };
 		FACE0021FACE0021FACE0021 /* AICorrectionError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0020FACE0020FACE0020 /* AICorrectionError.swift */; };
@@ -150,6 +152,8 @@
 /* Begin PBXFileReference section */
 		FACE0210FACE0210FACE0210 /* RerankDiffLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RerankDiffLog.swift; sourceTree = "<group>"; };
 		FACE0310FACE0310FACE0310 /* ManualCorrectionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualCorrectionLog.swift; sourceTree = "<group>"; };
+		FACE0320FACE0320FACE0320 /* ShadowReselect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShadowReselect.swift; sourceTree = "<group>"; };
+		FACE0322FACE0322FACE0322 /* InputMethodController+ShadowReselect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+ShadowReselect.swift"; sourceTree = "<group>"; };
 		FACE0312FACE0312FACE0312 /* PostCommitReselect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostCommitReselect.swift; sourceTree = "<group>"; };
 		FACE0314FACE0314FACE0314 /* InputMethodController+PostCommitReselect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+PostCommitReselect.swift"; sourceTree = "<group>"; };
 		FACE0020FACE0020FACE0020 /* AICorrectionError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrectionError.swift; sourceTree = "<group>"; };
@@ -404,6 +408,8 @@
 				FACE0020FACE0020FACE0020 /* AICorrectionError.swift */,
 				FACE0210FACE0210FACE0210 /* RerankDiffLog.swift */,
 				FACE0310FACE0310FACE0310 /* ManualCorrectionLog.swift */,
+				FACE0320FACE0320FACE0320 /* ShadowReselect.swift */,
+				FACE0322FACE0322FACE0322 /* InputMethodController+ShadowReselect.swift */,
 				FACE0312FACE0312FACE0312 /* PostCommitReselect.swift */,
 				FACE0314FACE0314FACE0314 /* InputMethodController+PostCommitReselect.swift */,
 				6A0D4EF615FC0DA600ABF4B3 /* McBopomofo-Prefix.pch */,
@@ -920,6 +926,8 @@
 				FACE0021FACE0021FACE0021 /* AICorrectionError.swift in Sources */,
 				FACE0211FACE0211FACE0211 /* RerankDiffLog.swift in Sources */,
 				FACE0311FACE0311FACE0311 /* ManualCorrectionLog.swift in Sources */,
+				FACE0321FACE0321FACE0321 /* ShadowReselect.swift in Sources */,
+				FACE0323FACE0323FACE0323 /* InputMethodController+ShadowReselect.swift in Sources */,
 				FACE0313FACE0313FACE0313 /* PostCommitReselect.swift in Sources */,
 				FACE0315FACE0315FACE0315 /* InputMethodController+PostCommitReselect.swift in Sources */,
 				6A4F5F982879E838008C4307 /* reading_grid.cpp in Sources */,
