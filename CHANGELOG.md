@@ -17,6 +17,25 @@
 - 位置級同音判別器（棒 C 最終版，純研究）：BiLSTM ~13.3M、純淨／混合噪聲各 30 萬筆；四關評估 + split-half + 延遲。**主判準（n-best 重排 held-out）與次判準（單點翻字）皆 NO-GO**；路徑排序遠遜基線 B，重排延遲 ~1.9s/句 ≫45ms。提案 A（判別器路線）正式死亡。報告 `eval/analysis/tw538-position-judge-report.md`；腳本 `position_judge_batonC.py` / `position_judge_eval_fast.py`；權重與資料在 `~/laowang-data/batonC-final/`（不入 app）。
 - 辨識語料重訓（棒 D，純研究）：凍結 v2c 架構（emb256/hid512/L2），只換資料；D0 短跑重訓控制 **380/537**；困難樣本加權 2×/5×/10×。最佳 **D1_w2 = 385（相對 D0 +5）→ 判定邊際**；5×/10× 反而掉分。合成跳過。報告 `eval/analysis/tw538-disambig-corpus-report.md`、混淆對表 `confusion-pair-frequency.tsv`；產物 `~/laowang-data/batonD-final/`（不入 app）。
 
+## [2.9.5] — 2026-08-04
+
+- **版本標記**：`CFBundleShortVersionString` = **2.9.5**；`CFBundleVersion` = **2299**
+- **tag**：`v2.9.5`（annotated）
+- **commit 範圍**：tag `v2.9.4`（`dfd3326b`）→ 本版 tag
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **Enter 維持即時 hard commit**（反轉 2.9.4 的 Enter 軟定案）：按一下智慧選字並**直接送出**，底線一次消失。
+- **定案後重選字（post-commit）**：hard commit 之後，用 **←／→** 把游標移到錯字左邊（游標右方一字＝待修改區，反白標示），按 **↓** 開同音候選並替換；**↑** 不攔截（仍可上移一行）。替換寫入 `manual-correction.log`。
+- **實作**：`NSTextInputClient`／`IMKTextInput` 周邊文字讀取 + 刪除重插；**app-dependent**（TextEdit／多數 Cocoa 欄位通常可用；部分 Electron／網頁框可能不支援 → 不 crash、該 app 只能刪打）。
+
+### 內部 / 開發者改動
+
+- 新增 `PostCommitReselect`、`InputState.PostCommitHighlight`、`LanguageModelManager.homophoneCandidates(forCharacter:)`。
+- 停頓／句號／逗號的軟定案路徑保留（組字中）；與 Enter hard commit 分離。
+- 註：交接棒原文版號 2.9.3 已占用，本棒 **2.9.5**。
+
 ## [2.9.4] — 2026-08-04
 
 - **版本標記**：`CFBundleShortVersionString` = **2.9.4**；`CFBundleVersion` = **2298**

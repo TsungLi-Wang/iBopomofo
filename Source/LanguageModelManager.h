@@ -40,6 +40,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (nullable NSString *)readingFor:(NSString *)phrase;
 
+/// Homophone candidates for a single committed character (post-commit reselect).
+/// Returns NSArray of InputStateCandidate-compatible dicts:
+///   @{ @"reading": NSString, @"value": NSString, @"displayText": NSString }
+/// Empty array if the character has no reading in the model (caller should degrade).
++ (NSArray<NSDictionary<NSString *, NSString *> *> *)homophoneCandidatesForCharacter:(NSString *)character
+    NS_SWIFT_NAME(homophoneCandidates(forCharacter:));
+
 @property (class, readonly, nonatomic) NSString *dataFolderPath;
 @property (class, readonly, nonatomic) NSString *userPhrasesDataPathMcBopomofo;
 @property (class, readonly, nonatomic) NSString *userPhrasesDataPathPlainBopomofo;

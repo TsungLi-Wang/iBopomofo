@@ -1386,23 +1386,17 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return NO;
     }
 
-    // Stage-2 (v2.9.4): Enter is a sentence-end *soft* finalize when the toggle
-    // is ON — one keypress, smart-select, hide underline, KEEP composing so the
-    // user can re-pick with ←/→/↓. Never two-stage (no "second Enter commits").
-    //
-    // Hard commit is deferred to commitComposition / deactivate / empty flush
-    // (see report). IMK cannot both keep reselectable marked text AND pass Enter
-    // through to chat apps (LINE) in the same keypress.
-    if (Preferences.sentenceEndTriggerEnter && _inputMode != InputModePlainBopomofo) {
-        return [self softFinalizeSentenceWithState:state
-                                     stateCallback:stateCallback
-                                     errorCallback:errorCallback];
-    }
-
-    // Enter trigger OFF: hard-commit (optionally with neural when global flag on).
+    // Enter = one-shot hard commit (product iron rule since 2.9.2 / restored 2.9.5).
+    // Smart-select when the Enter sentence-end trigger is ON and neural path is on,
+    // then insertText immediately. Post-commit reselect (←/→/↓ on committed text)
+    // is handled by InputMethodController via NSTextInputClient surrounding text —
+    // do NOT soft-finalize here.
     NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
     NSString *composingBuffer = walkBuffer;
-    if (Preferences.enableNeuralPathRerank && _inputMode != InputModePlainBopomofo) {
+    BOOL wantSmartSelect = Preferences.sentenceEndTriggerEnter
+        && Preferences.enableNeuralPathRerank
+        && _inputMode != InputModePlainBopomofo;
+    if (wantSmartSelect) {
         _rerankThisWalk = YES;
         [self _walk];
         _rerankThisWalk = NO;

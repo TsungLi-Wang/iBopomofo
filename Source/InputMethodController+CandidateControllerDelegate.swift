@@ -55,6 +55,24 @@ extension McBopomofoInputMethodController: CandidateControllerDelegate {
         switch state {
         case let state as InputState.ChoosingCandidate:
             let selectedCandidate = state.candidates[Int(index)]
+
+            // Post-commit reselect: replace marked character in the client document.
+            if state.isPostCommitReselect {
+                let chosen = selectedCandidate.value
+                (client as? IMKTextInput)?.insertText(
+                    chosen as NSString,
+                    replacementRange: NSRange(location: NSNotFound, length: NSNotFound))
+                ManualCorrectionLog.append(
+                    reading: state.postCommitReading.isEmpty
+                        ? selectedCandidate.reading : state.postCommitReading,
+                    context: state.postCommitOriginalChar,
+                    chosen: chosen)
+                // Stay armed so the user can fix more characters.
+                armPostCommitReselect()
+                handle(state: InputState.Empty(), client: client)
+                return
+            }
+
             keyHandler.fixNode(
                 reading: selectedCandidate.reading, value: selectedCandidate.value,
                 originalCursorIndex: Int(state.originalCursorIndex),

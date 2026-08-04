@@ -71,6 +71,10 @@ class McBopomofoInputMethodController: IMKInputController {
     /// Idle pause timer for sentence-end soft-finalize (when pause trigger is ON).
     private var sentenceEndIdleTimer: Timer?
 
+    /// After hard commit (Enter etc.), allow ←/→/↓ reconversion on committed text
+    /// until the user starts a new composition or the session deactivates.
+    var postCommitReselectArmed = false
+
     // MARK: - IMKInputController methods
 
     override init!(server: IMKServer!, delegate: Any!, client inputClient: Any!) {
@@ -363,6 +367,14 @@ class McBopomofoInputMethodController: IMKInputController {
         let useVerticalMode =
             (attributes?["IMKTextOrientation"] as? NSNumber)?.intValue == 0 || false
         let input = KeyHandlerInput(event: event, isVerticalMode: useVerticalMode)
+
+        // Post-commit reselect (does not change Enter hard-commit): when armed and
+        // not mid-composition grid input, intercept ←/→/↓ for surrounding-text edit.
+        if event.type == .keyDown,
+            tryHandlePostCommitReselect(input: input, client: client)
+        {
+            return true
+        }
 
         let result = keyHandler.handle(input: input, state: state) { newState in
             self.handle(state: newState, client: client)
@@ -715,7 +727,11 @@ extension McBopomofoInputMethodController {
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Committing:
             handle(state: newState, previous: previous, client: client)
+            // After hard commit, arm post-commit reselect (←/→/↓ on sent text).
+            armPostCommitReselect()
         case let newState as InputState.Inputting:
+            handle(state: newState, previous: previous, client: client)
+        case let newState as InputState.PostCommitHighlight:
             handle(state: newState, previous: previous, client: client)
         case let newState as InputState.Marking:
             handle(state: newState, previous: previous, client: client)
@@ -770,6 +786,7 @@ extension McBopomofoInputMethodController {
 
     private func handle(state: InputState.Deactivated, previous: InputState, client: Any?) {
         currentClient = nil
+        disarmPostCommitReselect()
 
         gCurrentCandidateController?.delegate = nil
         gCurrentCandidateController?.visible = false
@@ -865,6 +882,17 @@ extension McBopomofoInputMethodController {
                 tooltip: tip, composingBuffer: state.composingBuffer,
                 cursorIndex: state.cursorIndex, client: client)
         }
+    }
+
+    private func handle(state: InputState.PostCommitHighlight, previous: InputState, client: Any?) {
+        gCurrentCandidateController?.visible = false
+        hideTooltip()
+        guard let client = client as? IMKTextInput else { return }
+        // Marked text already placed by postCommitMove/Open with replacementRange;
+        // refresh attributes only (replacement NSNotFound keeps current mark).
+        client.setMarkedText(
+            state.attributedString, selectionRange: NSMakeRange(0, 0),
+            replacementRange: NSMakeRange(NSNotFound, NSNotFound))
     }
 
     private func handle(state: InputState.Marking, previous: InputState, client: Any?) {

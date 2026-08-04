@@ -382,6 +382,41 @@ class InputState: NSObject {
 
     // MARK: -
 
+    /// Post-commit reselect: a single already-committed character has been
+    /// pulled back into marked text for visual highlight / homophone replace.
+    /// Enter hard-commit is unchanged; this is a separate session after Empty.
+    @objc(InputStatePostCommitHighlight)
+    class PostCommitHighlight: NotEmpty {
+        /// Reading used for homophone lookup (may be empty if unknown).
+        @objc var reading: String = ""
+        /// Document location where the marked char was pulled from (for diagnostics).
+        @objc var documentLocation: Int = 0
+
+        @objc init(character: String, reading: String, documentLocation: Int) {
+            self.reading = reading
+            self.documentLocation = documentLocation
+            // cursorIndex 0 → pending char is the whole buffer (right of "cursor" before char).
+            super.init(composingBuffer: character, cursorIndex: 0)
+        }
+
+        @objc var attributedString: NSAttributedString {
+            let full = NSRange(location: 0, length: (composingBuffer as NSString).length)
+            let result = NSMutableAttributedString(string: composingBuffer)
+            result.addAttribute(.markedClauseSegment, value: 0, range: full)
+            result.addAttribute(
+                .backgroundColor, value: NSColor.selectedTextBackgroundColor, range: full)
+            result.addAttribute(
+                .underlineStyle, value: NSUnderlineStyle.single.rawValue, range: full)
+            return result
+        }
+
+        override var description: String {
+            "<InputState.PostCommitHighlight char:\(composingBuffer) reading:\(reading) loc:\(documentLocation)>"
+        }
+    }
+
+    // MARK: -
+
     private let kMinMarkRangeLength = 2
     private let kMaxMarkRangeLength = 8
 
@@ -562,7 +597,10 @@ class InputState: NSObject {
         @objc private(set) var candidates: [Candidate]
         @objc private(set) var useVerticalMode: Bool
         @objc var originalCursorIndex: UInt
-
+        /// Post-commit reselect: pick replaces marked char via insertText, not grid.
+        @objc var isPostCommitReselect: Bool = false
+        @objc var postCommitOriginalChar: String = ""
+        @objc var postCommitReading: String = ""
 
         @objc init(
             composingBuffer: String, cursorIndex: UInt, candidates: [Candidate],
@@ -575,13 +613,16 @@ class InputState: NSObject {
         }
 
         @objc var attributedString: NSAttributedString {
-            let attributedSting = NSAttributedString(
-                string: composingBuffer,
-                attributes: [
-                    .underlineStyle: NSUnderlineStyle.single.rawValue,
-                    .markedClauseSegment: 0,
-                ])
-            return attributedSting
+            let full = NSRange(location: 0, length: (composingBuffer as NSString).length)
+            let result = NSMutableAttributedString(string: composingBuffer)
+            if isPostCommitReselect {
+                result.addAttribute(
+                    .backgroundColor, value: NSColor.selectedTextBackgroundColor, range: full)
+            }
+            result.addAttribute(
+                .underlineStyle, value: NSUnderlineStyle.single.rawValue, range: full)
+            result.addAttribute(.markedClauseSegment, value: 0, range: full)
+            return result
         }
 
         override var description: String {

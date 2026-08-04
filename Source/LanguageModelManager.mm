@@ -519,6 +519,52 @@ static void LTLoadVariantAnnotatorData()
     return !reading.empty() ? @(reading.c_str()) : nil;
 }
 
++ (NSArray<NSDictionary<NSString *, NSString *> *> *)homophoneCandidatesForCharacter:(NSString *)character
+{
+    if (character.length == 0) {
+        return @[];
+    }
+    if (!gLanguageModelMcBopomofo.isDataModelLoaded()) {
+        [self loadDataModel:InputModeBopomofo];
+    }
+
+    // Top reading for this surface form, then expand that reading's unigrams
+    // (homophones). Multi-pronunciation chars use the highest-score reading.
+    std::string value(character.UTF8String);
+    std::string topReading = gLanguageModelMcBopomofo.getReading(value);
+    if (topReading.empty()) {
+        return @[];
+    }
+
+    NSMutableArray<NSDictionary<NSString *, NSString *> *> *out = [NSMutableArray array];
+    NSMutableSet<NSString *> *seen = [NSMutableSet set];
+    NSString *readingNS = @(topReading.c_str());
+
+    auto unigrams = gLanguageModelMcBopomofo.getUnigrams(topReading);
+    for (const auto& u : unigrams) {
+        NSString *v = @(u.value().c_str());
+        if (v.length == 0 || [seen containsObject:v]) {
+            continue;
+        }
+        [seen addObject:v];
+        [out addObject:@{
+            @"reading" : readingNS,
+            @"value" : v,
+            @"displayText" : v,
+        }];
+    }
+
+    if (![seen containsObject:character]) {
+        [out insertObject:@{
+            @"reading" : readingNS,
+            @"value" : character,
+            @"displayText" : character,
+        } atIndex:0];
+    }
+
+    return out;
+}
+
 + (NSString *)annotateVariantForCharacters:(NSString *)inCharacters readings:(NSString *)inReadings
 {
     McBopomofo::VariantAnnotator *annotator = LanguageModelManager.variantAnnotator;
