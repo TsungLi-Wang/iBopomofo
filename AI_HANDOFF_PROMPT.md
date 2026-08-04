@@ -2,11 +2,11 @@
 
 你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-08-04**（**v2.9.5 Enter hard commit + post-commit 重選**）
+**最後更新：2026-08-04**（**v2.9.6 修定案後方向鍵亂動**）
 
-**先前同日**：v2.9.4 曾把 Enter 改軟定案（**已反轉**）；v2.9.3 選單「定案設定…」；v2.9.2 Enter hard commit。
+**先前同日**：v2.9.5 post-commit 重選（armed 過廣致方向鍵回歸）；v2.9.4 Enter 軟定案已反轉；v2.9.3 定案設定選單。
 
-**更早**：v2.9.0 三段式；v2.8.0 公開；引擎凍結 tw538 387。
+**更早**：v2.9.0 三段式；引擎凍結 tw538 387。
 
 ## 先讀文件
 
@@ -31,9 +31,9 @@
 
 ## 三行同步狀態（2026-08-04）
 
-1. **發版**：**i注音（iBopomofo）v2.9.5**（build **2299**，tag **`v2.9.5`**）。**Enter＝即時 hard commit**（不動）。其上加 **post-commit 重選**：hard commit 後 ←／→／↓ 對已送出字做同音替換（周邊文字 API，**app-dependent**）。停頓／標點仍可軟定案。引擎 **未改**；tw538 **387/537**。
-2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.9.5`（純 source）。
-3. **下一刀**：① Johnny dogfood TextEdit／瀏覽器／聊天 post-commit 重選。② 手動改字 log 累積後重訓。
+1. **發版**：**i注音（iBopomofo）v2.9.6**（build **2300**，tag **`v2.9.6`**）。修 2.9.5 方向鍵回歸：Empty+armed **不攔截** ←／→／↑；**↓** 才進重選。Enter hard commit 不動。引擎 **未改**；tw538 **387/537**。
+2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.9.6`。
+3. **下一刀**：① Johnny dogfood 一般方向鍵 + 刻意 ↓ 重選。② 手動改字 log 累積後重訓。
 
 ### tw538 基準線
 
