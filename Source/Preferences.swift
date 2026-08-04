@@ -64,10 +64,11 @@ private let kPrefsSchemaVersionKey = "PrefsSchemaVersion"
 private let kEnableRerankDiffLogKey = "EnableRerankDiffLog"
 
 // Sentence-end triggers for auto soft-finalize (智慧改字定案).
-// Pause is baseline (always on). Comma / period / Enter are independent toggles.
+// Pause / comma / period / Enter are independent toggles (pause default ON).
 private let kSentenceEndTriggerEnterKey = "SentenceEndTriggerEnter"
 private let kSentenceEndTriggerPeriodKey = "SentenceEndTriggerPeriod"
 private let kSentenceEndTriggerCommaKey = "SentenceEndTriggerComma"
+private let kSentenceEndPauseEnabledKey = "SentenceEndPauseEnabled"
 private let kSentenceEndPauseMsKey = "SentenceEndPauseMs"
 private let kEnableManualCorrectionLogKey = "EnableManualCorrectionLog"
 
@@ -75,8 +76,12 @@ private let kEnableManualCorrectionLogKey = "EnableManualCorrectionLog"
 enum ShippingRerankConstants {
     static let contextualLambda = 0.75
     static let pathRerankNBest = 10
-    /// v2: sentence-end soft-finalize prefs (enter/period/comma + pause ms).
-    static let prefsSchemaVersion = 2
+    /// v3: pause enable toggle (sentence-end group; ms already existed in v2).
+    static let prefsSchemaVersion = 3
+    /// Minimum idle pause before auto soft-finalize (ms).
+    static let sentenceEndPauseMsMin = 200
+    /// First-ship default idle pause (ms).
+    static let sentenceEndPauseMsDefault = 800
 }
 
 private let kDefaultCandidateListTextSize: CGFloat = 16
@@ -324,6 +329,11 @@ class Preferences: NSObject {
                 NSLog(
                     "Preferences: migrated prefsSchemaVersion → 2 (sentence-end soft finalize)")
                 version = 2
+            case 2:
+                // v3: pause becomes a user toggle (default ON; ms still 800).
+                NSLog(
+                    "Preferences: migrated prefsSchemaVersion → 3 (sentence-end pause toggle)")
+                version = 3
             default:
                 version = ShippingRerankConstants.prefsSchemaVersion
             }
@@ -379,7 +389,7 @@ class Preferences: NSObject {
           prefsSchemaVersion: \(schema)
           rerankDiffLog: \(diffLog)
           rerankDiffLogPath: \(path)
-          sentenceEnd: enter=\(sentenceEndTriggerEnter ? "ON" : "OFF") period=\(sentenceEndTriggerPeriod ? "ON" : "OFF") comma=\(sentenceEndTriggerComma ? "ON" : "OFF") pauseMs=\(sentenceEndPauseMs)
+          sentenceEnd: pause=\(sentenceEndPauseEnabled ? "ON" : "OFF")@\(sentenceEndPauseMs)ms enter=\(sentenceEndTriggerEnter ? "ON" : "OFF") period=\(sentenceEndTriggerPeriod ? "ON" : "OFF") comma=\(sentenceEndTriggerComma ? "ON" : "OFF")
           manualCorrectionLog: \(enableManualCorrectionLog ? "ON" : "OFF")
         """
     }
@@ -661,10 +671,30 @@ extension Preferences {
         return sentenceEndTriggerComma
     }
 
-    /// Idle pause (ms) before auto soft-finalize. Baseline always-on behavior.
-    /// First-ship default 800ms; Johnny dogfood may retune.
+    /// Idle pause trigger for auto soft-finalize. Default ON (same as 2.9.0 behavior).
+    /// When OFF, pure pause never auto-finalizes; Enter/period/comma toggles are unaffected.
+    @UserDefault(key: kSentenceEndPauseEnabledKey, defaultValue: true)
+    @objc static var sentenceEndPauseEnabled: Bool
+
+    @objc static func toggleSentenceEndPauseEnabled() -> Bool {
+        sentenceEndPauseEnabled = !sentenceEndPauseEnabled
+        return sentenceEndPauseEnabled
+    }
+
+    /// Idle pause (ms) before auto soft-finalize when pause is enabled.
+    /// Default 800ms; stored value is always clamped to ≥ 200ms.
     @UserDefault(key: kSentenceEndPauseMsKey, defaultValue: 800)
-    @objc static var sentenceEndPauseMs: Int
+    private static var _sentenceEndPauseMsRaw: Int
+
+    @objc static var sentenceEndPauseMs: Int {
+        get {
+            max(ShippingRerankConstants.sentenceEndPauseMsMin, _sentenceEndPauseMsRaw)
+        }
+        set {
+            _sentenceEndPauseMsRaw = max(
+                ShippingRerankConstants.sentenceEndPauseMsMin, newValue)
+        }
+    }
 
     /// Collect manual candidate picks as training samples (difficult forks).
     @UserDefault(key: kEnableManualCorrectionLogKey, defaultValue: true)

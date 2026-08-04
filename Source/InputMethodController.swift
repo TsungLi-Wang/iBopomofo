@@ -68,7 +68,7 @@ class McBopomofoInputMethodController: IMKInputController {
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
 
-    /// Idle pause timer for sentence-end soft-finalize (baseline always-on).
+    /// Idle pause timer for sentence-end soft-finalize (when pause trigger is ON).
     private var sentenceEndIdleTimer: Timer?
 
     // MARK: - IMKInputController methods
@@ -86,7 +86,9 @@ class McBopomofoInputMethodController: IMKInputController {
     /// Restart pause timer after each key handled while composing.
     private func scheduleSentenceEndIdleTimer(client: Any?) {
         cancelSentenceEndIdleTimer()
-        let ms = max(200, Preferences.sentenceEndPauseMs)
+        // Pause is a user toggle (default ON). When OFF, never auto-finalize on idle.
+        guard Preferences.sentenceEndPauseEnabled else { return }
+        let ms = Preferences.sentenceEndPauseMs  // already clamped ≥ 200
         let interval = TimeInterval(ms) / 1000.0
         // weak self via capturing controller; IMK controllers live with session
         let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
@@ -98,6 +100,7 @@ class McBopomofoInputMethodController: IMKInputController {
 
     private func fireSentenceEndIdleTimer(client: Any?) {
         sentenceEndIdleTimer = nil
+        guard Preferences.sentenceEndPauseEnabled else { return }
         guard state is InputState.Inputting else { return }
         guard !keyHandler.softFinalized else { return }
         let ok = keyHandler.softFinalizeSentence(state: state) { newState in
@@ -152,7 +155,14 @@ class McBopomofoInputMethodController: IMKInputController {
             action: #selector(clearRerankDiffLog(_:)), keyEquivalent: "")
 
         menu.addItem(NSMenuItem.separator())
-        // Sentence-end triggers (soft-finalize). Pause is always on (baseline).
+        // Sentence-end triggers (soft-finalize): pause + Enter/period/comma.
+        let pauseEndItem = menu.addItem(
+            withTitle: "句子結束：停頓",
+            action: #selector(toggleSentenceEndPauseEnabled(_:)), keyEquivalent: "")
+        pauseEndItem.state = Preferences.sentenceEndPauseEnabled.state
+        menu.addItem(
+            withTitle: "句子結束：停頓毫秒…（目前 \(Preferences.sentenceEndPauseMs)）",
+            action: #selector(editSentenceEndPauseMs(_:)), keyEquivalent: "")
         let enterEndItem = menu.addItem(
             withTitle: "句子結束：Enter",
             action: #selector(toggleSentenceEndTriggerEnter(_:)), keyEquivalent: "")
@@ -450,6 +460,39 @@ class McBopomofoInputMethodController: IMKInputController {
     @objc func clearRerankDiffLog(_ sender: Any?) {
         RerankDiffLog.clearLog()
         NotifierController.notify(message: "已清除重排差異 log")
+    }
+
+    @objc func toggleSentenceEndPauseEnabled(_ sender: Any?) {
+        let on = Preferences.toggleSentenceEndPauseEnabled()
+        if !on {
+            cancelSentenceEndIdleTimer()
+        }
+        NotifierController.notify(message: on ? "句子結束：停頓 開" : "句子結束：停頓 關")
+    }
+
+    /// Free-form ms field for idle pause (clamped ≥ 200).
+    @objc func editSentenceEndPauseMs(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = "句子結束：停頓毫秒"
+        alert.informativeText =
+            "停止輸入多久後自動定案（單位 ms，下限 \(ShippingRerankConstants.sentenceEndPauseMsMin)，預設 \(ShippingRerankConstants.sentenceEndPauseMsDefault)）"
+        alert.addButton(withTitle: "確定")
+        alert.addButton(withTitle: "取消")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        field.stringValue = "\(Preferences.sentenceEndPauseMs)"
+        field.placeholderString = "\(ShippingRerankConstants.sentenceEndPauseMsDefault)"
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+        let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Int(trimmed), value > 0 else {
+            NotifierController.notify(message: "停頓毫秒無效，未變更")
+            return
+        }
+        Preferences.sentenceEndPauseMs = value
+        let applied = Preferences.sentenceEndPauseMs
+        NotifierController.notify(message: "句子結束：停頓 \(applied)ms")
     }
 
     @objc func toggleSentenceEndTriggerEnter(_ sender: Any?) {
