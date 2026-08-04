@@ -245,7 +245,7 @@ private let kWindowTitleHeight: CGFloat = 78
         sectionTitle(NSLocalizedString("Auto-finalize on sentence end", comment: ""))
 
         let help = NSTextField(wrappingLabelWithString: NSLocalizedString(
-            "When a trigger fires, smart selection runs on the whole composing buffer. Pause/period/comma keep the text editable (soft finalize). Enter always commits in one keypress.",
+            "When a trigger fires, smart selection runs and underline hides (soft finalize). Use ←/→ then ↓ to re-pick the character right of the cursor. Text is hard-committed on click-away / focus loss — not on a second Enter.",
             comment: ""))
         help.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
         help.textColor = .secondaryLabelColor
@@ -293,7 +293,7 @@ private let kWindowTitleHeight: CGFloat = 78
         place(commaCheckbox)
 
         enterCheckbox = NSButton(
-            checkboxWithTitle: NSLocalizedString("Enter (one-shot hard commit)", comment: ""),
+            checkboxWithTitle: NSLocalizedString("Enter (soft finalize, re-editable)", comment: ""),
             target: self, action: #selector(sentenceEndPrefChanged(_:)))
         place(enterCheckbox)
 

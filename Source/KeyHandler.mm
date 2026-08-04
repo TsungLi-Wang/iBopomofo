@@ -221,13 +221,18 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         }
         [ManualCorrectionLog appendWithReading:reading context:ctx chosen:value];
     }
-    // Manual pick leaves soft-finalize (user is editing again).
-    _softFinalized = NO;
 
     if (currentNode != nullptr && flag && Preferences.moveCursorAfterSelectingCandidate) {
         _grid->setCursor(accumulatedCursor);
     } else {
         _grid->setCursor(originalCursorIndex);
+    }
+
+    // After a Stage-2 re-pick, stay soft-finalized so the user can move and
+    // fix more characters without underline flashing back on.
+    // (New BPMF typing still clears _softFinalized elsewhere.)
+    if (_inputMode != InputModePlainBopomofo) {
+        _softFinalized = YES;
     }
 }
 
@@ -677,6 +682,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     // MARK: Space and Down
     // keyCode 125 = Down, charCode 32 = Space
+    // Stage-2 soft-finalized: Down opens homophones for the char RIGHT of the
+    // cursor (待修改字元區). Space keeps pre-existing choose-candidate behavior
+    // when enabled; otherwise space at end still hard-commits + inserts space.
     if (_bpmfReadingBuffer->isEmpty() &&
         [state isKindOfClass:[InputStateNotEmpty class]] && (input.isExtraChooseCandidateKey || charCode == 32 || (input.useVerticalMode && (input.isVerticalModeOnlyChooseCandidateKey)))) {
         if (charCode == 32) {
@@ -696,6 +704,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
                 } else if (_languageModel->hasUnigrams(" ")) {
                     _grid->insertReading(" ");
                     [self _walk];
+                    _softFinalized = NO;
                     InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
                     stateCallback(inputting);
                 }
@@ -704,6 +713,20 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         }
 
         size_t originalCursorIndex = _grid->cursor();
+
+        // Soft-finalized Stage-2: pending char is strictly to the RIGHT of the
+        // cursor. At end of buffer there is no pending char → error, no menu.
+        if (_softFinalized) {
+            if (originalCursorIndex >= _grid->length()) {
+                errorCallback();
+                stateCallback(state);
+                return YES;
+            }
+            InputStateChoosingCandidate *choosingCandidates = [self _buildCandidateStateFromInputtingState:(InputStateInputting *)[self buildInputtingState] useVerticalMode:input.useVerticalMode];
+            choosingCandidates.originalCursorIndex = originalCursorIndex;
+            stateCallback(choosingCandidates);
+            return YES;
+        }
 
         // Note: When the cursor is at the end of the composing buffer and the
         // preference that make McBopomofo be like MS Bopomofo are on, the
@@ -1363,17 +1386,23 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return NO;
     }
 
-    // One-shot Enter (v2.9.2): never soft-finalize / never require a second press.
-    // When Enter is a sentence-end trigger (default ON) and neural path is on:
-    //   smart-select (rerank + pin) then hard-commit in the same keypress.
-    // When the Enter trigger is OFF: hard-commit current walk (no n-best rerank).
-    // Pause / period / comma still soft-finalize so users can re-edit after those.
+    // Stage-2 (v2.9.4): Enter is a sentence-end *soft* finalize when the toggle
+    // is ON — one keypress, smart-select, hide underline, KEEP composing so the
+    // user can re-pick with ←/→/↓. Never two-stage (no "second Enter commits").
+    //
+    // Hard commit is deferred to commitComposition / deactivate / empty flush
+    // (see report). IMK cannot both keep reselectable marked text AND pass Enter
+    // through to chat apps (LINE) in the same keypress.
+    if (Preferences.sentenceEndTriggerEnter && _inputMode != InputModePlainBopomofo) {
+        return [self softFinalizeSentenceWithState:state
+                                     stateCallback:stateCallback
+                                     errorCallback:errorCallback];
+    }
+
+    // Enter trigger OFF: hard-commit (optionally with neural when global flag on).
     NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
     NSString *composingBuffer = walkBuffer;
-    BOOL wantSmartSelect = Preferences.sentenceEndTriggerEnter
-        && Preferences.enableNeuralPathRerank
-        && _inputMode != InputModePlainBopomofo;
-    if (wantSmartSelect) {
+    if (Preferences.enableNeuralPathRerank && _inputMode != InputModePlainBopomofo) {
         _rerankThisWalk = YES;
         [self _walk];
         _rerankThisWalk = NO;
@@ -2804,6 +2833,17 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
 - (NSInteger)actualCandidateCursorIndex
 {
+    // Soft-finalized Stage-2: 待修改字元區 is always the unit to the RIGHT of
+    // the cursor — i.e. "after cursor" candidate mode, ignoring the global pref.
+    if (_softFinalized) {
+        size_t cursor = _grid->cursor();
+        if (cursor == _grid->length() && cursor > 0) {
+            // No char to the right; callers should not open a menu here. Fall
+            // back to last unit so candidatesAt is well-defined if misused.
+            return (NSInteger)(cursor - 1);
+        }
+        return (NSInteger)cursor;
+    }
     return [self computeActualCursorIndex:_grid->cursor()];
 }
 

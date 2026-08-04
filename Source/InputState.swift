@@ -341,14 +341,38 @@ class InputState: NSObject {
         }
 
         @objc var attributedString: NSAttributedString {
-            var attrs: [NSAttributedString.Key: Any] = [
-                .markedClauseSegment: 0
-            ]
-            // Soft-finalized → no underline (定案後底線消失) but still composing.
-            if !softFinalized {
-                attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
+            let buffer = composingBuffer as NSString
+            let full = NSRange(location: 0, length: buffer.length)
+            let result = NSMutableAttributedString(string: composingBuffer)
+            result.addAttribute(.markedClauseSegment, value: 0, range: full)
+
+            if softFinalized {
+                // Stage-2: no full underline; highlight 待修改字元區 =
+                // the single grapheme cluster immediately to the RIGHT of cursor.
+                let start = Int(cursorIndex)
+                if start >= 0 && start < buffer.length {
+                    let end = composingBuffer.nextUtf16Position(for: start)
+                    let pendingLen = max(0, end - start)
+                    if pendingLen > 0 {
+                        let pending = NSRange(location: start, length: pendingLen)
+                        // Selected-text background so user sees which char ↓ will open.
+                        result.addAttribute(
+                            .backgroundColor,
+                            value: NSColor.selectedTextBackgroundColor,
+                            range: pending)
+                        result.addAttribute(
+                            .underlineStyle,
+                            value: NSUnderlineStyle.single.rawValue,
+                            range: pending)
+                    }
+                }
+            } else {
+                result.addAttribute(
+                    .underlineStyle,
+                    value: NSUnderlineStyle.single.rawValue,
+                    range: full)
             }
-            return NSAttributedString(string: composingBuffer, attributes: attrs)
+            return result
         }
 
         override var description: String {

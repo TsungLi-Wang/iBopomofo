@@ -225,3 +225,7 @@
 "Effective settings" = "目前生效設定";
 
 "Sentence End Settings…" = "定案設定…";
+
+"Enter (soft finalize, re-editable)" = "Enter（軟定案、可重選）";
+
+"When a trigger fires, smart selection runs and underline hides (soft finalize). Use ←/→ then ↓ to re-pick the character right of the cursor. Text is hard-committed on click-away / focus loss — not on a second Enter." = "觸發時會智慧選字並隱藏底線（軟定案）。用 ←／→ 移游標，游標右方字為待修改區（有反白），按 ↓ 開同音候選。真送出時機：點到別處／失焦——不是再按一次 Enter。";

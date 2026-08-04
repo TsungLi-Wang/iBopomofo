@@ -227,3 +227,7 @@
 "Effective settings" = "Effective settings";
 
 "Sentence End Settings…" = "Sentence End Settings…";
+
+"Enter (soft finalize, re-editable)" = "Enter (soft finalize, re-editable)";
+
+"When a trigger fires, smart selection runs and underline hides (soft finalize). Use ←/→ then ↓ to re-pick the character right of the cursor. Text is hard-committed on click-away / focus loss — not on a second Enter." = "When a trigger fires, smart selection runs and underline hides (soft finalize). Use ←/→ then ↓ to re-pick the character right of the cursor. Text is hard-committed on click-away / focus loss — not on a second Enter.";
