@@ -1363,32 +1363,21 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return NO;
     }
 
-    // Sentence-end Enter (default ON): soft-finalize first (same smart selection
-    // as pause/period). Second Enter after soft-finalize hard-commits.
-    // When the Enter trigger is OFF: legacy hard-commit path (rerank + insertText).
-    if (Preferences.sentenceEndTriggerEnter && _inputMode != InputModePlainBopomofo) {
-        if (!_softFinalized) {
-            return [self softFinalizeSentenceWithState:state
-                                         stateCallback:stateCallback
-                                         errorCallback:errorCallback];
-        }
-        // Already soft-finalized → hard commit (send text to app).
-        NSString *composingBuffer = ((InputStateInputting *)state).composingBuffer;
-        [self clear];
-        InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];
-        stateCallback(committing);
-        InputStateEmpty *empty = [[InputStateEmpty alloc] init];
-        stateCallback(empty);
-        return YES;
-    }
-
-    // Legacy Enter (trigger disabled): hard commit with neural rerank.
+    // One-shot Enter (v2.9.2): never soft-finalize / never require a second press.
+    // When Enter is a sentence-end trigger (default ON) and neural path is on:
+    //   smart-select (rerank + pin) then hard-commit in the same keypress.
+    // When the Enter trigger is OFF: hard-commit current walk (no n-best rerank).
+    // Pause / period / comma still soft-finalize so users can re-edit after those.
     NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
     NSString *composingBuffer = walkBuffer;
-    if (Preferences.enableNeuralPathRerank && _inputMode != InputModePlainBopomofo) {
+    BOOL wantSmartSelect = Preferences.sentenceEndTriggerEnter
+        && Preferences.enableNeuralPathRerank
+        && _inputMode != InputModePlainBopomofo;
+    if (wantSmartSelect) {
         _rerankThisWalk = YES;
         [self _walk];
         _rerankThisWalk = NO;
+        [self _pinLatestWalkWithHardOverrides];
         InputState *reranked = [self buildInputtingState];
         if ([reranked isKindOfClass:[InputStateInputting class]]) {
             composingBuffer = ((InputStateInputting *)reranked).composingBuffer;
@@ -1396,6 +1385,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:composingBuffer];
     }
 
+    _softFinalized = NO;
     [self clear];
 
     InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];

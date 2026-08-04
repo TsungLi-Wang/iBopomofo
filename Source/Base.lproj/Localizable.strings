@@ -205,3 +205,20 @@
 "Voice input stopped" = "Voice input stopped";
 "No speech detected" = "No speech detected";
 "Transcribing the recording…" = "Transcribing the recording…";
+
+/* v2.9.2 sentence-end preferences pane */
+"Sentence End" = "Sentence End";
+"Auto-finalize on sentence end" = "Auto-finalize on sentence end";
+"When a trigger fires, smart selection runs on the whole composing buffer. Pause/period/comma keep the text editable (soft finalize). Enter always commits in one keypress." = "When a trigger fires, smart selection runs on the whole composing buffer. Pause/period/comma keep the text editable (soft finalize). Enter always commits in one keypress.";
+"Pause (idle)" = "Pause (idle)";
+"Pause duration (ms):" = "Pause duration (ms):";
+"Period (。)" = "Period (。)";
+"Comma (，)" = "Comma (，)";
+"Enter (one-shot hard commit)" = "Enter (one-shot hard commit)";
+"Manual correction samples" = "Manual correction samples";
+"Log each manual candidate pick as a hard-fork training sample (local only)." = "Log each manual candidate pick as a hard-fork training sample (local only).";
+"Record manual corrections" = "Record manual corrections";
+"Clear correction log…" = "Clear correction log…";
+"Show effective settings…" = "Show effective settings…";
+"Manual correction log cleared" = "Manual correction log cleared";
+"Effective settings" = "Effective settings";

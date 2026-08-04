@@ -28,6 +28,7 @@ import InfoCollector
 extension NSToolbarItem.Identifier {
     fileprivate static let basic = NSToolbarItem.Identifier(rawValue: "basic")
     fileprivate static let userPhrases = NSToolbarItem.Identifier(rawValue: "user_phrases")
+    fileprivate static let sentenceEnd = NSToolbarItem.Identifier(rawValue: "sentence_end")
     fileprivate static let advanced = NSToolbarItem.Identifier(rawValue: "advanced")
 }
 
@@ -52,7 +53,19 @@ private let kWindowTitleHeight: CGFloat = 78
 
     @IBOutlet weak var addPhraseHookPathField: NSTextField!
 
+    /// Built in code (not xib): sentence-end triggers + manual-correction log.
+    private var sentenceEndSettingsView: NSView!
+    private var pauseEnabledCheckbox: NSButton!
+    private var pauseMsField: NSTextField!
+    private var pauseMsLabel: NSTextField!
+    private var commaCheckbox: NSButton!
+    private var periodCheckbox: NSButton!
+    private var enterCheckbox: NSButton!
+    private var manualCorrectionLogCheckbox: NSButton!
+
     override func awakeFromNib() {
+        buildSentenceEndSettingsView()
+
         let toolbar = NSToolbar(identifier: "preference toolbar")
         toolbar.allowsUserCustomization = false
         toolbar.autosavesConfiguration = false
@@ -205,6 +218,187 @@ private let kWindowTitleHeight: CGFloat = 78
         addPhraseHookPathField.stringValue = Preferences.addPhraseHookPath
     }
 
+    // MARK: - Sentence-end preferences (programmatic pane)
+
+    private func buildSentenceEndSettingsView() {
+        let width: CGFloat = 480
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 360))
+        view.autoresizesSubviews = false
+
+        var y: CGFloat = 360 - 28
+        let left: CGFloat = 24
+        let contentWidth = width - left * 2
+
+        func place(_ control: NSView, height: CGFloat = 22) {
+            control.frame = NSRect(x: left, y: y - height, width: contentWidth, height: height)
+            view.addSubview(control)
+            y -= height + 8
+        }
+
+        func sectionTitle(_ text: String) {
+            y -= 6
+            let label = NSTextField(labelWithString: text)
+            label.font = NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
+            place(label, height: 20)
+        }
+
+        sectionTitle(NSLocalizedString("Auto-finalize on sentence end", comment: ""))
+
+        let help = NSTextField(wrappingLabelWithString: NSLocalizedString(
+            "When a trigger fires, smart selection runs on the whole composing buffer. Pause/period/comma keep the text editable (soft finalize). Enter always commits in one keypress.",
+            comment: ""))
+        help.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        help.textColor = .secondaryLabelColor
+        help.frame = NSRect(x: left, y: y - 48, width: contentWidth, height: 48)
+        view.addSubview(help)
+        y -= 56
+
+        pauseEnabledCheckbox = NSButton(
+            checkboxWithTitle: NSLocalizedString("Pause (idle)", comment: ""),
+            target: self, action: #selector(sentenceEndPrefChanged(_:)))
+        place(pauseEnabledCheckbox)
+
+        let msRow = NSView(frame: NSRect(x: left, y: y - 24, width: contentWidth, height: 24))
+        pauseMsLabel = NSTextField(labelWithString: NSLocalizedString("Pause duration (ms):", comment: ""))
+        pauseMsLabel.frame = NSRect(x: 20, y: 2, width: 160, height: 20)
+        pauseMsField = NSTextField(frame: NSRect(x: 180, y: 0, width: 80, height: 24))
+        pauseMsField.alignment = .right
+        pauseMsField.formatter = {
+            let f = NumberFormatter()
+            f.numberStyle = .none
+            f.minimum = NSNumber(value: ShippingRerankConstants.sentenceEndPauseMsMin)
+            f.maximum = 10_000
+            f.allowsFloats = false
+            return f
+        }()
+        pauseMsField.target = self
+        pauseMsField.action = #selector(pauseMsEdited(_:))
+        pauseMsField.delegate = self
+        let unit = NSTextField(labelWithString: "ms")
+        unit.frame = NSRect(x: 268, y: 2, width: 30, height: 20)
+        msRow.addSubview(pauseMsLabel)
+        msRow.addSubview(pauseMsField)
+        msRow.addSubview(unit)
+        view.addSubview(msRow)
+        y -= 32
+
+        periodCheckbox = NSButton(
+            checkboxWithTitle: NSLocalizedString("Period (。)", comment: ""),
+            target: self, action: #selector(sentenceEndPrefChanged(_:)))
+        place(periodCheckbox)
+
+        commaCheckbox = NSButton(
+            checkboxWithTitle: NSLocalizedString("Comma (，)", comment: ""),
+            target: self, action: #selector(sentenceEndPrefChanged(_:)))
+        place(commaCheckbox)
+
+        enterCheckbox = NSButton(
+            checkboxWithTitle: NSLocalizedString("Enter (one-shot hard commit)", comment: ""),
+            target: self, action: #selector(sentenceEndPrefChanged(_:)))
+        place(enterCheckbox)
+
+        y -= 8
+        sectionTitle(NSLocalizedString("Manual correction samples", comment: ""))
+
+        let corrHelp = NSTextField(wrappingLabelWithString: NSLocalizedString(
+            "Log each manual candidate pick as a hard-fork training sample (local only).",
+            comment: ""))
+        corrHelp.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        corrHelp.textColor = .secondaryLabelColor
+        corrHelp.frame = NSRect(x: left, y: y - 36, width: contentWidth, height: 36)
+        view.addSubview(corrHelp)
+        y -= 44
+
+        manualCorrectionLogCheckbox = NSButton(
+            checkboxWithTitle: NSLocalizedString("Record manual corrections", comment: ""),
+            target: self, action: #selector(sentenceEndPrefChanged(_:)))
+        place(manualCorrectionLogCheckbox)
+
+        let clearBtn = NSButton(
+            title: NSLocalizedString("Clear correction log…", comment: ""),
+            target: self, action: #selector(clearManualCorrectionLog(_:)))
+        clearBtn.bezelStyle = .rounded
+        place(clearBtn, height: 28)
+
+        let effectiveBtn = NSButton(
+            title: NSLocalizedString("Show effective settings…", comment: ""),
+            target: self, action: #selector(showEffectiveShippingSettings(_:)))
+        effectiveBtn.bezelStyle = .rounded
+        place(effectiveBtn, height: 28)
+
+        // Fit height to used space (keep bottom padding).
+        let usedHeight = 360 - y + 16
+        view.frame.size.height = max(320, usedHeight)
+        // Reposition subviews were laid from top of fixed 360; shift if height grew.
+        // They are already placed from top of original frame — if we shrink/grow,
+        // keep top-aligned by adjusting frames relative to new height.
+        let delta = view.frame.height - 360
+        if abs(delta) > 0.5 {
+            for sub in view.subviews {
+                sub.frame.origin.y += delta
+            }
+        }
+
+        sentenceEndSettingsView = view
+        reloadSentenceEndControlsFromPreferences()
+    }
+
+    private func reloadSentenceEndControlsFromPreferences() {
+        pauseEnabledCheckbox.state = Preferences.sentenceEndPauseEnabled ? .on : .off
+        pauseMsField.integerValue = Preferences.sentenceEndPauseMs
+        periodCheckbox.state = Preferences.sentenceEndTriggerPeriod ? .on : .off
+        commaCheckbox.state = Preferences.sentenceEndTriggerComma ? .on : .off
+        enterCheckbox.state = Preferences.sentenceEndTriggerEnter ? .on : .off
+        manualCorrectionLogCheckbox.state = Preferences.enableManualCorrectionLog ? .on : .off
+        updatePauseMsEnabledState()
+    }
+
+    private func updatePauseMsEnabledState() {
+        let on = pauseEnabledCheckbox.state == .on
+        pauseMsField.isEnabled = on
+        pauseMsLabel.textColor = on ? .labelColor : .disabledControlTextColor
+    }
+
+    @objc private func sentenceEndPrefChanged(_ sender: Any?) {
+        Preferences.sentenceEndPauseEnabled = pauseEnabledCheckbox.state == .on
+        Preferences.sentenceEndTriggerPeriod = periodCheckbox.state == .on
+        Preferences.sentenceEndTriggerComma = commaCheckbox.state == .on
+        Preferences.sentenceEndTriggerEnter = enterCheckbox.state == .on
+        Preferences.enableManualCorrectionLog = manualCorrectionLogCheckbox.state == .on
+        updatePauseMsEnabledState()
+    }
+
+    @objc private func pauseMsEdited(_ sender: Any?) {
+        let raw = pauseMsField.integerValue
+        Preferences.sentenceEndPauseMs = raw > 0 ? raw : ShippingRerankConstants.sentenceEndPauseMsDefault
+        pauseMsField.integerValue = Preferences.sentenceEndPauseMs
+    }
+
+    @objc private func clearManualCorrectionLog(_ sender: Any?) {
+        ManualCorrectionLog.clearLog()
+        let alert = NSAlert()
+        alert.messageText = NSLocalizedString("Manual correction log cleared", comment: "")
+        alert.alertStyle = .informational
+        if let window = window {
+            alert.beginSheetModal(for: window, completionHandler: nil)
+        } else {
+            alert.runModal()
+        }
+    }
+
+    @objc private func showEffectiveShippingSettings(_ sender: Any?) {
+        let text = Preferences.effectiveShippingConfigurationSummary()
+        let alert = NSAlert()
+        alert.messageText = NSLocalizedString("Effective settings", comment: "")
+        alert.informativeText = text
+        alert.alertStyle = .informational
+        if let window = window {
+            alert.beginSheetModal(for: window, completionHandler: nil)
+        } else {
+            alert.runModal()
+        }
+    }
+
     @IBAction func updateBasisKeyboardLayoutAction(_ sender: Any) {
         if let sourceID = basisKeyboardLayoutButton.selectedItem?.representedObject as? String {
             Preferences.basisKeyboardLayout = sourceID
@@ -349,6 +543,13 @@ extension PreferencesWindowController: NSToolbarDelegate {
         window?.title = NSLocalizedString("User Phrases", comment: "")
     }
 
+    @objc func showSentenceEndView(_ sender: Any?) {
+        reloadSentenceEndControlsFromPreferences()
+        use(view: sentenceEndSettingsView)
+        window?.toolbar?.selectedItemIdentifier = .sentenceEnd
+        window?.title = NSLocalizedString("Sentence End", comment: "")
+    }
+
     @objc func showAdvancedView(_ sender: Any?) {
         use(view: advancedSettingsView)
         window?.toolbar?.selectedItemIdentifier = .advanced
@@ -356,15 +557,15 @@ extension PreferencesWindowController: NSToolbarDelegate {
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.basic, .userPhrases, .advanced]
+        [.basic, .userPhrases, .sentenceEnd, .advanced]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.basic, .userPhrases, .advanced]
+        [.basic, .userPhrases, .sentenceEnd, .advanced]
     }
 
     func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.basic, .userPhrases, .advanced]
+        [.basic, .userPhrases, .sentenceEnd, .advanced]
     }
 
     func toolbar(
@@ -392,6 +593,16 @@ extension PreferencesWindowController: NSToolbarDelegate {
                 item.image = NSImage(named: NSImage.folderName)
             }
             item.action = #selector(showUserPhrasesView(_:))
+        case .sentenceEnd:
+            let title = NSLocalizedString("Sentence End", comment: "")
+            item.label = title
+            if #available(macOS 11.0, *) {
+                item.image = NSImage(
+                    systemSymbolName: "text.badge.checkmark", accessibilityDescription: title)
+            } else {
+                item.image = NSImage(named: NSImage.advancedName)
+            }
+            item.action = #selector(showSentenceEndView(_:))
         case .advanced:
             let title = NSLocalizedString("Advanced", comment: "")
             item.label = title
@@ -405,5 +616,13 @@ extension PreferencesWindowController: NSToolbarDelegate {
             return nil
         }
         return item
+    }
+}
+
+extension PreferencesWindowController: NSTextFieldDelegate {
+    func controlTextDidEndEditing(_ obj: Notification) {
+        if obj.object as? NSTextField === pauseMsField {
+            pauseMsEdited(pauseMsField as Any)
+        }
     }
 }

@@ -154,40 +154,8 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: "清除重排差異 log…",
             action: #selector(clearRerankDiffLog(_:)), keyEquivalent: "")
 
-        menu.addItem(NSMenuItem.separator())
-        // Sentence-end triggers (soft-finalize): pause + Enter/period/comma.
-        let pauseEndItem = menu.addItem(
-            withTitle: "句子結束：停頓",
-            action: #selector(toggleSentenceEndPauseEnabled(_:)), keyEquivalent: "")
-        pauseEndItem.state = Preferences.sentenceEndPauseEnabled.state
-        menu.addItem(
-            withTitle: "句子結束：停頓毫秒…（目前 \(Preferences.sentenceEndPauseMs)）",
-            action: #selector(editSentenceEndPauseMs(_:)), keyEquivalent: "")
-        let enterEndItem = menu.addItem(
-            withTitle: "句子結束：Enter",
-            action: #selector(toggleSentenceEndTriggerEnter(_:)), keyEquivalent: "")
-        enterEndItem.state = Preferences.sentenceEndTriggerEnter.state
-        let periodEndItem = menu.addItem(
-            withTitle: "句子結束：句號（。）",
-            action: #selector(toggleSentenceEndTriggerPeriod(_:)), keyEquivalent: "")
-        periodEndItem.state = Preferences.sentenceEndTriggerPeriod.state
-        let commaEndItem = menu.addItem(
-            withTitle: "句子結束：逗號（，）",
-            action: #selector(toggleSentenceEndTriggerComma(_:)), keyEquivalent: "")
-        commaEndItem.state = Preferences.sentenceEndTriggerComma.state
-        let correctionLogItem = menu.addItem(
-            withTitle: Preferences.enableManualCorrectionLog
-                ? "記錄手動改字樣本 (ON)"
-                : "記錄手動改字樣本 (OFF)",
-            action: #selector(toggleManualCorrectionLog(_:)), keyEquivalent: "")
-        correctionLogItem.state = Preferences.enableManualCorrectionLog.state
-        menu.addItem(
-            withTitle: "清除手動改字 log…",
-            action: #selector(clearManualCorrectionLog(_:)), keyEquivalent: "")
-
-        menu.addItem(
-            withTitle: "顯示目前生效設定…",
-            action: #selector(showEffectiveShippingSettings(_:)), keyEquivalent: "")
+        // Sentence-end triggers + manual-correction log live in Preferences
+        // (toolbar tab "Sentence End"), not the status menu.
 
         let voiceInputTitle =
             WhisperVoiceInputManager.shared.isRecording
@@ -460,70 +428,6 @@ class McBopomofoInputMethodController: IMKInputController {
     @objc func clearRerankDiffLog(_ sender: Any?) {
         RerankDiffLog.clearLog()
         NotifierController.notify(message: "已清除重排差異 log")
-    }
-
-    @objc func toggleSentenceEndPauseEnabled(_ sender: Any?) {
-        let on = Preferences.toggleSentenceEndPauseEnabled()
-        if !on {
-            cancelSentenceEndIdleTimer()
-        }
-        NotifierController.notify(message: on ? "句子結束：停頓 開" : "句子結束：停頓 關")
-    }
-
-    /// Free-form ms field for idle pause (clamped ≥ 200).
-    @objc func editSentenceEndPauseMs(_ sender: Any?) {
-        let alert = NSAlert()
-        alert.messageText = "句子結束：停頓毫秒"
-        alert.informativeText =
-            "停止輸入多久後自動定案（單位 ms，下限 \(ShippingRerankConstants.sentenceEndPauseMsMin)，預設 \(ShippingRerankConstants.sentenceEndPauseMsDefault)）"
-        alert.addButton(withTitle: "確定")
-        alert.addButton(withTitle: "取消")
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
-        field.stringValue = "\(Preferences.sentenceEndPauseMs)"
-        field.placeholderString = "\(ShippingRerankConstants.sentenceEndPauseMsDefault)"
-        alert.accessoryView = field
-        alert.window.initialFirstResponder = field
-        let response = alert.runModal()
-        guard response == .alertFirstButtonReturn else { return }
-        let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let value = Int(trimmed), value > 0 else {
-            NotifierController.notify(message: "停頓毫秒無效，未變更")
-            return
-        }
-        Preferences.sentenceEndPauseMs = value
-        let applied = Preferences.sentenceEndPauseMs
-        NotifierController.notify(message: "句子結束：停頓 \(applied)ms")
-    }
-
-    @objc func toggleSentenceEndTriggerEnter(_ sender: Any?) {
-        let on = Preferences.toggleSentenceEndTriggerEnter()
-        NotifierController.notify(message: on ? "句子結束：Enter 開" : "句子結束：Enter 關")
-    }
-
-    @objc func toggleSentenceEndTriggerPeriod(_ sender: Any?) {
-        let on = Preferences.toggleSentenceEndTriggerPeriod()
-        NotifierController.notify(message: on ? "句子結束：句號 開" : "句子結束：句號 關")
-    }
-
-    @objc func toggleSentenceEndTriggerComma(_ sender: Any?) {
-        let on = Preferences.toggleSentenceEndTriggerComma()
-        NotifierController.notify(message: on ? "句子結束：逗號 開" : "句子結束：逗號 關")
-    }
-
-    @objc func toggleManualCorrectionLog(_ sender: Any?) {
-        let on = Preferences.toggleManualCorrectionLog()
-        NotifierController.notify(message: on ? "手動改字樣本記錄:開" : "手動改字樣本記錄:關")
-    }
-
-    @objc func clearManualCorrectionLog(_ sender: Any?) {
-        ManualCorrectionLog.clearLog()
-        NotifierController.notify(message: "已清除手動改字 log")
-    }
-
-    @objc func showEffectiveShippingSettings(_ sender: Any?) {
-        let text = Preferences.effectiveShippingConfigurationSummary()
-        NotifierController.notify(message: text.replacingOccurrences(of: "\n", with: " · "))
-        NSLog("%@", text)
     }
 
     /// Phase 3 push-to-talk:偵測「連按兩下乾淨的右 Shift」(keyCode 60)。乾淨 = 兩次

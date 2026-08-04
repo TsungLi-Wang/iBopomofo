@@ -206,3 +206,20 @@
 "Voice input stopped" = "語音輸入已結束";
 "No speech detected" = "沒聽到內容";
 "Transcribing the recording…" = "辨識中…";
+
+/* v2.9.2 sentence-end preferences pane */
+"Sentence End" = "定案";
+"Auto-finalize on sentence end" = "句子結束時自動定案";
+"When a trigger fires, smart selection runs on the whole composing buffer. Pause/period/comma keep the text editable (soft finalize). Enter always commits in one keypress." = "觸發時會對整段組字做智慧選字。停頓／句號／逗號為軟定案（仍可改字）；Enter 按一下即送出。";
+"Pause (idle)" = "停頓";
+"Pause duration (ms):" = "停頓毫秒：";
+"Period (。)" = "句號（。）";
+"Comma (，)" = "逗號（，）";
+"Enter (one-shot hard commit)" = "Enter（按一下即送出）";
+"Manual correction samples" = "手動改字樣本";
+"Log each manual candidate pick as a hard-fork training sample (local only)." = "每次手動選字記錄為本機訓練樣本（錯題本），不會上傳。";
+"Record manual corrections" = "記錄手動改字樣本";
+"Clear correction log…" = "清除改字 log…";
+"Show effective settings…" = "顯示目前生效設定…";
+"Manual correction log cleared" = "已清除手動改字 log";
+"Effective settings" = "目前生效設定";
