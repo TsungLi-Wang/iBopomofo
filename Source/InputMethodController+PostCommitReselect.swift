@@ -215,6 +215,16 @@ extension McBopomofoInputMethodController {
         choosing.isPostCommitReselect = true
         choosing.postCommitOriginalChar = char
         choosing.postCommitReading = reading
+        // Document range of the pending char (for insertText replacementRange).
+        if let hi = state as? InputState.PostCommitHighlight {
+            choosing.postCommitDocLocation = hi.documentLocation
+            choosing.postCommitDocLength = (char as NSString).length
+        } else if let loc = PostCommitReselect.caretLocation(client: client),
+            let pending = PostCommitReselect.readCluster(client: client, at: loc)
+        {
+            choosing.postCommitDocLocation = pending.range.location
+            choosing.postCommitDocLength = pending.range.length
+        }
         handle(state: choosing, client: client)
         return true
     }

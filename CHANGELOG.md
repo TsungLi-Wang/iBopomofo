@@ -17,6 +17,22 @@
 - 位置級同音判別器（棒 C 最終版，純研究）：BiLSTM ~13.3M、純淨／混合噪聲各 30 萬筆；四關評估 + split-half + 延遲。**主判準（n-best 重排 held-out）與次判準（單點翻字）皆 NO-GO**；路徑排序遠遜基線 B，重排延遲 ~1.9s/句 ≫45ms。提案 A（判別器路線）正式死亡。報告 `eval/analysis/tw538-position-judge-report.md`；腳本 `position_judge_batonC.py` / `position_judge_eval_fast.py`；權重與資料在 `~/laowang-data/batonC-final/`（不入 app）。
 - 辨識語料重訓（棒 D，純研究）：凍結 v2c 架構（emb256/hid512/L2），只換資料；D0 短跑重訓控制 **380/537**；困難樣本加權 2×/5×/10×。最佳 **D1_w2 = 385（相對 D0 +5）→ 判定邊際**；5×/10× 反而掉分。合成跳過。報告 `eval/analysis/tw538-disambig-corpus-report.md`、混淆對表 `confusion-pair-frequency.tsv`；產物 `~/laowang-data/batonD-final/`（不入 app）。
 
+## [2.9.7] — 2026-08-04
+
+- **版本標記**：`CFBundleShortVersionString` = **2.9.7**；`CFBundleVersion` = **2301**
+- **tag**：`v2.9.7`（annotated）
+- **commit 範圍**：tag `v2.9.6`（`a9a62812`）→ 本版 tag
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **修重選後舊字沒被取代**：選同音後改為 `insertText(chosen, replacementRange: 待修改字元實際 range)`（優先 `markedRange()`，否則開候選時現查的 document range），**一換一、字數不變**。
+- 選完走 `EmptyIgnoringPreviousState`，避免 `Empty` 再把舊 composingBuffer commit 一次（那是「變兩個字」的根因）。
+
+### 內部 / 開發者改動
+
+- `ChoosingCandidate` 記錄 `postCommitDocLocation/Length`；2.9.6 方向鍵行為與 Enter hard commit 不動。
+
 ## [2.9.6] — 2026-08-04
 
 - **版本標記**：`CFBundleShortVersionString` = **2.9.6**；`CFBundleVersion` = **2300**

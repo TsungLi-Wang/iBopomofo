@@ -601,6 +601,10 @@ class InputState: NSObject {
         @objc var isPostCommitReselect: Bool = false
         @objc var postCommitOriginalChar: String = ""
         @objc var postCommitReading: String = ""
+        /// UTF-16 range of the pending character in the client document
+        /// (captured when highlight/candidates opened; used as replacementRange).
+        @objc var postCommitDocLocation: Int = NSNotFound
+        @objc var postCommitDocLength: Int = 0
 
         @objc init(
             composingBuffer: String, cursorIndex: UInt, candidates: [Candidate],
