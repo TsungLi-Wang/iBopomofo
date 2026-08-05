@@ -1574,20 +1574,68 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return YES;
     }
 
-    // Canonical: 。/， when enabled → 改字 + 收底線 (hard commit), 不送出.
+    // Canonical: 。/， when enabled → same finalize entry as pause (改字 + 收底線, 不送出).
     // When disabled → insert punct only (stay composing).
-    BOOL isPeriod = (customPunctuation.find("。") != std::string::npos)
-        || (customPunctuation.find("．") != std::string::npos)
-        || (customPunctuation.size() >= 1 && customPunctuation.back() == '.');
-    BOOL isComma = (customPunctuation.find("，") != std::string::npos)
-        || (customPunctuation.size() >= 1 && customPunctuation.back() == ',');
+    //
+    // Detection MUST NOT only look for "。" inside the *reading key*:
+    // Standard layout maps period/comma to keys '>' / '<'
+    // (readings like _punctuation_Standard_> → 。, _punctuation_Standard_< → ，).
+    // Half-width / Hanyu use '.' / ','. Identify via key suffix + top unigram.
+    BOOL isPeriod = NO;
+    BOOL isComma = NO;
+    {
+        BOOL isPunctReading = customPunctuation.find("_punctuation") != std::string::npos;
+        char last = customPunctuation.empty() ? '\0' : customPunctuation.back();
+        if (last == '.' || (isPunctReading && last == '>')) {
+            isPeriod = YES;
+        }
+        if (last == ',' || (isPunctReading && last == '<')) {
+            isComma = YES;
+        }
+        // Unigram surface fallback (covers layout variants / ctrl punct).
+        if (!isPeriod || !isComma) {
+            auto unigrams = _languageModel->getUnigrams(customPunctuation);
+            if (!unigrams.empty()) {
+                const std::string &top = unigrams[0].value();
+                if (top == "。" || top == "．" || top == ".") {
+                    isPeriod = YES;
+                }
+                if (top == "，" || top == ",") {
+                    isComma = YES;
+                }
+            }
+        }
+        // After walk: last composed grapheme may be the punct surface.
+        if ((!isPeriod || !isComma) && _inputMode == InputModeBopomofo) {
+            InputState *cur = [self buildInputtingState];
+            if ([cur isKindOfClass:[InputStateInputting class]]) {
+                NSString *buf = ((InputStateInputting *)cur).composingBuffer;
+                if (buf.length > 0) {
+                    NSString *lastChar = [buf substringFromIndex:buf.length - 1];
+                    // Full-width or half-width period/comma as last char.
+                    if ([lastChar isEqualToString:@"。"] || [lastChar isEqualToString:@"．"]
+                        || [lastChar isEqualToString:@"."]) {
+                        isPeriod = YES;
+                    }
+                    if ([lastChar isEqualToString:@"，"] || [lastChar isEqualToString:@","]) {
+                        isComma = YES;
+                    }
+                }
+            }
+        }
+    }
     if (_inputMode == InputModeBopomofo) {
         if ((isPeriod && Preferences.sentenceEndTriggerPeriod)
             || (isComma && Preferences.sentenceEndTriggerComma)) {
+            // Same finalize entry as pause / Enter-while-underlined.
             InputStateInputting *pre = (InputStateInputting *)[self buildInputtingState];
-            return [self hardCommitSentenceWithState:pre
-                                       stateCallback:stateCallback
-                                       errorCallback:errorCallback];
+            BOOL finalized = [self hardCommitSentenceWithState:pre
+                                                 stateCallback:stateCallback
+                                                 errorCallback:errorCallback];
+            if (finalized) {
+                return YES;
+            }
+            // Fall through to keep punct in composing buffer if finalize refused.
         }
     }
 

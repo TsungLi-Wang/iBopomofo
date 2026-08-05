@@ -12,6 +12,22 @@
 
 （無）
 
+## [2.13.1] — 2026-08-05
+
+- **版本標記**：`CFBundleShortVersionString` = **2.13.1**；`CFBundleVersion` = **2309**
+- **tag**：`v2.13.1`（annotated）
+- **commit 範圍**：tag `v2.13.0`（`3fe2b8ae`）→ 本版 tag
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **句號／逗號觸發點真正生效**：勾選後打 。／，＝與停頓相同（改字＋收底線、不送出、標點一併輸出）。
+- 修正標準注音鍵位：。對應 `>`、，對應 `<`（舊偵測只認 `.`／`,`／字串內「。」，永遠 miss）。
+
+### 內部 / 開發者改動
+
+- `_handlePunctuation`：以 reading 後綴（`.`/`>`/`,`/`<`）＋ top unigram ＋ 組字末字辨識句末標點；finalize 統一走 `hardCommitSentence`。
+
 ## [2.13.0] — 2026-08-05
 
 - **版本標記**：`CFBundleShortVersionString` = **2.13.0**；`CFBundleVersion` = **2308**
