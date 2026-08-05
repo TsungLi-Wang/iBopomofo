@@ -5,7 +5,7 @@ macOS 上的**繁體中文注音輸入法**。在成熟的開源注音引擎之�
 | | |
 |---|---|
 | **產品名** | i注音（英文／ASCII：**iBopomofo**） |
-| **目前版本** | **2.8.0**（build 2293） |
+| **目前版本** | **2.13.3**（build **2311**） |
 | **授權** | MIT（衍生自 [McBopomofo](https://github.com/openvanilla/McBopomofo)；見 [LICENSE](LICENSE) 與 [NOTICE](NOTICE)） |
 | **平台** | macOS 10.15+（開發建議 14.7+ / Xcode 15.3+） |
 
@@ -20,26 +20,29 @@ macOS 上的**繁體中文注音輸入法**。在成熟的開源注音引擎之�
    音節 lattice + Viterbi walk；可開**情境化選字**（語料 bigram，看前文選同音字）。
 
 2. **進程內神經路徑重排（完全離線）**  
-   按 **Enter 送出**時，對整句 N-best 路徑用內嵌 char-LSTM（v2c int8）重打分，約數十毫秒級。  
+   **句子結束定案**時（停頓／。／，若啟用，或組字中 Enter）對整句 N-best 用內嵌 char-LSTM（v2c int8）重打分後 **hard commit**（底線消失、字進 app），**當下不送出**。  
    實驗室北極星 **tw538**：**387 / 537** 正解（λ=0.75、ν=0.75）。實機還會受個人詞庫影響。
 
-3. **Tab = 重排預覽**  
-   組字中按 Tab：用與 Enter **同一條**重排路徑預覽結果，**不送出**、底線保留；滿意再 Enter。
+3. **定案 ≠ 送出**  
+   底線消失後**再按 Enter** 才觸發搜尋／聊天送出／換行。偏好可開：停頓、句號、逗號。
 
-4. **可觀測與本機差異 log**  
+4. **定案後改字（刪回重組）**  
+   ↓ 開同音字 → 選字時**驗證舊字已置換**才完成（失敗 beep、不疊字）。←／→ 為 app 原生移游標。
+
+5. **可觀測與本機差異 log**  
    - 選單「顯示目前生效設定…」：版本、GitRevision、重排開關、ν、模型指紋等。  
-   - 可選：Enter 且重排真的改字時，本機 append  
+   - 可選：定案且重排真的改字時，本機 append  
      `~/Library/Application Support/McBopomofo/rerank-diff.log`（不上傳；可關可清）。
 
-5. **語音（可選）**  
+6. **語音（可選）**  
    連按兩下右 Shift：本機 whisper.cpp 聽寫（首次需模型；與注音引擎路徑獨立）。
 
 ## 高階架構（一句話）
 
 ```
 注音鍵入 → lattice walk（可選 contextual bigram + 個人 soft）
-         →（Enter / Tab）walkNBest(N=10) + 神經 scoreNBest 重排
-         → 送出或預覽
+         → 定案觸發：walkNBest(N=10) + 神經 scoreNBest → hard commit（不送出）
+         → 再按 Enter → app 送出；定案後 ↓ → 刪回重組改同音
 ```
 
 硬約束：只在合法同音字裡選，不自由生成；使用者手選優先於神經分數。
@@ -110,10 +113,14 @@ open "$HOME/Library/Input Methods/McBopomofo.app"
 | 版本 | 說明 |
 |------|------|
 | 2.6.0 | 神經路徑重排出貨 |
-| 2.7.0 | 大掃除（去雲端/llama）+ Tab 預覽 + 可觀測 / diff log + 版本可追溯鐵則 |
-| **2.8.0** | **正式公開開源 + 品牌更名 i注音 / iBopomofo** |
+| 2.7.0 | 大掃除（去雲端/llama）+ 可觀測 / diff log + 版本可追溯鐵則 |
+| 2.8.0 | 正式公開開源 + 品牌更名 i注音 / iBopomofo |
+| 2.9–2.12 | 定案／重選探索（多版迭代；細節見 CHANGELOG） |
+| **2.13.0** | **行為總則：定案 ≠ 送出** |
+| 2.13.1–2.13.2 | 句號／逗號觸發；定案後方向鍵放行 |
+| **2.13.3** | **定案後重選 1→1 驗證置換（不疊字）** |
 
-完整條目見 [CHANGELOG.md](CHANGELOG.md)。tag：`v2.8.0`。
+完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：`v2.13.3`。
 
 ## 已知取捨（開源後）
 

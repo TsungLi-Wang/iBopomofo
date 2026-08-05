@@ -10,24 +10,26 @@
 
 ### 內部 / 開發者改動
 
-（無）
+- **文件對齊 v2.13.3**（無產品 code）：`AGENTS.md`、`AI_HANDOFF_PROMPT.md`、`README.md`、本機 `~/Documents/i注音-總交接檔-v5.md`；行為總則／按鍵表／版本表與出貨一致。commit 見本棒。
 
 ## [2.13.3] — 2026-08-05
 
 - **版本標記**：`CFBundleShortVersionString` = **2.13.3**；`CFBundleVersion` = **2311**
-- **tag**：`v2.13.3`（annotated）
-- **commit 範圍**：tag `v2.13.2`（`66e50f4f`）→ 本版 tag
+- **tag**：`v2.13.3`（annotated）@ **`f4df30b9`**
+- **commit 範圍**：tag `v2.13.2`（`66e50f4f`）→ **`f4df30b9`**
 - **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
 
 ### 使用者可感知的改動
 
 - **定案後重選不再「越改越長」**：選同音字時舊字必須先被移除／置換成功才插入新字；刪除失敗則 beep、不插新字（不兩字並排）。
-- 替換路徑：atomic `insertText(new, range)` → pull-to-mark → 驗證刪除後再插 → CGEvent 刪除（已開 Accessibility 時）並驗證。
+- **四條置換路徑**（驗證成功才算）：atomic `insertText(new, range)` 讀回＝新字 → pull-to-mark → empty-delete 讀回舊字消失再插 → CGEvent 刪除 + ~50ms 讀回驗證；全敗 abort。
+- 讀不到 document range 的 app（多數 LINE／Telegram 欄位）：**預期降級**（beep、不改、不疊字），非 regression。
+- ↓ 只開同音清單；置換在選字當下完成。
 
 ### 內部 / 開發者改動
 
 - **根因**：`ShadowDelete` 對 `insertText("", range)` 無條件回 success；pick 又用 `replacementRange=NSNotFound` 插入 → 舊字留、新字疊。
-- pick 改走 `PostCommitReselect.replacePendingCharacter`（含驗證）；↓ 只開清單、不先假刪。
+- pick 改走 `PostCommitReselect.replacePendingCharacter`（含驗證）；`completeShadowRecomposePick`。
 
 ## [2.13.2] — 2026-08-05
 

@@ -4,19 +4,41 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## Project Overview
 
-iBopomofo (i注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds product features on top: **contextual selection** (corpus word-bigram inside `walk()`, **default on since v2.3.0**), **soft personalization** (user picks feed a private on-device cache into the DP), **neural path rerank** (v2c int8; sentence-end soft-finalize + Tab preview), optional on-device whisper.cpp voice input, and local observability (effective shipping settings + rerank diff log + manual-correction log). The project is built with Swift (UI/state), Objective-C++ (bridge), and C++ (engine), using macOS Input Method Kit (IMK).
+iBopomofo (i注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds product features on top: **contextual selection** (corpus word-bigram inside `walk()`, **default on since v2.3.0**), **soft personalization** (user picks feed a private on-device cache into the DP), **neural path rerank** (v2c int8 on sentence-end 定案), **post-commit delete-and-recompose reselect** (↓ after 定案; verified 1→1 replace since v2.13.3), optional on-device whisper.cpp voice input, and local observability (effective shipping settings + rerank diff log + manual-correction log). The project is built with Swift (UI/state), Objective-C++ (bridge), and C++ (engine), using macOS Input Method Kit (IMK).
 
 The repository still intentionally keeps many upstream identifiers (`McBopomofo` target/module names, bundle id, input source ids, C++ namespaces) because they are tied to IMK registration, user data paths, and upstream merge cost. Prefer product-facing cleanup first; do not rename these internal identifiers without a migration plan.
 
-**Current line:** **i注音 / iBopomofo v2.13.3** (build 2311; tag `v2.13.3`). Canonical UX: 定案 ≠ 送出; post-commit ↓ reselect is verified 1→1 replace (never grow sentence); ←/→ pass-through. Shipping scores λ/ν 0.75 → tw538 **387/537**. Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md`.
+**Current line:** **i注音 / iBopomofo v2.13.3** (build **2311**; tag **`v2.13.3`**; commit **`f4df30b9`**).  
+**Canonical product rule (v2.13.0+, reselect hardened v2.13.3):** 改字 / 收底線(定案) / 送出 are three distinct actions — see `AI_HANDOFF_PROMPT.md` §行為總則. Engine walk/v2c frozen; tw538 **387/537**.  
+Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md` + `~/Documents/i注音-總交接檔-v5.md`.
 
 **Brand vs technical IDs:** User-visible name is **i注音 / iBopomofo**. Internal Xcode target, bundle id `org.openvanilla.inputmethod.McBopomofo`, install path `~/Library/Input Methods/McBopomofo.app`, and many C++/module names remain for IMK continuity — do not rename those without a migration plan.
 
 **Privacy (local-only plaintext):** `~/Library/Application Support/McBopomofo/rerank-diff.log` (walk→rerank flips) and `manual-correction.log` (user re-picks). Never commit, upload, or attach to crash reports. Toggle/clear via input menu.
 
+## Product UX (canonical — do not reintroduce soft-finalize-as-定案)
+
+Three actions (never collapse them):
+
+| 動作 | 含義 |
+|------|------|
+| **改字** | Smart reselect / rerank (scoreNBest + pin) |
+| **收底線＝定案** | Hard commit: underline gone, text to host app |
+| **送出** | Host action (search / chat send / newline) via **another** Enter after 定案 |
+
+| 事件 | 改字 | 收底線 | 送出 |
+|------|------|--------|------|
+| Enabled trigger: pause / 。 / ， | ✅ | ✅ | ❌ |
+| Enter while underlined (composing) | ✅ | ✅ | ❌ (consume key) |
+| Enter after 定案 (Empty) | ❌ | — | ✅ (pass key to host) |
+
+**定案後改字 (v2.13.3):** only **delete-and-recompose** — ↓ opens homophone list; on pick, **verified 1→1 replace** (atomic / mark / delete-verify / CGEvent+verify). Fail → beep, **no insert** (never grow the sentence). LINE/Telegram when `selectedRange` unreadable: expected degrade (beep, no edit), not a bug. ←/→ after 定案 always pass-through to the app.
+
+Triggers (prefs panel): pause (+ms), period, comma — each optional. Enter is **not** a toggle.
+
 ## Version traceability (standing rule — every baton)
 
-This is a **permanent** rule, not a one-off cleanup. Full text also lives in the handoff volume 1 iron-rules section (`~/Documents/i注音-總交接檔v3.1-完整版.md` §1-4).
+This is a **permanent** rule, not a one-off cleanup. Full text also lives in the handoff iron-rules section (`~/Documents/i注音-總交接檔-v5.md`).
 
 1. Any baton that changes product behavior or user-visible content **must** on close-out:
    - (a) Update `CHANGELOG.md` in plain language (what changed, impact on the user);

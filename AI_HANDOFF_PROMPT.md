@@ -2,200 +2,163 @@
 
 你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-08-05**（**v2.13.3 重選 1→1 驗證刪除**）
+**最後更新：2026-08-05**（**文件對齊 v2.13.3 現況 — 無 code 變更**）
 
-**先前**：v2.13.2 定案後 ←／→ 放行；v2.13.1 句號／逗號；v2.13.0 行為總則。
+**現役**：**v2.13.3** / build **2311** / tag **`v2.13.3`** / commit **`f4df30b9`**  
+**引擎**：walk/v2c **凍結**；tw538 **387/537**（自 v2.6 出貨配置未變）
 
-**更早**：v2.9.0 三段式；引擎凍結 tw538 387。
+**作廢**：2.12.x 互相打架的補指令；soft-finalize「藏底線當定案」；Enter 一次就送出；定案後假刪再插（會讓句子變長）。
 
 ## 先讀文件
 
-開始前必讀：
+1. `AGENTS.md`（版本鐵則、Current line、**產品 UX 總表**）
+2. `CHANGELOG.md`（**v2.9.0→v2.13.3** 人話 + commit 範圍）
+3. **本檔**（先讀「目前真相 v2.13.3」；交班日誌只作歷史）
+4. 總交接檔：`~/Documents/i注音-總交接檔-v5.md`（研究／數學／北極星；**產品現況以本檔 + CHANGELOG 為準**）
+5. 改詞庫：`Source/Data/AGENTS.md`；深算法：`algorithm.md`
+6. 功能盤點：`Source/Engine/eval/analysis/feature-inventory.md`（**偏 v2.7**，按鍵表以本檔為準）
 
-1. `AGENTS.md`（含 **版本可追溯鐵則**、commit 作者、DerivedData、e2e、隱私紅線）
-2. `CHANGELOG.md`（最新正式版條目 + commit 範圍）
-3. 本檔（先讀本節「目前真相」，再按需翻交班日誌）
-4. 改詞庫時另讀 `Source/Data/AGENTS.md`；深算法另讀 `algorithm.md`
-5. 功能地圖：`Source/Engine/eval/analysis/feature-inventory.md`（v2.7 後狀態）
-6. 總交接檔：`~/Documents/i注音-總交接檔v3.1-完整版.md`（**卷一鐵則含版本可追溯**；卷二當前版本號）
+### 版本可追溯鐵則（常設）
 
-### 版本可追溯鐵則（常設 — 每棒必守，摘要）
+見 `AGENTS.md` 與總交接檔。有行為改動 → CHANGELOG 人話；發布點 → 兩 plist + annotated tag + commit 範圍。
 
-完整原文在交接檔卷一 §1-4 與 `AGENTS.md`。執行者收尾前自問：
-
-1. 有改產品行為／使用者可見內容？→ CHANGELOG **人話**條目必寫；若為發布點 → bump **兩個** Info.plist 版本號 + **annotated tag** + CHANGELOG 標 commit 範圍。
-2. 不可長期沿用舊版號矇混累積改動。
-3. 純研究／harness／文件 → 可不 bump 版號，但仍在 CHANGELOG「內部」留一筆 + commit。
-4. major/minor **Johnny 拍板**；執行者只建議。
-5. 本鐵則非 Johnny 同意不得刪弱。
+---
 
 ## 三行同步狀態（2026-08-05）
 
-1. **發版**：**i注音（iBopomofo）v2.13.3**（build **2311**，tag **`v2.13.3`**）。定案後重選：**驗證刪除／置換成功才插新字**，失敗不疊字。引擎 **未改**；tw538 **387/537**。
-2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.13.3`。
-3. **下一刀**：① dogfood TextEdit／LINE／Telegram 連改 3 次字數不增加。② AX 權限引導。③ 手動改字 log 重訓。
+1. **發版**：**v2.13.3**（build **2311**，`f4df30b9`，tag **`v2.13.3`**）。定案後重選 **1→1 驗證置換**；定案≠送出；句號／逗號觸發生效；←／→ 不吃鍵。引擎未改；tw538 **387/537**。
+2. **公開**：https://github.com/TsungLi-Wang/iBopomofo — Releases **Latest = v2.13.3**。
+3. **下一刀（產品）**：真機 dogfood（TextEdit 連改 3 次字數不變；LINE／Telegram 可預期降級 beep）；可選 AX 權限引導 UX。研究線見總交接檔。
 
 ### tw538 基準線
 
 | 系統 | correct/537 | 備註 |
 |------|-------------|------|
 | walk OFF / ON | 296 / **333** | |
-| v2c LSTM | **387 @ ν0.75** | 9.73M；~730ms；**現役最佳** |
-| char-TF 6L/256 | **332 @ ν0.25** | 8.81M；val_ppl 更低但融合無效 |
-| 約束 fusion | 335 | 封存 |
+| **v2c LSTM（出貨）** | **387 @ ν0.75** | 9.73M；進程內 ~45ms 級 |
+| char-TF 6L/256 | **332 @ ν0.25** | 封存 |
+| 約束 fusion | 335+ | 研究線，非出貨 |
 
-### 關鍵診斷
+---
 
-- REGRESS-26 under v2c：11 自癒 / 15 仍錯（80% single_char）。
-- TF 對照：`eval/analysis/tw538-tf-vs-v2c.md`。
-- 權重：`path-char-lstm-spoken-v2c.bin`、`path-char-tf-spoken.bin`。
-
-## 目前真相（v2.5.0 / build 2287 / tag `v2.3.1`（標點熱修；n-gram+RNN 主線仍在 master 未另開大版本））
+## 目前真相（v2.13.3）— 換手必讀
 
 | 項目 | 狀態 |
 |------|------|
-| 發佈 | GitHub Release **Latest** = **v2.3.0**，附 `iBopomofo.dmg`（約 31MB，含 25MB `word-bigrams.tsv`） |
-| 版本來源 | `Source/McBopomofo-Info.plist` + `Source/Installer/Installer-Info.plist`（兩者必須一起 bump） |
-| master | 與 `origin/master` 同步於發版 commit `e33e9cb` |
-| 北極星 tw | cold 空 cache：walk ON **44.1%（[retired-set score removed]）**、walk OFF **41.5%（[retired-set score removed]）** |
+| 產品版 | **2.13.3** / build **2311** / tag **`v2.13.3`** / **`f4df30b9`** |
+| plist | `Source/McBopomofo-Info.plist` + `Source/Installer/Installer-Info.plist`（一起 bump） |
+| master | 應與 `origin/master` = tag `v2.13.3` 對齊 |
+| 北極星 | tw538 **387/537**；引擎 walk/v2c **不得擅自改** |
+| 安裝路徑 | `~/Library/Input Methods/McBopomofo.app`（顯示名 i注音） |
+| Commit 作者 | `老王 LaoWang <laowang@users.noreply.github.com>` |
 
-### 這版使用者可見行為
+### 行為總則（唯一真源 — 三件事分開）
 
-1. **情境化選字預設開**（`EnableContextualWalk` default **YES**；選單「情境化選字」）。語料 bigram 進 `walk()` DP（λ=0.75）。仍可手動關。
-2. **個人化 soft 加分（§1.4）**：同上下文手動選同一字 **≥2 次** 才加分；`userScore = min(4, log(1+count))×decay`；`μ_user=4.0`；halflife **7 天**。優先序：`當下手選（硬）> 個人 soft > 全域 bigram > top unigram`。hard suggest 僅 `forceHighScoreOverride`。
-3. **隱私**：`~/Library/Application Support/McBopomofo/user-override-cache.dat` 只存本機；`.gitignore`；不進 bundle、不外傳。
-4. **§1.2**：UOM key 讀 `chosenValueAt`（對齊 contextual walk 顯示值）。
-5. 既有：L1 n-gram 候選重排、L2 句末自動校正（實驗預設關）、`⌘Return` AI 整句、在/再消歧（實驗預設關）、語音 whisper.cpp（連按兩下右 Shift）、AI 後端 Claude Opus / 本機 AI。
+| 動作 | 含義 |
+|------|------|
+| **改字** | 智慧選字／rerank（scoreNBest + pin） |
+| **收底線＝定案** | hard commit：底線消失、字交給 app |
+| **送出** | app 自己的動作（搜尋／聊天／換行）— **必須**在底線已消失後再按 Enter |
 
-### 引擎關鍵事實（下一棒必懂）
+| 事件 | 改字 | 收底線 | 送出 |
+|------|------|--------|------|
+| 啟用觸發點：停頓／。／， | ✅ | ✅ | ❌ |
+| Enter（畫面**還有**底線） | ✅ | ✅ | ❌（return YES 吃掉鍵） |
+| Enter（**已無**底線／Empty） | ❌ | — | ✅（return NO 交給 app） |
 
-- `WalkResult.chosenValueAt(i)`：ContextModel DP 的選字只在這裡；`node->value()` / `unigrams()[0]` **不反映** DP 選擇。
-- Cold 空 soft + 未開 contextual walk → `setContextModel(nullptr)` 快路徑；**禁止**掛零貢獻殼（會害 tw 差 1 句）。
-- 新檔 pbxproj ID 從 **FACE0126+** 起。
-- Commit 作者固定：`老王 LaoWang <laowang@users.noreply.github.com>`。
-- 不可在同一 DerivedData 目錄同時多個 build；`xcodebuild test` 不要 `| tail`。
+- 觸發點在**偏好「句子結束」**：停頓（+毫秒）、句號、逗號，各自可勾。
+- Enter **不是**觸發點開關；語意見上表。
+- 標準注音：。＝鍵 **`>`**，，＝鍵 **`<`**（v2.13.1 修偵測）。
 
-### 架構分層（簡）
+### 定案後改字＝刪回重組（v2.13.3 已修好可用）
 
-- **L0** 注音 lattice walk（不可繞 `KeyHandler` / `InputState`）。
-- **L0+** 情境化 walk + 個人 soft（v2.2→v2.3，**預設開**）。
-- **L1** 候選窗 n-gram 重排；神經重排仍實驗預設關。
-- **L2** `⌘Return` 整句 + 句末自動校正（實驗預設關）。
-- **L3** 語音 whisper.cpp 本機。
+1. 定案後 armed 影子讀音表；↓ 開**該字讀音**的同音**單字**清單（不重跑模型；純手動逐字替換）。
+2. **選字後必須 1→1**：先確認舊字被移除／置換成功，才算完成；失敗 → **beep、不插新字**（絕不可兩字並排、句子變長）。
+3. 四條置換路徑（依序，任一驗證成功即停）：
+   - atomic `insertText(new, replacementRange: old)` 且讀回該位置＝新字
+   - pull-to-mark（`setMarkedText` 蓋舊字 range）再 `insertText` 換 mark
+   - empty-insert 刪除 + **讀回驗證舊字消失** + 再插
+   - CGEvent 刪除（需 Accessibility）+ ~50ms + 讀回驗證；全敗 abort
+4. **讀不到游標／range 的 app**（LINE／Telegram 等 `selectedRange == NSNotFound`）：**預期降級**＝beep 不改、不疊字；**不是 bug**。TextEdit 等可讀 range 的 app 才完整重選。
+5. 定案後 **←／→ 一律放行**給 app 原生游標（v2.13.2）；不因 armed 吃方向鍵。
+6. 失準（滑鼠點別處／切 app／失焦／新組字／對齊不確定）→ disarm，**絕不誤刪**。
 
-## 目前架構狀態（歷史 Phase 標籤，仍有效）
+### 四鍵（定案後、重選語境）
 
-四層推理架構的實作進度：
+| 鍵 | 行為 |
+|----|------|
+| **待修改字** | 游標**右方**那一個字（句尾無右方字時 ↓ 預設改**最後一字**） |
+| **←／→** | **app 原生**移游標（不攔截）；↓ 當下再 map 影子 |
+| **↑** | 放行；shadow disarm（不追跨行） |
+| **↓** | 開同音單字清單 → 選字 → 驗證 1→1 置換 |
 
-- L0 即時注音引擎：維持既有 McBopomofo C++ engine，不可破壞，不可繞過 `KeyHandler` / `InputState`。v2.3.0 起預設掛語料 bigram ContextModel + 可選 user soft。
-- L1 快速語義：候選重排接縫已存在；v1.7.5 起打字當下改用進程內 n-gram scorer，不再依賴 llama-server。
-- L2 深度整句校正：既有 `⌘Return` 觸發式 AI 修正仍存在；句末自動校正 MVP 實驗預設關。
-- L3 語音輸入：**v2.0.0 起改為內嵌 whisper.cpp 本機辨識**（**連按兩下右 Shift**；模型首次約 574MB）。
+（組字中、有底線時：仍是一般注音 ←／→／↓ 原生候選行為，與定案後路徑不同。）
 
-Phase 狀態：
+### 版本／commit 對照（v2.8 後產品 UX 主線）
 
-- Phase 1：L1 候選重排可用（n-gram）。
-- Phase 2：句末自動 L2 MVP 已發佈（實驗預設關）。
-- Phase 3：語音輸入可用（whisper.cpp）。
-- Phase 4：未做（注音領域微調）。
-- **路線圖引擎強化**：contextual walk + 個人化已於 **v2.3.0 預設出貨**；EM unigram 重估已試負結果擱置（見交班日誌）。
+| 版本 | build | tag/commit 錨 | 要點 |
+|------|-------|----------------|------|
+| 2.8.0 | 2293 | `v2.8.0` | 公開開源 + 品牌 i注音 |
+| 2.9.x | 2294– | `v2.9.0`… | 三段式 soft-finalize／clawback 探索（多已作廢） |
+| 2.10.x | … | `v2.10.1` | Option B／Enter 兩段（後由 2.13 總則取代敘事） |
+| 2.11.0 | 2305 | `v2.11.0` | 刪回重組 shadow 初版 |
+| 2.12.x | 2306–07 | `v2.12.0`… | 路徑 β 試誤（已作廢衝突語意） |
+| **2.13.0** | **2308** | `3fe2b8ae` | **行為總則：定案≠送出** |
+| 2.13.1 | 2309 | `de83fb07` | 。／，觸發（`>`／`<`） |
+| 2.13.2 | 2310 | `66e50f4f` | 定案後 ←／→ 放行 |
+| **2.13.3** | **2311** | **`f4df30b9`** | **重選 1→1 驗證刪除** |
 
-## 已完成的 Phase 1 工作
+完整人話條目：`CHANGELOG.md`。
 
-關鍵檔案：
+### 引擎／架構（仍有效）
 
-- `Source/AICandidateReranker.swift`
-- `Source/InputMethodController+AIRerank.swift`
-- `Source/AICorrectionPrompt.swift`
-- `Source/InputMethodController.swift`
-- `Source/Preferences.swift`
-- `McBopomofoTests/AICandidateRerankerTests.swift`
+- **L0** lattice walk：`KeyHandler` / `InputState` 不可繞；`chosenValueAt` 才是 DP 選字。
+- **L0+** 情境 bigram λ=0.75 + UOM soft（預設開）；**神經路徑重排**於**定案**（停頓／。／，／有底線 Enter）觸發，非「Tab 當定案」。
+- **L1** 候選窗 n-gram 重排（選單可關）。
+- **L3** 語音 whisper.cpp（連按兩下右 Shift）。
+- 雲端 Claude／常駐 llama：**已移除**（v2.7+）。
+- 隱私：`user-override-cache.dat`、`rerank-diff.log`、`manual-correction.log` 只本機。
 
-目前行為：
+### 開發約束（摘要）
 
-1. 使用者開候選視窗後，controller 從 `InputState.ChoosingCandidate` 擷取 top candidates（含注音）。
-2. `needsSemanticRerank` 會在候選同音(`hasReadingCollision`)、多字候選近似同音(`hasPhraseAlternativeCollision`,只差一個音節)、或歧義字 + 多候選時觸發 L1。注意 `hasPhraseAlternativeCollision` 已從舊版「任兩個不同多字詞就觸發」收緊為「音節數相同且僅差一個音節」,避免每次多字選字都重排。
-3. 150ms debounce 後呼叫進程內 `AICandidateNGramScorer`,不再送本機 llama-server。
-4. scorer 只從候選清單挑值;建議不在候選清單內就不套用,因此 L1 不生成新文字。
-5. AI 結果回到主執行緒後，檢查 serial 與 composing buffer，過期結果丟棄。
-6. AI 建議命中候選清單時，重建 state 並把候選移到第一位；若本來就是第一候選,只清掉提示狀態。
-7. 舊的「AI 建議不在候選清單內時 tooltip + Tab 採用」路徑仍保留給防禦性分支,但 n-gram scorer 正常不會產生清單外建議。
-8. 輸入法選單與偏好設定「進階」分頁可切換「AI 候選建議」。
-
-## 開發約束
-
-必須遵守：
-
-- 不破壞 L0 注音引擎穩定性。
-- 不直接從 Swift 存取或改寫 C++ engine。
-- 所有按鍵仍經 `KeyHandler` / `InputState` 流程。
-- `InputState` 視為不可變；若要改候選順序，重建新的 state。
-- AI 呼叫必須非阻塞。
-- AI 結果套用前必須檢查 composing buffer 是否仍相同。
-- UI 字串使用 `NSLocalizedString`，並同步更新 `Base.lproj`、`en.lproj`、`zh-Hant.lproj`。
-- 文件與註解只能使用英文或繁體中文。
-- 不使用 emoji。
+- 不改 walk/v2c 權重與打分邏輯除非 Johnny 明示；動了必跑 tw538，≠387 即 FATAL。
+- 不共用 DerivedData；`xcodebuild test` 不要 `| tail`。
 - 不更名 McBopomofo 內部識別符。
 
-## 測試狀態
+### 關鍵程式入口（重選／定案）
 
-### 北極星（引擎選字）
+| 用途 | 檔案 |
+|------|------|
+| 定案 hard commit | `KeyHandler.mm` → `hardCommitSentence` / `_handleEnter` |
+| 停頓觸發 | `InputMethodController.swift` → `fireSentenceEndIdleTimer` |
+| 影子 armed / ↓ | `InputMethodController+ShadowReselect.swift`、`ShadowReselect.swift` |
+| 選字 1→1 置換 | `PostCommitReselect.replacePendingCharacter` + CandidateDelegate pick |
+| 偏好觸發點 | `Preferences.swift` / `PreferencesWindowController` 句子結束分頁 |
 
-```bash
-cd Source/Engine/eval/benchmarks
-./build-and-run.sh tw538-northstar.tsv
-# → baseline 0.41519 ([retired-set score removed])
-./build-and-run.sh tw538-northstar.tsv ../../../Data/word-bigrams.tsv 0.75
-# → lambda=0.75 : 0.440506 ([retired-set score removed])
-```
+## 下一步建議（接棒用）
 
-讀結果必須用 `chosenValueAt(i)`。個人化 cold cache 不得改變上述數字。
+1. **真機 dogfood**：TextEdit 定案後連改 3 字、字數不增；LINE／Telegram 方向鍵可動、重選可 beep 降級。
+2. （可選）讀不到 range 時的 UX 文案／AX 引導。
+3. 手動改字 log 累積後再談重訓；引擎分數線維持 387 維護。
+4. 研究線（判別器等）見總交接檔 v5 — **與出貨 UX 分離**。
 
-### 合成個人化 harness
-
-```bash
-cd Source/Engine/build-test && cmake -DENABLE_TEST=ON .. && cmake --build . --target McBopomofoLMLibTest
-./McBopomofoLMLibTest --gtest_filter='CompositeContextModelTest.*'
-# PromotionGate：μ=4 → adoption 100% / spill 0%
-```
-
-### App 測試
-
-```bash
-# 使用獨立 DerivedData，勿與其他 build 共用目錄
-xcodebuild test -project McBopomofo.xcodeproj -scheme McBopomofo \
- -configuration Debug -derivedDataPath dd-test -destination 'platform=macOS'
-# 認字串 ** TEST SUCCEEDED **；不要 | tail
-```
-
-打字當下行為變更另跑 `./scripts/e2e-typing-check.sh`（見 `docs/e2e-typing-verification.md`）。
-
-過去 xcodebuild 卡住已修（測試環境跳過 spawn llama-server；VersionUpdate 測試不卡 continuation）。
-
-## 下一步建議
-
-優先順序（v2.3.0 已發後）：
-
-1. **收實機回饋**：預設開情境化 + 個人化後的體感、誤翻、重啟後是否仍記得（`user-override-cache.dat`）。
-2. **25MB 語料表瘦身**（提高 min-abs-pmi/min-count，或改首次下載到 App Support）。
-3. （可選）L1 backoff β1>0——需先有不外溢合成集再開。
-4. （擱置）EM unigram 重估——等大量口語台灣打字語料。
-5. （可選）KenLM / trigram ContextModel——TSV 已有 lift 且需要 backoff/trigram 時再上。
-6. 舊掛件：L2 句末校正實機清單、神經重排實驗、語音準度。
 ## 後續 AI 回覆使用者時
 
-請用 PM 能理解的語言描述：
+- 用「定案＝底線消失、字已進 app」「送出＝再按 Enter」說明，**不要**說「停頓只改字留底線」或「Enter 一下就送出」（那是已作廢的 2.12.x 語意）。
+- 定案後改錯字＝↓ 重選；改失敗 beep＝正常 fail-closed。
+- **目前正式版 = v2.13.3**，不是 v2.3.0／v2.8.0。
 
-- L0 是原本打字引擎（現在預設會看前文選同音字，也會慢慢學你的選字偏好）。
-- L1 是邊打邊幫候選排序。
-- L2 是按快捷鍵後整句修正（另有實驗性句末提示）。
-- L3 是語音輸入。
+**誠信**：數字必須真跑；三狀態分報（app build / harness / deliverables）；文件與改動同棒更新。
 
-不要只說「已完成 Phase 1-4」。**目前正式版 = v2.3.0**：情境化選字與個人化已預設開；L2 句末校正與神經重排仍是實驗預設關；語音可用。
+## 交班日誌（歷史；以「目前真相 v2.13.3」為準）
 
-**誠信**：數字必須真跑；交班三項狀態分列（app build / 測試 harness / 產物）；文件與改動同棒更新。
+### 2026-08-05 文件對齊 v2.13.3（無 code）
 
-## 交班日誌
+Johnny 要求只更文件：AGENTS / 本檔 / 總交接檔 v5 / CHANGELOG Unreleased 註記 / README。產品行為以 v2.13.3 為唯一真源。
+
+---
+
+以下為較舊日誌（行為敘事可能過時，勿覆蓋上方總則）。
 
 ### 2026-06-24T18:13:36+08:00 Phase 2 開工前判讀
 
