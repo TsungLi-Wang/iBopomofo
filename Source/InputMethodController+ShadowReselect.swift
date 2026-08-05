@@ -2,12 +2,10 @@
 //
 // Delete-and-recompose reselect after hard commit (shadow reading table).
 //
-// ←/→ after 定案: default to **app-native** caret move. Never eat arrows when
-// selectedRange is NSNotFound (LINE / Telegram / many web fields). Only when
-// host caret is readable *and* aligns with the shadow phrase may we briefly
-// treat arrows as reselect navigation — and even then we prefer pass-through
-// so host cursor stays correct (shadow re-maps from selectedRange on ↓).
-// ↓: delete + recompose; at end targets last char.
+// ↓ opens homophone list; old committed char is replaced 1→1 on pick via
+// PostCommitReselect.replacePendingCharacter (verify delete / atomic replace).
+// Never insert a new char if the old one is still there (would grow the sentence).
+// ←/→ after 定案: pass through to app (see prior fix).
 
 import Cocoa
 import InputMethodKit
@@ -15,8 +13,6 @@ import InputMethodKit
 extension McBopomofoInputMethodController {
 
     func armShadowFromLastHardCommit(client: Any?) {
-        // P0-a: never use `as? [[String: String]]` — ObjC NSArray/NSDictionary
-        // does not reliably cast to nested Swift dictionaries.
         guard let nsArray = keyHandler.lastHardCommitShadowUnits,
             nsArray.count > 0
         else {
@@ -31,7 +27,7 @@ extension McBopomofoInputMethodController {
             }
         }
         shadowReselect.arm(fromNSArray: nsArray as NSArray, docEndCaret: docEnd)
-        shadowRecomposePendingIndex = nil
+        clearShadowRecomposeContext()
         if !shadowReselect.armed {
             NSLog("i注音 shadow reselect: arm failed (empty units after parse)")
         }
@@ -48,17 +44,15 @@ extension McBopomofoInputMethodController {
             && shadowRecomposePendingIndex != nil
 
         if inShadowCandidates {
-            // Let KeyHandler / candidate controller handle pick / nav.
             return false
         }
 
         guard shadowReselect.armed else { return false }
         guard state is InputState.Empty || state is InputState.EmptyIgnoringPreviousState
         else {
-            // Left Empty without us → desync.
             if !(state is InputState.ChoosingCandidate) {
                 shadowReselect.disarm()
-                shadowRecomposePendingIndex = nil
+                clearShadowRecomposeContext()
             }
             return false
         }
@@ -72,105 +66,166 @@ extension McBopomofoInputMethodController {
         let liveOpt: Int? = live == NSNotFound ? nil : live
         let caretReadable = ShadowReselectSession.isReadableDocumentCaret(liveOpt)
 
-        // Outside phrase (only when readable) → disarm, never delete.
         if caretReadable, !shadowReselect.clientCaretStillInTrackedPhrase(liveOpt) {
             shadowReselect.disarm()
-            shadowRecomposePendingIndex = nil
+            clearShadowRecomposeContext()
             return false
         }
 
-        // ── ← / → ──────────────────────────────────────────────────────────
-        // Default: app-native cursor. Never intercept when caret unreadable
-        // (LINE / Telegram / most web boxes). When readable and still in phrase,
-        // still pass through so the host moves the real caret; ↓ will re-map
-        // shadow from selectedRange. Armed stays for ↓ reselect.
+        // ← / → : never intercept (app-native caret).
         if input.isLeft || input.isRight {
-            if !caretReadable {
-                // Cannot align → do not eat arrows.
-                return false
-            }
-            if !shadowReselect.canAlignArrowKeysWithHostCaret(liveOpt) {
-                // Readable but not alignable (e.g. no docBase) → pass through.
-                return false
-            }
-            // Alignable: still do not consume — native move is required UX.
-            // (Reselect navigation is driven by host caret at ↓ time.)
             return false
         }
 
         if input.isUp {
-            // Native line move — invalidate shadow (we cannot track multi-line).
             shadowReselect.disarm()
-            shadowRecomposePendingIndex = nil
+            clearShadowRecomposeContext()
             return false
         }
 
         if input.isDown || input.isExtraChooseCandidateKey {
-            // Prefer host caret → shadow map when readable; else end = last char.
             if caretReadable {
                 if !shadowReselect.mapCaretFromDocumentLocation(liveOpt) {
-                    // Caret left phrase between keys.
                     shadowReselect.disarm()
-                    shadowRecomposePendingIndex = nil
+                    clearShadowRecomposeContext()
                     return false
                 }
             }
             return beginShadowRecompose(client: client, useVerticalMode: input.useVerticalMode)
         }
 
-        // Any other key: disarm, do not steal.
         shadowReselect.disarm()
-        shadowRecomposePendingIndex = nil
+        clearShadowRecomposeContext()
         return false
     }
 
+    /// Open homophone list for the pending unit. Does **not** delete yet —
+    /// document replace happens on pick (verified 1→1).
     private func beginShadowRecompose(client: IMKTextInput, useVerticalMode: Bool) -> Bool {
-        // P0-b: if caret at end (no right-of-caret pending), target last char.
-        let atEnd =
-            shadowReselect.caretIndex == shadowReselect.units.count
-            && !shadowReselect.units.isEmpty
         guard shadowReselect.resolveReselectTarget() != nil,
             let unit = shadowReselect.reselectTargetUnit
         else {
             signalReselectUnavailable(reason: "no reselect target")
             return true
         }
-        let range = shadowReselect.reselectTargetDocumentRange
-        // When range is known, replacementRange wins (direction ignored).
-        // When range nil and host caret is past the char: backspace fallback.
-        let deleteDirection: ShadowDelete.Direction =
-            (range == nil && atEnd) ? .backward : .forward
 
-        let result = ShadowDelete.deletePendingGrapheme(
-            client: client, documentRange: range, direction: deleteDirection)
-        switch result {
-        case .deleted:
-            break
-        case .failedNoRangeOrAccess:
+        // Prefer live document range at host caret when readable.
+        var range = shadowReselect.reselectTargetDocumentRange
+        let live = client.selectedRange().location
+        if live != NSNotFound {
+            if let cluster = PostCommitReselect.readCluster(client: client, at: live),
+                cluster.char == unit.value
+            {
+                // Caret *on* the char (some apps) — use that cluster.
+                range = cluster.range
+            } else if let cluster = PostCommitReselect.readCluster(client: client, at: live),
+                unit.value == cluster.char
+            {
+                range = cluster.range
+            } else if range == nil {
+                // Caret left of target (classic): cluster at caret is the pending char.
+                if let cluster = PostCommitReselect.readCluster(client: client, at: live) {
+                    range = cluster.range
+                }
+            }
+        }
+
+        // Need a usable document range for verified replace. Without it, ↓ cannot
+        // safely delete — fail closed (beep) rather than open a list that inserts.
+        guard let docRange = range, docRange.location != NSNotFound, docRange.length > 0 else {
             signalReselectUnavailable(
-                reason:
-                    "this app cannot in-place reselect (no range / Accessibility)"
-            )
-            return true
-        case .failed:
-            signalReselectUnavailable(reason: "delete failed")
+                reason: "no document range for pending char (cannot verify delete)")
             return true
         }
 
-        // Drop unit from shadow; recompose with its reading.
         let pendingIndex = shadowReselect.caretIndex
-        let reading = unit.reading
-        shadowReselect.removePendingUnit()
         shadowRecomposePendingIndex = pendingIndex
+        shadowRecomposeDocumentRange = docRange
+        shadowRecomposeOldValue = unit.value
+        // Keep shadow unit until pick succeeds (do not removePendingUnit yet).
 
         let next = keyHandler.beginRecompose(
-            reading: reading, useVerticalMode: useVerticalMode)
+            reading: unit.reading, useVerticalMode: useVerticalMode)
         handle(state: next, client: client)
         return true
     }
 
-    /// Explicit, lightweight feedback when reselect cannot proceed (not silent).
-    private func signalReselectUnavailable(reason: String) {
+    /// Apply chosen homophone: 1→1 replace only. On failure, no insert (no growth).
+    func completeShadowRecomposePick(
+        client: IMKTextInput?, chosen: String, reading: String
+    ) -> Bool {
+        guard let pendingIdx = shadowRecomposePendingIndex else { return false }
+        guard let imk = client else {
+            clearShadowRecomposeContext()
+            return false
+        }
+        let oldValue = shadowRecomposeOldValue ?? ""
+        var range = shadowRecomposeDocumentRange
+            ?? NSRange(location: NSNotFound, length: 0)
+
+        // Refresh live range if possible (more accurate than arm-time range).
+        if range.location != NSNotFound {
+            if let live = PostCommitReselect.readCluster(client: imk, at: range.location),
+                live.char == oldValue || !oldValue.isEmpty
+            {
+                if live.char == oldValue {
+                    range = live.range
+                }
+            }
+        }
+
+        guard range.location != NSNotFound, range.length > 0, !oldValue.isEmpty else {
+            signalReselectUnavailable(reason: "missing range/old value for replace")
+            clearShadowRecomposeContext()
+            keyHandler.clear()
+            return false
+        }
+
+        let outcome = PostCommitReselect.replacePendingCharacter(
+            client: imk,
+            documentRange: range,
+            oldChar: oldValue,
+            newChar: chosen)
+
+        switch outcome {
+        case .replaced:
+            // Update shadow model only after document replace succeeded.
+            if shadowReselect.armed {
+                // Ensure caretIndex points at the unit we replaced.
+                if pendingIdx < shadowReselect.units.count {
+                    // temporarily set caret for update
+                    // updatePendingValue uses caretIndex
+                    while shadowReselect.caretIndex > pendingIdx {
+                        _ = shadowReselect.moveLeft()
+                    }
+                    while shadowReselect.caretIndex < pendingIdx {
+                        _ = shadowReselect.moveRight()
+                    }
+                    shadowReselect.updatePendingValue(chosen)
+                } else {
+                    shadowReselect.insertUnit(
+                        reading: reading, value: chosen, at: pendingIdx)
+                }
+            }
+            ManualCorrectionLog.append(
+                reading: reading, context: chosen, chosen: chosen)
+            clearShadowRecomposeContext()
+            keyHandler.clear()
+            return true
+        case .abortedNoOp:
+            signalReselectUnavailable(
+                reason: "could not remove old char; not inserting new (no double char)")
+            // Clear mark if any so user is not stuck.
+            imk.setMarkedText(
+                "", selectionRange: NSRange(location: 0, length: 0),
+                replacementRange: NSRange(location: NSNotFound, length: NSNotFound))
+            clearShadowRecomposeContext()
+            keyHandler.clear()
+            return false
+        }
+    }
+
+    func signalReselectUnavailable(reason: String) {
         NSSound.beep()
         NSLog("i注音 shadow reselect unavailable: \(reason)")
     }

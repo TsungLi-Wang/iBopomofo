@@ -166,60 +166,122 @@ enum PostCommitReselect {
         oldChar: String,
         newChar: String
     ) -> ReplaceOutcome {
-        // --- Path A: replace active mark (char already pulled into composing) ---
-        var mark = client.markedRange()
-        if mark.location == NSNotFound || mark.length == 0 {
-            // Ensure mark exists by pulling committed range into composing.
-            if documentRange.location != NSNotFound, documentRange.length > 0 {
-                _ = pullCommittedIntoMark(
-                    client: client, documentRange: documentRange, char: oldChar)
-                mark = client.markedRange()
-            }
-        }
+        // Iron rule: never insert newChar unless the old grapheme is gone
+        // (or replaced atomically). Inserting after a silent no-op delete is
+        // what made "sentences grow longer" after each reselect.
 
-        if mark.location != NSNotFound, mark.length > 0 {
-            // Standard IME: insertText replaces the marked range and clears mark.
-            // Do NOT follow with setMarkedText("") — that would delete the new char
-            // if the client still reports a residual mark over it.
-            client.insertText(
-                newChar as NSString,
-                replacementRange: NSRange(location: NSNotFound, length: NSNotFound))
-            return .replaced
-        }
-
-        // --- Path B: explicit delete then insert (no mark support) ---
         guard documentRange.location != NSNotFound, documentRange.length > 0 else {
             return .abortedNoOp
         }
 
-        // Re-resolve the live cluster at the stored location (may have drifted).
+        // Re-resolve live cluster at stored location (may have drifted).
         let liveRange: NSRange
         if let live = readCluster(client: client, at: documentRange.location),
             live.char == oldChar
         {
             liveRange = live.range
         } else if let live = readCluster(client: client, at: documentRange.location) {
-            // Char changed under us — only delete if length matches one grapheme.
             liveRange = live.range
         } else {
-            return .abortedNoOp
+            liveRange = documentRange
         }
 
-        // Delete: empty insert over the grapheme range.
+        // --- Path 0: atomic insertText(new, replacementRange: old) + verify ---
+        // Success only if the grapheme *at the old location* is now newChar
+        // (proves replace, not "insert elsewhere while old remains").
+        client.insertText(newChar as NSString, replacementRange: liveRange)
+        if clusterAt(client, liveRange.location) == newChar {
+            return .replaced
+        }
+
+        // --- Path A: pull committed char into mark, then insertText replaces mark ---
+        var mark = client.markedRange()
+        if mark.location == NSNotFound || mark.length == 0 {
+            _ = pullCommittedIntoMark(
+                client: client, documentRange: liveRange, char: oldChar)
+            mark = client.markedRange()
+        }
+        if mark.location != NSNotFound, mark.length > 0 {
+            client.insertText(
+                newChar as NSString,
+                replacementRange: NSRange(location: NSNotFound, length: NSNotFound))
+            // Verify: old must not still sit at original location as committed text.
+            if clusterAt(client, liveRange.location) != oldChar {
+                return .replaced
+            }
+            // Mark path claimed success but old still there — fall through.
+        }
+
+        // --- Path B: delete (empty insert) then verify, only then insert ---
         client.insertText("" as NSString, replacementRange: liveRange)
-
-        // Verify deletion: old char must not still sit at that location.
-        if let still = readCluster(client: client, at: liveRange.location),
-            still.char == oldChar
-        {
-            // App ignored delete — do NOT insert (degrade: no double char).
-            return .abortedNoOp
+        if clusterAt(client, liveRange.location) == oldChar {
+            // App ignored empty-insert delete. Try CGEvent if Accessibility on.
+            if !deleteOneGraphemeViaCGEvent(
+                client: client, liveRange: liveRange, oldChar: oldChar)
+            {
+                NSLog(
+                    "i注音 reselect: delete not verified (insertText empty + CGEvent); abort insert")
+                return .abortedNoOp
+            }
         }
-
+        // Deleted (or CGEvent deleted). Insert new at hole.
         client.insertText(
             newChar as NSString,
             replacementRange: NSRange(location: NSNotFound, length: NSNotFound))
         return .replaced
+    }
+
+    private static func clusterAt(_ client: PostCommitTextClient, _ location: Int) -> String? {
+        readCluster(client: client, at: location)?.char
+    }
+
+    /// CGEvent forward-delete or backspace when caret appears to sit on the
+    /// pending grapheme. Returns true only if oldChar is no longer at liveRange.
+    private static func deleteOneGraphemeViaCGEvent(
+        client: PostCommitTextClient, liveRange: NSRange, oldChar: String
+    ) -> Bool {
+        guard AXIsProcessTrusted() else { return false }
+        let sel = client.selectedRange()
+        let caret = sel.location
+        // Forward-delete removes char to the *right* of caret → need caret == start.
+        // Backspace removes char to the *left* → need caret == end of grapheme.
+        let useForward: Bool
+        if caret != NSNotFound {
+            if caret == liveRange.location {
+                useForward = true
+            } else if caret == liveRange.location + liveRange.length {
+                useForward = false
+            } else {
+                // Caret elsewhere: still try forward-delete first (common after 定案).
+                useForward = true
+            }
+        } else {
+            useForward = true
+        }
+        let code: CGKeyCode = useForward ? 0x75 : 0x33
+        guard let src = CGEventSource(stateID: .hidSystemState) else { return false }
+        guard let down = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: true),
+            let up = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: false)
+        else {
+            return false
+        }
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+        // Allow target app to process the synthetic key before we re-read.
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+        if clusterAt(client, liveRange.location) == oldChar {
+            // Try the other direction once.
+            let other: CGKeyCode = useForward ? 0x33 : 0x75
+            guard let d2 = CGEvent(keyboardEventSource: src, virtualKey: other, keyDown: true),
+                let u2 = CGEvent(keyboardEventSource: src, virtualKey: other, keyDown: false)
+            else {
+                return false
+            }
+            d2.post(tap: .cghidEventTap)
+            u2.post(tap: .cghidEventTap)
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+        }
+        return clusterAt(client, liveRange.location) != oldChar
     }
 }
 

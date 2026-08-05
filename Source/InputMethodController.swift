@@ -76,8 +76,19 @@ class McBopomofoInputMethodController: IMKInputController {
 
     /// After hard commit: shadow reading table for delete-and-recompose reselect (path β only).
     let shadowReselect = ShadowReselectSession()
-    /// True while ↓ recompose has deleted a char and is waiting for a candidate pick.
+    /// While ↓ reselect is waiting for a candidate pick (old char still in document
+    /// until pick succeeds — replace is 先刪/置換成功才算).
     var shadowRecomposePendingIndex: Int?
+    /// Document range of the char being reselected (for 1→1 replace on pick).
+    var shadowRecomposeDocumentRange: NSRange?
+    /// Surface value of the char being reselected (verify delete / replace).
+    var shadowRecomposeOldValue: String?
+
+    func clearShadowRecomposeContext() {
+        shadowRecomposePendingIndex = nil
+        shadowRecomposeDocumentRange = nil
+        shadowRecomposeOldValue = nil
+    }
 
     // MARK: - IMKInputController methods
 
@@ -388,7 +399,7 @@ class McBopomofoInputMethodController: IMKInputController {
         // Any successful composition key disarms shadow (new typing starts).
         if result, self.state is InputState.Inputting {
             shadowReselect.disarm()
-            shadowRecomposePendingIndex = nil
+            clearShadowRecomposeContext()
         }
         // Pause 定案 clock: restart while still composing; cancel after 定案/Empty.
         if result {
@@ -797,7 +808,7 @@ extension McBopomofoInputMethodController {
         currentClient = nil
         disarmPostCommitReselect()
         shadowReselect.disarm()
-        shadowRecomposePendingIndex = nil
+        clearShadowRecomposeContext()
 
         gCurrentCandidateController?.delegate = nil
         gCurrentCandidateController?.visible = false
@@ -934,10 +945,20 @@ extension McBopomofoInputMethodController {
             return
         }
 
-        // Marked composition (incl. soft-finalized reselect): whole buffer stays IME-owned.
+        // Shadow reselect: mark *over the committed old char* so pick replaces it
+        // (apps honor setMarkedText(replacementRange:) far more than empty-delete).
+        let replacement: NSRange
+        if shadowRecomposePendingIndex != nil,
+            let r = shadowRecomposeDocumentRange,
+            r.location != NSNotFound, r.length > 0
+        {
+            replacement = r
+        } else {
+            replacement = NSMakeRange(NSNotFound, NSNotFound)
+        }
         client.setMarkedText(
             state.attributedString, selectionRange: NSMakeRange(Int(state.cursorIndex), 0),
-            replacementRange: NSMakeRange(NSNotFound, NSNotFound))
+            replacementRange: replacement)
         show(candidateWindowWith: state, client: client)
     }
 

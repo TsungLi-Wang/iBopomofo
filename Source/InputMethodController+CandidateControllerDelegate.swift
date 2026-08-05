@@ -56,28 +56,20 @@ extension McBopomofoInputMethodController: CandidateControllerDelegate {
         case let state as InputState.ChoosingCandidate:
             let selectedCandidate = state.candidates[Int(index)]
 
-            // Shadow recompose (delete-and-recompose after hard commit): insert
-            // the chosen char and restore the shadow unit — do not walk the grid.
-            if let pendingIdx = shadowRecomposePendingIndex {
+            // Shadow recompose after hard commit: 1→1 replace only (never insert
+            // without removing the old grapheme — that grew the sentence each pick).
+            if shadowRecomposePendingIndex != nil {
                 let chosen = selectedCandidate.value
                 let reading = selectedCandidate.reading
                 gCurrentCandidateController?.visible = false
-                if let imk = client as? IMKTextInput {
-                    imk.insertText(
-                        chosen as NSString,
-                        replacementRange: NSRange(location: NSNotFound, length: NSNotFound))
-                    imk.setMarkedText(
-                        "", selectionRange: NSRange(location: 0, length: 0),
-                        replacementRange: NSRange(location: NSNotFound, length: NSNotFound))
-                }
-                keyHandler.clear()
-                shadowReselect.insertUnit(
-                    reading: reading, value: chosen, at: pendingIdx)
-                ManualCorrectionLog.append(
-                    reading: reading, context: chosen, chosen: chosen)
-                shadowRecomposePendingIndex = nil
+                let ok = completeShadowRecomposePick(
+                    client: client as? IMKTextInput, chosen: chosen, reading: reading)
                 handle(state: InputState.EmptyIgnoringPreviousState(), client: client)
                 self.state = InputState.Empty()
+                if !ok {
+                    // Stay Empty; shadow may still be armed for another try.
+                    NSLog("i注音 shadow reselect pick aborted (old char not removed)")
+                }
                 return
             }
 

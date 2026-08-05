@@ -265,20 +265,36 @@ enum ShadowDelete {
         AXIsProcessTrusted()
     }
 
-    /// Try to delete one grapheme at documentRange (preferred), else CGEvent.
+    /// Try to delete one grapheme. Returns `.deleted` only if verification passes
+    /// (old surface no longer at range). Never claim success on fire-and-forget.
     @discardableResult
     static func deletePendingGrapheme(
         client: IMKTextInput,
         documentRange: NSRange?,
-        direction: Direction = .forward
+        direction: Direction = .forward,
+        expectedOld: String? = nil
     ) -> Result {
         if let range = documentRange, range.location != NSNotFound, range.length > 0 {
-            client.insertText(
-                "" as NSString,
-                replacementRange: range)
-            return .deleted
+            let before = PostCommitReselect.readCluster(client: client, at: range.location)?.char
+            client.insertText("" as NSString, replacementRange: range)
+            let after = PostCommitReselect.readCluster(client: client, at: range.location)?.char
+            let old = expectedOld ?? before
+            if let old = old, after != old {
+                return .deleted
+            }
+            if before != nil, after != before {
+                return .deleted
+            }
+            // Fall through to CGEvent if empty-insert was ignored.
         }
         if accessibilityTrusted {
+            let range = documentRange
+            let before: String? = {
+                if let r = range, r.location != NSNotFound {
+                    return PostCommitReselect.readCluster(client: client, at: r.location)?.char
+                }
+                return nil
+            }()
             let ok: Bool
             switch direction {
             case .forward:
@@ -286,7 +302,19 @@ enum ShadowDelete {
             case .backward:
                 ok = postKey(backwardDeleteKeyCode)
             }
-            return ok ? .deleted : .failed
+            if ok {
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+                if let r = range, r.location != NSNotFound {
+                    let after = PostCommitReselect.readCluster(client: client, at: r.location)?.char
+                    let old = expectedOld ?? before
+                    if let old = old, after != old { return .deleted }
+                    if before != nil, after != before { return .deleted }
+                    return .failed  // posted but no effect
+                }
+                // Cannot verify without range — do not claim success.
+                return .failed
+            }
+            return .failed
         }
         return .failedNoRangeOrAccess
     }

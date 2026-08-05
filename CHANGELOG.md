@@ -12,6 +12,23 @@
 
 （無）
 
+## [2.13.3] — 2026-08-05
+
+- **版本標記**：`CFBundleShortVersionString` = **2.13.3**；`CFBundleVersion` = **2311**
+- **tag**：`v2.13.3`（annotated）
+- **commit 範圍**：tag `v2.13.2`（`66e50f4f`）→ 本版 tag
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **定案後重選不再「越改越長」**：選同音字時舊字必須先被移除／置換成功才插入新字；刪除失敗則 beep、不插新字（不兩字並排）。
+- 替換路徑：atomic `insertText(new, range)` → pull-to-mark → 驗證刪除後再插 → CGEvent 刪除（已開 Accessibility 時）並驗證。
+
+### 內部 / 開發者改動
+
+- **根因**：`ShadowDelete` 對 `insertText("", range)` 無條件回 success；pick 又用 `replacementRange=NSNotFound` 插入 → 舊字留、新字疊。
+- pick 改走 `PostCommitReselect.replacePendingCharacter`（含驗證）；↓ 只開清單、不先假刪。
+
 ## [2.13.2] — 2026-08-05
 
 - **版本標記**：`CFBundleShortVersionString` = **2.13.2**；`CFBundleVersion` = **2310**
