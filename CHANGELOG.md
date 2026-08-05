@@ -12,6 +12,22 @@
 
 （無）
 
+## [2.13.2] — 2026-08-05
+
+- **版本標記**：`CFBundleShortVersionString` = **2.13.2**；`CFBundleVersion` = **2310**
+- **tag**：`v2.13.2`（annotated）
+- **commit 範圍**：tag `v2.13.1`（`de83fb07`）→ 本版 tag
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **定案後 ←／→ 不再被吃掉**（LINE／Telegram 等）：`selectedRange` 讀不到或不對齊影子時，方向鍵**全部放行**給 app 原生游標。
+- ↓ 重選維持；進重選前不霸佔左右鍵。失準仍 disarm、不誤刪。
+
+### 內部 / 開發者改動
+
+- `tryHandleShadowReselect`：←／→ 預設 `return false`；`canAlignArrowKeysWithHostCaret` 僅作對齊閘門；↓ 時 `mapCaretFromDocumentLocation`。
+
 ## [2.13.1] — 2026-08-05
 
 - **版本標記**：`CFBundleShortVersionString` = **2.13.1**；`CFBundleVersion` = **2309**

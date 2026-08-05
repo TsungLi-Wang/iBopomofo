@@ -1,9 +1,13 @@
 // Copyright (c) 2026 and onwards The iBopomofo Authors.
 //
-// Path β delete-and-recompose reselect after hard commit (shadow reading table).
-// Single path: Empty + armed → ←/→ move shadow caret; ↓ delete + recompose.
-// Shadow model is the only caret truth — no host selectedRange overwrite,
-// no synthetic arrow keys (dual-track removed).
+// Delete-and-recompose reselect after hard commit (shadow reading table).
+//
+// ←/→ after 定案: default to **app-native** caret move. Never eat arrows when
+// selectedRange is NSNotFound (LINE / Telegram / many web fields). Only when
+// host caret is readable *and* aligns with the shadow phrase may we briefly
+// treat arrows as reselect navigation — and even then we prefer pass-through
+// so host cursor stays correct (shadow re-maps from selectedRange on ↓).
+// ↓: delete + recompose; at end targets last char.
 
 import Cocoa
 import InputMethodKit
@@ -64,37 +68,53 @@ extension McBopomofoInputMethodController {
             return false
         }
 
-        // Fail-safe only: if host caret left the tracked phrase, disarm.
-        // Do NOT rewrite shadow caretIndex from host (single-source shadow).
         let live = client.selectedRange().location
         let liveOpt: Int? = live == NSNotFound ? nil : live
-        if !shadowReselect.clientCaretStillInTrackedPhrase(liveOpt) {
+        let caretReadable = ShadowReselectSession.isReadableDocumentCaret(liveOpt)
+
+        // Outside phrase (only when readable) → disarm, never delete.
+        if caretReadable, !shadowReselect.clientCaretStillInTrackedPhrase(liveOpt) {
             shadowReselect.disarm()
             shadowRecomposePendingIndex = nil
-            return false // pass key through; no delete
+            return false
         }
 
-        // Only intercept ←/→/↓ while armed on Empty.
-        if input.isLeft {
-            if !shadowReselect.moveLeft() {
-                signalReselectUnavailable(reason: "already at start of tracked phrase")
+        // ── ← / → ──────────────────────────────────────────────────────────
+        // Default: app-native cursor. Never intercept when caret unreadable
+        // (LINE / Telegram / most web boxes). When readable and still in phrase,
+        // still pass through so the host moves the real caret; ↓ will re-map
+        // shadow from selectedRange. Armed stays for ↓ reselect.
+        if input.isLeft || input.isRight {
+            if !caretReadable {
+                // Cannot align → do not eat arrows.
+                return false
             }
-            // Shadow-only: do not synthesize host arrow keys.
-            return true
-        }
-        if input.isRight {
-            if !shadowReselect.moveRight() {
-                signalReselectUnavailable(reason: "already at end of tracked phrase")
+            if !shadowReselect.canAlignArrowKeysWithHostCaret(liveOpt) {
+                // Readable but not alignable (e.g. no docBase) → pass through.
+                return false
             }
-            return true
+            // Alignable: still do not consume — native move is required UX.
+            // (Reselect navigation is driven by host caret at ↓ time.)
+            return false
         }
+
         if input.isUp {
             // Native line move — invalidate shadow (we cannot track multi-line).
             shadowReselect.disarm()
             shadowRecomposePendingIndex = nil
             return false
         }
+
         if input.isDown || input.isExtraChooseCandidateKey {
+            // Prefer host caret → shadow map when readable; else end = last char.
+            if caretReadable {
+                if !shadowReselect.mapCaretFromDocumentLocation(liveOpt) {
+                    // Caret left phrase between keys.
+                    shadowReselect.disarm()
+                    shadowRecomposePendingIndex = nil
+                    return false
+                }
+            }
             return beginShadowRecompose(client: client, useVerticalMode: input.useVerticalMode)
         }
 
@@ -106,7 +126,6 @@ extension McBopomofoInputMethodController {
 
     private func beginShadowRecompose(client: IMKTextInput, useVerticalMode: Bool) -> Bool {
         // P0-b: if caret at end (no right-of-caret pending), target last char.
-        // Capture "at end" *before* resolve snaps caret onto the last unit.
         let atEnd =
             shadowReselect.caretIndex == shadowReselect.units.count
             && !shadowReselect.units.isEmpty
@@ -152,8 +171,6 @@ extension McBopomofoInputMethodController {
 
     /// Explicit, lightweight feedback when reselect cannot proceed (not silent).
     private func signalReselectUnavailable(reason: String) {
-        // Always beep for this path so users know the app does not support
-        // in-place reselect — not "broken silently".
         NSSound.beep()
         NSLog("i注音 shadow reselect unavailable: \(reason)")
     }

@@ -132,13 +132,20 @@ final class ShadowReselectSession {
         docBase = NSNotFound
     }
 
-    /// Fail-safe only: true if host caret is still inside the tracked phrase
-    /// (or unreadable). Does **not** overwrite shadow caretIndex — shadow is
-    /// the single source of truth for ←/→/↓ after arm.
+    /// Whether host reports a usable document caret (not NSNotFound).
+    static func isReadableDocumentCaret(_ location: Int?) -> Bool {
+        guard let loc = location else { return false }
+        return loc != NSNotFound
+    }
+
+    /// Fail-safe: true if host caret is still inside the tracked phrase.
+    /// When caret is **unreadable** (LINE/Telegram/many web fields), returns
+    /// `true` so ↓ reselect can stay armed — but callers must **not** intercept
+    /// ←/→ in that case (pass keys to the app).
     func clientCaretStillInTrackedPhrase(_ location: Int?) -> Bool {
         guard armed else { return false }
         guard let loc = location, loc != NSNotFound else {
-            // Non-cooperative field: keep shadow-only mode.
+            // Unreadable: stay armed for ↓ only; do not claim caret alignment.
             return true
         }
         if docBase == NSNotFound {
@@ -156,7 +163,42 @@ final class ShadowReselectSession {
         return true
     }
 
-    /// Legacy name — maps to fail-safe only; does not re-sync caret from host.
+    /// True only when selectedRange is readable **and** maps inside the phrase
+    /// (with docBase known or inferable). Used as the gate for any ←/→ takeover.
+    func canAlignArrowKeysWithHostCaret(_ location: Int?) -> Bool {
+        guard armed, Self.isReadableDocumentCaret(location) else { return false }
+        return clientCaretStillInTrackedPhrase(location)
+            && docBase != NSNotFound
+    }
+
+    /// Map host document caret → shadow caretIndex (call on ↓ before reselect).
+    /// Returns false if unreadable or outside phrase.
+    @discardableResult
+    func mapCaretFromDocumentLocation(_ location: Int?) -> Bool {
+        guard armed else { return false }
+        guard let loc = location, loc != NSNotFound else { return false }
+        if docBase == NSNotFound {
+            docBase = loc - totalUTF16
+            if docBase < 0 {
+                docBase = NSNotFound
+                return false
+            }
+        }
+        let end = docBase + totalUTF16
+        if loc < docBase || loc > end {
+            return false
+        }
+        var acc = docBase
+        var idx = 0
+        while idx < units.count, acc + units[idx].utf16Length <= loc {
+            acc += units[idx].utf16Length
+            idx += 1
+        }
+        caretIndex = idx
+        return true
+    }
+
+    /// Legacy name — fail-safe only; does not rewrite caretIndex.
     func syncFromClientCaret(_ location: Int?) -> Bool {
         clientCaretStillInTrackedPhrase(location)
     }
