@@ -91,23 +91,29 @@ extern InputMode InputModePlainBopomofo;
                           useVerticalMode:(BOOL)useVerticalMode
     NS_SWIFT_NAME(beginRecompose(reading:useVerticalMode:));
 
-/// Path β hard-commit: neural rerank + pin path, snapshot shadow, insertText, Empty.
-/// Used by pause / comma / period (when that trigger is enabled). Enter uses
-/// _handleEnter (same outcome, return NO to pass key to host).
+/// Path β: pause / optional punct — auto-rerank while *staying composing*.
+/// Smart-select (scoreNBest + pin); underline stays; does NOT hard-commit.
+/// Returns YES if rerank refresh ran. Mid-syllable / empty grid → NO.
+- (BOOL)autoRerankComposingSentenceWithState:(InputState *)state
+                               stateCallback:(void (^)(InputState *))stateCallback
+                               errorCallback:(void (^)(void))errorCallback
+    NS_SWIFT_NAME(autoRerankComposingSentence(state:stateCallback:errorCallback:));
+
+/// Hard-commit: neural rerank + pin, snapshot shadow, insertText, Empty.
+/// Used by Enter (via _handleEnter) and force-commit paths — *not* pause.
 /// Returns YES if hard-commit ran. Mid-syllable / empty grid → NO.
 - (BOOL)hardCommitSentenceWithState:(InputState *)state
                       stateCallback:(void (^)(InputState *))stateCallback
                       errorCallback:(void (^)(void))errorCallback
     NS_SWIFT_NAME(hardCommitSentence(state:stateCallback:errorCallback:));
 
-/// Legacy name kept for any residual call sites; always returns NO (path β
-/// cancelled soft-finalize-as-定案). Prefer hardCommitSentence.
+/// Legacy: maps to autoRerankComposingSentence (never hides underline / never commits).
 - (BOOL)softFinalizeSentenceWithState:(InputState *)state
                         stateCallback:(void (^)(InputState *))stateCallback
                         errorCallback:(void (^)(void))errorCallback
     NS_SWIFT_NAME(softFinalizeSentence(state:stateCallback:errorCallback:));
 
-/// Path β: soft-finalize mid-state is retired; always NO.
+/// Path β: soft-finalize-as-定案 mid-state retired; always NO.
 @property (assign, nonatomic, readonly) BOOL softFinalized;
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback

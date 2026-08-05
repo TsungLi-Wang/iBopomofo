@@ -12,6 +12,25 @@
 
 （無）
 
+## [2.12.1] — 2026-08-05
+
+- **版本標記**：`CFBundleShortVersionString` = **2.12.1**；`CFBundleVersion` = **2307**
+- **tag**：`v2.12.1`（annotated）
+- **commit 範圍**：tag `v2.12.0`（`5a2d872c`）→ 本版 tag
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **停頓 ≠ 定案（修正 2.12.0 誤解）**：停頓逾時只做**自動改字（rerank）**，**底線留著、不送出**；可繼續改。
+- **Enter 才收底線＋定案＋送出**（一下完成）。
+- **。／，預設**只輸入標點、不動底線；可選「觸發一次自動改字」（仍不 hard commit）。prefs schema → **4**（強制 period/comma 預設關）。
+- 送出後刪回重組（arm / 句尾 ↓ / 影子單一真源）沿用 2.12.0。
+
+### 內部 / 開發者改動
+
+- 新增 `autoRerankComposingSentence`；pause／。／，改呼叫此 API，不再 hard commit。
+- 設定面板文案改為「組字中自動改字」語意。
+
 ## [2.12.0] — 2026-08-04
 
 - **版本標記**：`CFBundleShortVersionString` = **2.12.0**；`CFBundleVersion` = **2306**

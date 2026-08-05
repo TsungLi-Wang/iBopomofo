@@ -422,8 +422,48 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _softFinalized = NO;
 }
 
-// Path β: hard-commit sentence end (pause / 。 / ，). Smart-select then
-// insertText + Empty — no soft-finalize mid-state, no underline hide-while-marked.
+// Path β: pause (and optional 。/，) — auto-rerank only.
+// Smart-select then refresh Inputting; underline stays; NOT hard-commit.
+// User still composing and can re-edit; Enter is what removes underline + sends.
+- (BOOL)autoRerankComposingSentenceWithState:(InputState *)state
+                               stateCallback:(void (^)(InputState *))stateCallback
+                               errorCallback:(void (^)(void))errorCallback
+{
+    (void)errorCallback;
+    if (![state isKindOfClass:[InputStateInputting class]] || !_grid->length()) {
+        return NO;
+    }
+    // Mid-syllable: don't auto-rerank (user still composing a reading).
+    if (!_bpmfReadingBuffer->isEmpty()) {
+        return NO;
+    }
+    if (_inputMode == InputModePlainBopomofo) {
+        return NO;
+    }
+
+    NSString *walkBuffer = ((InputStateInputting *)state).composingBuffer;
+    if (Preferences.enableNeuralPathRerank) {
+        _rerankThisWalk = YES;
+        [self _walk];
+        _rerankThisWalk = NO;
+        [self _pinLatestWalkWithHardOverrides];
+        InputState *reranked = [self buildInputtingState];
+        if ([reranked isKindOfClass:[InputStateInputting class]]) {
+            NSString *after = ((InputStateInputting *)reranked).composingBuffer;
+            [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:after];
+            _lastTabPinnedBuffer = [after copy];
+        }
+    }
+
+    _softFinalized = NO; // underline stays (normal Inputting)
+    InputStateInputting *refreshed = (InputStateInputting *)[self buildInputtingState];
+    refreshed.softFinalized = NO;
+    stateCallback(refreshed);
+    return YES;
+}
+
+// Hard-commit: smart-select then insertText + Empty. Used by Enter / force paths.
+// Not used by pause (pause is auto-rerank only).
 - (BOOL)hardCommitSentenceWithState:(InputState *)state
                       stateCallback:(void (^)(InputState *))stateCallback
                       errorCallback:(void (^)(void))errorCallback
@@ -432,7 +472,6 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     if (![state isKindOfClass:[InputStateInputting class]] || !_grid->length()) {
         return NO;
     }
-    // Mid-syllable: don't auto-commit (user still composing a reading).
     if (!_bpmfReadingBuffer->isEmpty()) {
         return NO;
     }
@@ -461,7 +500,6 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         }
     }
 
-    // Snapshot per-char readings *before* clear for shadow reselect.
     _lastHardCommitShadowUnits = [self snapshotCharacterShadowUnits];
     _softFinalized = NO;
     [self clear];
@@ -473,15 +511,14 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     return YES;
 }
 
-// Path β: soft-finalize-as-定案 cancelled — never settle marked without commit.
+// Legacy name → auto-rerank (keep underline; never soft-hide / never commit).
 - (BOOL)softFinalizeSentenceWithState:(InputState *)state
                         stateCallback:(void (^)(InputState *))stateCallback
                         errorCallback:(void (^)(void))errorCallback
 {
-    (void)state;
-    (void)stateCallback;
-    (void)errorCallback;
-    return NO;
+    return [self autoRerankComposingSentenceWithState:state
+                                        stateCallback:stateCallback
+                                        errorCallback:errorCallback];
 }
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback
@@ -1572,8 +1609,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return YES;
     }
 
-    // Path β: sentence-end punctuation → hard-commit (punct already in buffer).
-    // Detect full-width/half-width period and comma in the reading key.
+    // Path β: 。/， default = insert punct only (underline stays, no commit).
+    // Optional prefs: trigger one auto-rerank (same as pause), still no hard-commit.
     BOOL isPeriod = (customPunctuation.find("。") != std::string::npos)
         || (customPunctuation.find("．") != std::string::npos)
         || (customPunctuation.size() >= 1 && customPunctuation.back() == '.');
@@ -1583,9 +1620,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if ((isPeriod && Preferences.sentenceEndTriggerPeriod)
             || (isComma && Preferences.sentenceEndTriggerComma)) {
             InputStateInputting *pre = (InputStateInputting *)[self buildInputtingState];
-            return [self hardCommitSentenceWithState:pre
-                                       stateCallback:stateCallback
-                                       errorCallback:errorCallback];
+            return [self autoRerankComposingSentenceWithState:pre
+                                               stateCallback:stateCallback
+                                               errorCallback:errorCallback];
         }
     }
 

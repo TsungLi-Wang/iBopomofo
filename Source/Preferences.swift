@@ -76,9 +76,9 @@ private let kEnableManualCorrectionLogKey = "EnableManualCorrectionLog"
 enum ShippingRerankConstants {
     static let contextualLambda = 0.75
     static let pathRerankNBest = 10
-    /// v3: pause enable toggle (sentence-end group; ms already existed in v2).
-    static let prefsSchemaVersion = 3
-    /// Minimum idle pause before auto soft-finalize (ms).
+    /// v4: path β pause=auto-rerank only; 。/， default OFF (insert punct only).
+    static let prefsSchemaVersion = 4
+    /// Minimum idle pause before auto-rerank (ms).
     static let sentenceEndPauseMsMin = 200
     /// First-ship default idle pause (ms).
     static let sentenceEndPauseMsDefault = 800
@@ -334,6 +334,14 @@ class Preferences: NSObject {
                 NSLog(
                     "Preferences: migrated prefsSchemaVersion → 3 (sentence-end pause toggle)")
                 version = 3
+            case 3:
+                // v4: path β — pause/。/， no longer hard-commit; 。/， default OFF.
+                // Force period off so old "定案 on 。" does not keep auto-firing.
+                d.set(false, forKey: kSentenceEndTriggerPeriodKey)
+                d.set(false, forKey: kSentenceEndTriggerCommaKey)
+                NSLog(
+                    "Preferences: migrated prefsSchemaVersion → 4 (pause=auto-rerank; punct default off)")
+                version = 4
             default:
                 version = ShippingRerankConstants.prefsSchemaVersion
             }
@@ -639,10 +647,12 @@ extension Preferences {
     @UserDefault(key: kNeuralPathRerankNuKey, defaultValue: 0.75)
     @objc static var neuralPathRerankNu: Double
 
-    // MARK: - Sentence-end soft finalize (auto smart selection)
+    // MARK: - Auto-rerank on idle / optional punct (path β)
+    // Pause = auto-rerank only (underline stays). Enter = hard-commit + send.
+    // 。/， prefs: optional one-shot auto-rerank; default OFF = insert punct only.
 
-    /// Enter ends a sentence → soft-finalize (rerank + no underline, stay composing).
-    /// Default ON. Second Enter after soft-finalize still hard-commits.
+    /// Legacy pref (Enter always hard-commits when composing in path β).
+    /// Kept for UI/settings compatibility; not used to gate Enter hard-commit.
     @UserDefault(key: kSentenceEndTriggerEnterKey, defaultValue: true)
     @objc static var sentenceEndTriggerEnter: Bool
 
@@ -651,9 +661,9 @@ extension Preferences {
         return sentenceEndTriggerEnter
     }
 
-    /// Full-width period （。） ends a sentence → soft-finalize (period stays in buffer).
-    /// Default ON (suggested dogfood default).
-    @UserDefault(key: kSentenceEndTriggerPeriodKey, defaultValue: true)
+    /// Full-width period （。） → optional one-shot auto-rerank (not hard-commit).
+    /// Default OFF: insert punct only, underline stays.
+    @UserDefault(key: kSentenceEndTriggerPeriodKey, defaultValue: false)
     @objc static var sentenceEndTriggerPeriod: Bool
 
     @objc static func toggleSentenceEndTriggerPeriod() -> Bool {
@@ -661,8 +671,8 @@ extension Preferences {
         return sentenceEndTriggerPeriod
     }
 
-    /// Full-width comma （，） ends a sentence → soft-finalize.
-    /// Default OFF (many users type commas mid-clause).
+    /// Full-width comma （，） → optional one-shot auto-rerank (not hard-commit).
+    /// Default OFF: insert punct only, underline stays.
     @UserDefault(key: kSentenceEndTriggerCommaKey, defaultValue: false)
     @objc static var sentenceEndTriggerComma: Bool
 
@@ -671,8 +681,7 @@ extension Preferences {
         return sentenceEndTriggerComma
     }
 
-    /// Idle pause trigger for auto soft-finalize. Default ON (same as 2.9.0 behavior).
-    /// When OFF, pure pause never auto-finalizes; Enter/period/comma toggles are unaffected.
+    /// Idle pause → auto-rerank only (underline stays, no send). Default ON.
     @UserDefault(key: kSentenceEndPauseEnabledKey, defaultValue: true)
     @objc static var sentenceEndPauseEnabled: Bool
 
@@ -681,7 +690,7 @@ extension Preferences {
         return sentenceEndPauseEnabled
     }
 
-    /// Idle pause (ms) before auto soft-finalize when pause is enabled.
+    /// Idle pause (ms) before auto-rerank when pause is enabled.
     /// Default 800ms; stored value is always clamped to ≥ 200ms.
     @UserDefault(key: kSentenceEndPauseMsKey, defaultValue: 800)
     private static var _sentenceEndPauseMsRaw: Int

@@ -2,9 +2,9 @@
 
 你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-08-04**（**v2.12.0 單一路徑 β：hard commit 定案 + 刪回重組唯一改字路**）
+**最後更新：2026-08-05**（**v2.12.1 停頓＝只改字留底線；Enter＝收底線送出**）
 
-**先前同日**：v2.11.0 刪回重組 shadow；v2.10.1 Enter 兩下；v2.10.0 Option B；v2.9.x clawback 廢棄。
+**先前**：v2.12.0 誤把停頓做成 hard commit（已修）；v2.11.0 刪回重組；v2.10.x Option B。
 
 **更早**：v2.9.0 三段式；引擎凍結 tw538 387。
 
@@ -29,11 +29,11 @@
 4. major/minor **Johnny 拍板**；執行者只建議。
 5. 本鐵則非 Johnny 同意不得刪弱。
 
-## 三行同步狀態（2026-08-04）
+## 三行同步狀態（2026-08-05）
 
-1. **發版**：**i注音（iBopomofo）v2.12.0**（build **2306**，tag **`v2.12.0`**）。**路徑 β**：定案＝立刻 hard commit 無底線；改字只走刪回重組。修 arm cast、句尾 ↓ 改最後一字、影子游標單一真源；刪不動 beep。引擎 **未改**；tw538 **387/537**。
-2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.12.0`。
-3. **下一刀**：① Johnny 真機 dogfood TextEdit／Safari 搜尋欄／LINE（句尾 ↓、中間字、滑鼠失準、刪不動回饋）。② Accessibility 權限引導 UX。③ 手動改字 log 累積後重訓。
+1. **發版**：**i注音（iBopomofo）v2.12.1**（build **2307**，tag **`v2.12.1`**）。**路徑 β 訂正**：停頓＝auto-rerank、**底線留著、不送出**；Enter＝收底線＋hard commit＋送出；。／，預設只插標點。送出後刪回重組沿用。引擎 **未改**；tw538 **387/537**。
+2. **公開**：repo 公開開源。Release：`v2.9.0`–`v2.12.1`。
+3. **下一刀**：① Johnny dogfood：**停頓後底線還在** → 可再改 → Enter 才送出 → ↓ 刪回重組。② AX 權限引導。③ 手動改字 log 重訓。
 
 ### tw538 基準線
 
