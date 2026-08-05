@@ -91,29 +91,21 @@ extern InputMode InputModePlainBopomofo;
                           useVerticalMode:(BOOL)useVerticalMode
     NS_SWIFT_NAME(beginRecompose(reading:useVerticalMode:));
 
-/// Path β: pause / optional punct — auto-rerank while *staying composing*.
-/// Smart-select (scoreNBest + pin); underline stays; does NOT hard-commit.
-/// Returns YES if rerank refresh ran. Mid-syllable / empty grid → NO.
-- (BOOL)autoRerankComposingSentenceWithState:(InputState *)state
-                               stateCallback:(void (^)(InputState *))stateCallback
-                               errorCallback:(void (^)(void))errorCallback
-    NS_SWIFT_NAME(autoRerankComposingSentence(state:stateCallback:errorCallback:));
-
-/// Hard-commit: neural rerank + pin, snapshot shadow, insertText, Empty.
-/// Used by Enter (via _handleEnter) and force-commit paths — *not* pause.
-/// Returns YES if hard-commit ran. Mid-syllable / empty grid → NO.
+/// Canonical 定案: 改字 (rerank) + 收底線 (hard commit → insertText + Empty).
+/// Does NOT send (no Enter to host). Used by pause / 。 / ， when enabled,
+/// and by Enter while still composing. Mid-syllable / empty grid → NO.
 - (BOOL)hardCommitSentenceWithState:(InputState *)state
                       stateCallback:(void (^)(InputState *))stateCallback
                       errorCallback:(void (^)(void))errorCallback
     NS_SWIFT_NAME(hardCommitSentence(state:stateCallback:errorCallback:));
 
-/// Legacy: maps to autoRerankComposingSentence (never hides underline / never commits).
+/// Legacy name — maps to hardCommitSentence (canonical 定案).
 - (BOOL)softFinalizeSentenceWithState:(InputState *)state
                         stateCallback:(void (^)(InputState *))stateCallback
                         errorCallback:(void (^)(void))errorCallback
     NS_SWIFT_NAME(softFinalizeSentence(state:stateCallback:errorCallback:));
 
-/// Path β: soft-finalize-as-定案 mid-state retired; always NO.
+/// Retired mid-state flag; always NO (定案 = hard commit, no hide-underline-while-marked).
 @property (assign, nonatomic, readonly) BOOL softFinalized;
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback

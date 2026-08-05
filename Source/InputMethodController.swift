@@ -68,7 +68,7 @@ class McBopomofoInputMethodController: IMKInputController {
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
 
-    /// Idle pause timer for auto-rerank only (underline stays; when pause trigger is ON).
+    /// Idle pause timer for 定案 (改字 + 收底線; when pause trigger is ON).
     private var sentenceEndIdleTimer: Timer?
 
     // Legacy post-commit clawback (2.9.x) — retired; flag kept for stub API.
@@ -94,7 +94,7 @@ class McBopomofoInputMethodController: IMKInputController {
     /// Restart pause timer after each key handled while composing.
     private func scheduleSentenceEndIdleTimer(client: Any?) {
         cancelSentenceEndIdleTimer()
-        // Pause is a user toggle (default ON). When OFF, never auto-rerank on idle.
+        // Pause is a user toggle (default ON). When OFF, never 定案 on idle.
         guard Preferences.sentenceEndPauseEnabled else { return }
         let ms = Preferences.sentenceEndPauseMs  // already clamped ≥ 200
         let interval = TimeInterval(ms) / 1000.0
@@ -110,14 +110,13 @@ class McBopomofoInputMethodController: IMKInputController {
         sentenceEndIdleTimer = nil
         guard Preferences.sentenceEndPauseEnabled else { return }
         guard state is InputState.Inputting else { return }
-        // Path β: pause = auto-rerank only. Underline stays; no hard-commit / no send.
-        let ok = keyHandler.autoRerankComposingSentence(state: state) { newState in
+        // Canonical: pause = 改字 + 收底線 (hard commit). Does NOT send.
+        let ok = keyHandler.hardCommitSentence(state: state) { newState in
             self.handle(state: newState, client: client)
         } errorCallback: {
-            // swallow: idle rerank is best-effort
+            // swallow: idle 定案 is best-effort
         }
         if ok {
-            // One-shot per idle period; next keystroke restarts the clock.
             cancelSentenceEndIdleTimer()
         }
     }
@@ -391,7 +390,7 @@ class McBopomofoInputMethodController: IMKInputController {
             shadowReselect.disarm()
             shadowRecomposePendingIndex = nil
         }
-        // Path β: pause auto-rerank — restart idle clock while still composing.
+        // Pause 定案 clock: restart while still composing; cancel after 定案/Empty.
         if result {
             if self.state is InputState.Inputting {
                 scheduleSentenceEndIdleTimer(client: client)

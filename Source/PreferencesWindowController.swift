@@ -242,19 +242,19 @@ private let kWindowTitleHeight: CGFloat = 78
             place(label, height: 20)
         }
 
-        sectionTitle(NSLocalizedString("Auto-correct while composing", comment: ""))
+        sectionTitle(NSLocalizedString("Sentence end (finalize)", comment: ""))
 
         let help = NSTextField(wrappingLabelWithString: NSLocalizedString(
-            "Pause: auto-correct homophones only — underline stays, text not sent. Enter: remove underline, hard-commit, and deliver Enter to the app (send/newline). Period/comma (if enabled): one auto-correct like pause; default is insert punct only.",
+            "Enabled triggers (pause / period / comma) and Enter while underlined: smart-correct + remove underline (commit text). Does not send. Enter again after underline is gone: send to the app (search / chat / newline). After finalize, ↓ reselects via delete-and-recompose.",
             comment: ""))
         help.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
         help.textColor = .secondaryLabelColor
-        help.frame = NSRect(x: left, y: y - 56, width: contentWidth, height: 56)
+        help.frame = NSRect(x: left, y: y - 64, width: contentWidth, height: 64)
         view.addSubview(help)
-        y -= 64
+        y -= 72
 
         pauseEnabledCheckbox = NSButton(
-            checkboxWithTitle: NSLocalizedString("Pause (idle): auto-correct, keep underline", comment: ""),
+            checkboxWithTitle: NSLocalizedString("Pause (idle): correct + finalize (no send)", comment: ""),
             target: self, action: #selector(sentenceEndPrefChanged(_:)))
         place(pauseEnabledCheckbox)
 
@@ -283,19 +283,22 @@ private let kWindowTitleHeight: CGFloat = 78
         y -= 32
 
         periodCheckbox = NSButton(
-            checkboxWithTitle: NSLocalizedString("Period (。): also auto-correct (keep underline)", comment: ""),
+            checkboxWithTitle: NSLocalizedString("Period (。): correct + finalize (no send)", comment: ""),
             target: self, action: #selector(sentenceEndPrefChanged(_:)))
         place(periodCheckbox)
 
         commaCheckbox = NSButton(
-            checkboxWithTitle: NSLocalizedString("Comma (，): also auto-correct (keep underline)", comment: ""),
+            checkboxWithTitle: NSLocalizedString("Comma (，): correct + finalize (no send)", comment: ""),
             target: self, action: #selector(sentenceEndPrefChanged(_:)))
         place(commaCheckbox)
 
+        // Enter is not a trigger toggle: first Enter while underlined = 定案;
+        // second Enter after 定案 = 送出. Keep checkbox hidden for clarity.
         enterCheckbox = NSButton(
             checkboxWithTitle: NSLocalizedString(
-                "Enter: always hard-commit + send (path β; toggle kept for settings)", comment: ""),
+                "Enter (info): while underlined = finalize; after finalize = send", comment: ""),
             target: self, action: #selector(sentenceEndPrefChanged(_:)))
+        enterCheckbox.isEnabled = false
         place(enterCheckbox)
 
         y -= 8

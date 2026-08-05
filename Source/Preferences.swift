@@ -647,12 +647,12 @@ extension Preferences {
     @UserDefault(key: kNeuralPathRerankNuKey, defaultValue: 0.75)
     @objc static var neuralPathRerankNu: Double
 
-    // MARK: - Auto-rerank on idle / optional punct (path β)
-    // Pause = auto-rerank only (underline stays). Enter = hard-commit + send.
-    // 。/， prefs: optional one-shot auto-rerank; default OFF = insert punct only.
+    // MARK: - Sentence-end 定案 triggers (canonical product rule)
+    // Enabled trigger / Enter while underlined → 改字 + 收底線 (hard commit), 不送出.
+    // Enter after 定案 (no underline) → 送出 (pass key to host).
+    // Enter is not a toggle in this group.
 
-    /// Legacy pref (Enter always hard-commits when composing in path β).
-    /// Kept for UI/settings compatibility; not used to gate Enter hard-commit.
+    /// Legacy unused for Enter gating (Enter always 定案 when composing).
     @UserDefault(key: kSentenceEndTriggerEnterKey, defaultValue: true)
     @objc static var sentenceEndTriggerEnter: Bool
 
@@ -661,8 +661,7 @@ extension Preferences {
         return sentenceEndTriggerEnter
     }
 
-    /// Full-width period （。） → optional one-shot auto-rerank (not hard-commit).
-    /// Default OFF: insert punct only, underline stays.
+    /// Full-width period （。） → 定案 (改字 + 收底線). Default OFF: insert punct only.
     @UserDefault(key: kSentenceEndTriggerPeriodKey, defaultValue: false)
     @objc static var sentenceEndTriggerPeriod: Bool
 
@@ -671,8 +670,7 @@ extension Preferences {
         return sentenceEndTriggerPeriod
     }
 
-    /// Full-width comma （，） → optional one-shot auto-rerank (not hard-commit).
-    /// Default OFF: insert punct only, underline stays.
+    /// Full-width comma （，） → 定案 (改字 + 收底線). Default OFF: insert punct only.
     @UserDefault(key: kSentenceEndTriggerCommaKey, defaultValue: false)
     @objc static var sentenceEndTriggerComma: Bool
 
@@ -681,7 +679,7 @@ extension Preferences {
         return sentenceEndTriggerComma
     }
 
-    /// Idle pause → auto-rerank only (underline stays, no send). Default ON.
+    /// Idle pause → 定案 (改字 + 收底線, 不送出). Default ON.
     @UserDefault(key: kSentenceEndPauseEnabledKey, defaultValue: true)
     @objc static var sentenceEndPauseEnabled: Bool
 
@@ -690,7 +688,7 @@ extension Preferences {
         return sentenceEndPauseEnabled
     }
 
-    /// Idle pause (ms) before auto-rerank when pause is enabled.
+    /// Idle pause (ms) before 定案 when pause is enabled.
     /// Default 800ms; stored value is always clamped to ≥ 200ms.
     @UserDefault(key: kSentenceEndPauseMsKey, defaultValue: 800)
     private static var _sentenceEndPauseMsRaw: Int
