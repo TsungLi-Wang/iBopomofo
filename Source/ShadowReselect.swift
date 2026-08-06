@@ -34,6 +34,19 @@ final class ShadowReselectSession {
 
     var totalUTF16: Int { units.reduce(0) { $0 + $1.utf16Length } }
 
+    /// Surface of unit immediately left of `index` (empty if index == 0).
+    func previousValue(before index: Int) -> String {
+        guard index > 0, index <= units.count else { return "" }
+        return units[index - 1].value
+    }
+
+    /// Concatenated surfaces of units[0..<index] (left context for learning/log).
+    func leftContextString(before index: Int) -> String {
+        guard index > 0, !units.isEmpty else { return "" }
+        let end = min(index, units.count)
+        return units[0..<end].map(\.value).joined()
+    }
+
     /// Char strictly to the right of caret (classic pending). Nil at sentence end.
     var pendingUnit: ShadowUnit? {
         guard armed, caretIndex >= 0, caretIndex < units.count else { return nil }

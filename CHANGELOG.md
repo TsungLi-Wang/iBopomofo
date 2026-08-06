@@ -10,7 +10,25 @@
 
 ### 內部 / 開發者改動
 
-- **文件對齊 v2.13.3**（無產品 code）：`AGENTS.md`、`AI_HANDOFF_PROMPT.md`、`README.md`、本機 `~/Documents/i注音-總交接檔-v5.md`；行為總則／按鍵表／版本表與出貨一致。commit 見本棒。
+（無）
+
+## [2.14.0] — 2026-08-06
+
+- **版本標記**：`CFBundleShortVersionString` = **2.14.0**；`CFBundleVersion` = **2312**
+- **tag**：`v2.14.0`（annotated）
+- **commit 範圍**：tag `v2.13.3`（`f4df30b9`）→ 本版 tag（含其後 docs `271d74fb`）
+- **打分**：tw538 仍 **387/537**（本版**不改**選字引擎 walk/v2c）
+
+### 使用者可感知的改動
+
+- **定案後改的同音字會被記住**：刪回重組成功後寫入個人化 soft 表（一次達生效門檻）；下次同前文＋同讀音會偏向你改過的字。
+- **校正 log 補全**：`manual-correction.log` 記錄左前文、被換掉的錯字、新字（schema v1）；組字中手選 wrong_char 留空。
+
+### 內部 / 開發者改動
+
+- `UserOverrideModel.noteSoftObservationStrong`（合成 observation key，可 save/load）；`LanguageModelManager.noteSoftPersonalization`。
+- `completeShadowRecomposePick` 成功後 best-effort 學 UOM（失敗不影響已替換的字）。
+- 文件對齊 v2.13.3 條目仍見 git 歷史 `271d74fb`。
 
 ## [2.13.3] — 2026-08-05
 

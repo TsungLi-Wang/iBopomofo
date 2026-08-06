@@ -479,6 +479,21 @@ static void LTLoadVariantAnnotatorData()
     gUserOverrideModel.save([self userOverrideCachePath].UTF8String);
 }
 
++ (BOOL)noteSoftPersonalizationWithPrevious:(NSString *)previous
+                                    reading:(NSString *)reading
+                                       word:(NSString *)word
+{
+    if (reading.length == 0 || word.length == 0) {
+        return NO;
+    }
+    const std::string prev = previous != nil ? previous.UTF8String : "";
+    const double now = [NSDate date].timeIntervalSince1970;
+    gUserOverrideModel.noteSoftObservationStrong(prev, reading.UTF8String,
+                                                 word.UTF8String, now);
+    [self saveUserOverrideCache];
+    return YES;
+}
+
 + (McBopomofo::McBopomofoLM *)languageModelMcBopomofo
 {
     return &gLanguageModelMcBopomofo;

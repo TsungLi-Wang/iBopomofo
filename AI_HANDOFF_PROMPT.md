@@ -2,9 +2,9 @@
 
 你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-08-05**（**文件對齊 v2.13.3 現況 — 無 code 變更**）
+**最後更新：2026-08-06**（**v2.14.0 定案後校正進 UOM ＋ correction log schema v1**）
 
-**現役**：**v2.13.3** / build **2311** / tag **`v2.13.3`** / commit **`f4df30b9`**  
+**現役**：**v2.14.0** / build **2312** / tag **`v2.14.0`**  
 **引擎**：walk/v2c **凍結**；tw538 **387/537**（自 v2.6 出貨配置未變）
 
 **作廢**：2.12.x 互相打架的補指令；soft-finalize「藏底線當定案」；Enter 一次就送出；定案後假刪再插（會讓句子變長）。
@@ -24,11 +24,11 @@
 
 ---
 
-## 三行同步狀態（2026-08-05）
+## 三行同步狀態（2026-08-06）
 
-1. **發版**：**v2.13.3**（build **2311**，`f4df30b9`，tag **`v2.13.3`**）。定案後重選 **1→1 驗證置換**；定案≠送出；句號／逗號觸發生效；←／→ 不吃鍵。引擎未改；tw538 **387/537**。
-2. **公開**：https://github.com/TsungLi-Wang/iBopomofo — Releases **Latest = v2.13.3**。
-3. **下一刀（產品）**：真機 dogfood（TextEdit 連改 3 次字數不變；LINE／Telegram 可預期降級 beep）；可選 AX 權限引導 UX。研究線見總交接檔。
+1. **發版**：**v2.14.0**（build **2312**，tag **`v2.14.0`**）。定案後刪回重組成功 → **UOM soft 學習**（一次達門檻）＋ **correction log schema v1**（left_context / wrong_char / chosen）。引擎未改；tw538 **387/537**。
+2. **公開**：https://github.com/TsungLi-Wang/iBopomofo — Releases **Latest = v2.14.0**。
+3. **下一刀（產品）**：真機 dogfood T1–T5（改一次下次記得；log 欄位正確；LINE 降級不誤學）。
 
 ### tw538 基準線
 
@@ -70,18 +70,14 @@
 - Enter **不是**觸發點開關；語意見上表。
 - 標準注音：。＝鍵 **`>`**，，＝鍵 **`<`**（v2.13.1 修偵測）。
 
-### 定案後改字＝刪回重組（v2.13.3 已修好可用）
+### 定案後改字＝刪回重組（v2.13.3 置換；v2.14.0 學習）
 
 1. 定案後 armed 影子讀音表；↓ 開**該字讀音**的同音**單字**清單（不重跑模型；純手動逐字替換）。
 2. **選字後必須 1→1**：先確認舊字被移除／置換成功，才算完成；失敗 → **beep、不插新字**（絕不可兩字並排、句子變長）。
-3. 四條置換路徑（依序，任一驗證成功即停）：
-   - atomic `insertText(new, replacementRange: old)` 且讀回該位置＝新字
-   - pull-to-mark（`setMarkedText` 蓋舊字 range）再 `insertText` 換 mark
-   - empty-insert 刪除 + **讀回驗證舊字消失** + 再插
-   - CGEvent 刪除（需 Accessibility）+ ~50ms + 讀回驗證；全敗 abort
-4. **讀不到游標／range 的 app**（LINE／Telegram 等 `selectedRange == NSNotFound`）：**預期降級**＝beep 不改、不疊字；**不是 bug**。TextEdit 等可讀 range 的 app 才完整重選。
-5. 定案後 **←／→ 一律放行**給 app 原生游標（v2.13.2）；不因 armed 吃方向鍵。
-6. 失準（滑鼠點別處／切 app／失焦／新組字／對齊不確定）→ disarm，**絕不誤刪**。
+3. **v2.14.0**：置換成功後 **best-effort** 寫入 UOM soft（`noteSoftObservationStrong`：prev=左方字、reading、chosen；一次達 count≥2）；失敗不影響已換上的字。組字中 `fixNode→observe` 路徑不變、不雙算同一次動作。
+4. **校正 log schema v1**：`schemaVer \t ISO8601 \t reading \t left_context \t wrong_char \t chosen`（`manual-correction.log`；純紀錄、不回灌）。
+5. **讀不到游標／range 的 app**：beep 不改、不學、不寫壞 log；**不是 bug**。
+6. 定案後 **←／→ 一律放行**；失準 disarm，**絕不誤刪**。
 
 ### 四鍵（定案後、重選語境）
 

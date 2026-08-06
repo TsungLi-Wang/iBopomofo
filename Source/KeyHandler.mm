@@ -303,12 +303,17 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     }
 
     // Stage-3 feedback: every manual candidate pick is a hard-fork sample.
+    // Schema v1: left_context = full composing surface after pick; wrong_char
+    // empty (composing path has no separate "before" surface to log).
     {
         NSMutableString *ctx = [NSMutableString string];
         for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
             [ctx appendString:@(_latestWalk.chosenValueAt(i).c_str())];
         }
-        [ManualCorrectionLog appendWithReading:reading context:ctx chosen:value];
+        [ManualCorrectionLog appendWithReading:reading
+                                   leftContext:ctx
+                                     wrongChar:@""
+                                        chosen:value];
     }
 
     if (currentNode != nullptr && flag && Preferences.moveCursorAfterSelectingCandidate) {

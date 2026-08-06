@@ -189,12 +189,14 @@ extension McBopomofoInputMethodController {
 
         switch outcome {
         case .replaced:
+            // Capture learning context *before* mutating the shadow table.
+            let prevForUOM = shadowReselect.previousValue(before: pendingIdx)
+            let leftContext = shadowReselect.leftContextString(before: pendingIdx)
+
             // Update shadow model only after document replace succeeded.
             if shadowReselect.armed {
                 // Ensure caretIndex points at the unit we replaced.
                 if pendingIdx < shadowReselect.units.count {
-                    // temporarily set caret for update
-                    // updatePendingValue uses caretIndex
                     while shadowReselect.caretIndex > pendingIdx {
                         _ = shadowReselect.moveLeft()
                     }
@@ -207,8 +209,19 @@ extension McBopomofoInputMethodController {
                         reading: reading, value: chosen, at: pendingIdx)
                 }
             }
+
+            // R1: feed UOM (soft personalization). Best-effort only — must never
+            // undo the successful document replace (seatbelt).
+            _ = LanguageModelManager.noteSoftPersonalization(
+                previous: prevForUOM, reading: reading, word: chosen)
+
+            // R2: correction log with real left context + wrong_char.
             ManualCorrectionLog.append(
-                reading: reading, context: chosen, chosen: chosen)
+                reading: reading,
+                leftContext: leftContext,
+                wrongChar: oldValue,
+                chosen: chosen)
+
             clearShadowRecomposeContext()
             keyHandler.clear()
             return true

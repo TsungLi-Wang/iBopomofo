@@ -84,9 +84,21 @@ class UserOverrideModel {
 
   // Explicit soft-index bump (also called from walk-based observe). Safe for
   // unit harnesses that do not go through FormObservationKey.
+  // NOTE: does NOT persist via save() alone (soft is rebuilt from LRU on
+  // observe/load). Prefer noteSoftObservationStrong for product paths that
+  // must survive save/load.
   void noteSoftObservation(const std::string& prevValue,
                            const std::string& headReading,
                            const std::string& word, double timestamp);
+
+  // Walk-independent soft personalization (post-commit reselect, etc.).
+  // Writes through the persisted observe(key) path with a synthetic key so
+  // save()/load() keep the evidence. One call ensures soft count >=
+  // kMinSoftCount so the correction is effective immediately. Does not set
+  // forceHighScoreOverride. Independent of composing-grid observe(walk).
+  void noteSoftObservationStrong(const std::string& prevValue,
+                                 const std::string& headReading,
+                                 const std::string& word, double timestamp);
 
   // Soft score for DP: min(kSoftScoreCap, log(1+count)) * decay, or 0 if
   // count < kMinSoftCount or fully decayed. L1 backoff is reserved (returns

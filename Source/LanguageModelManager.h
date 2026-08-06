@@ -60,6 +60,14 @@ NS_ASSUME_NONNULL_BEGIN
 + (void)loadUserOverrideCache;
 + (void)saveUserOverrideCache;
 
+/// Walk-independent soft personalization (e.g. post-commit delete-and-recompose).
+/// One call reaches soft threshold (count ≥ 2). Saves cache on success.
+/// Returns NO if reading/word empty (no-op). Never throws.
++ (BOOL)noteSoftPersonalizationWithPrevious:(NSString *)previous
+                                    reading:(NSString *)reading
+                                       word:(NSString *)word
+    NS_SWIFT_NAME(noteSoftPersonalization(previous:reading:word:));
+
 @end
 
 /// The following methods are merely for testing.

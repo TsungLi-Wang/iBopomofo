@@ -213,6 +213,46 @@ void UserOverrideModel::noteSoftObservation(const std::string& prevValue,
   e.timestamp = timestamp;
 }
 
+// Synthetic observation key parseable by ParseObservationKey / rebuildSoftIndex:
+//   ant-prev-head = "()-(,prevValue)-(headReading,word)" or "()-()-(reading,word)"
+static std::string SoftPersonalizationObservationKey(
+    const std::string& prevValue, const std::string& headReading,
+    const std::string& word) {
+  const std::string ant = "()";
+  const std::string prev =
+      prevValue.empty() ? "()" : (std::string("(,") + prevValue + ")");
+  const std::string head = "(" + headReading + "," + word + ")";
+  return ant + "-" + prev + "-" + head;
+}
+
+void UserOverrideModel::noteSoftObservationStrong(
+    const std::string& prevValue, const std::string& headReading,
+    const std::string& word, double timestamp) {
+  if (headReading.empty() || word.empty()) {
+    return;
+  }
+  const std::string key =
+      SoftPersonalizationObservationKey(prevValue, headReading, word);
+  // Persist via LRU observe path (save/load). forceHighScoreOverride = false:
+  // soft DP is the learning channel; hard post-walk override stays reserved.
+  observe(key, word, timestamp, /*forceHighScoreOverride=*/false);
+
+  // Strong signal: one user correction must reach soft threshold (kMinSoftCount).
+  auto mapIter = lruMap_.find(key);
+  if (mapIter == lruMap_.end()) {
+    return;
+  }
+  Observation& observation = mapIter->second->second;
+  auto& o = observation.overrides[word];
+  if (o.count < kMinSoftCount) {
+    const size_t delta = kMinSoftCount - o.count;
+    o.count = kMinSoftCount;
+    observation.count += delta;
+  }
+  o.timestamp = timestamp;
+  rebuildSoftIndex();
+}
+
 double UserOverrideModel::userScore(const std::string& prevValue,
                                     const std::string& headReading,
                                     const std::string& word,

@@ -1,13 +1,20 @@
 // Copyright (c) 2026 and onwards The iBopomofo Authors.
 //
-// Manual correction samples: user re-picked a candidate after the model path
-// was wrong. These are the highest-value hard forks for later retrain.
+// Manual correction samples: user re-picked after the model path was wrong.
+// Highest-value hard forks for later retrain / crowd loop.
 // Pure local append-only log under Application Support; never uploaded.
+//
+// Schema v1 (tab-separated, one event per line):
+//   schemaVer \t ISO8601 \t reading \t left_context \t wrong_char \t chosen
+// wrong_char may be empty for composing-time picks (no "before" surface).
 
 import Foundation
 
 @objc(ManualCorrectionLog)
 final class ManualCorrectionLog: NSObject {
+    /// Current line schema version written by append(...).
+    @objc static let schemaVersion = "1"
+
     /// ~/Library/Application Support/McBopomofo/manual-correction.log
     @objc static var logFilePath: String {
         let base = FileManager.default.urls(
@@ -18,8 +25,13 @@ final class ManualCorrectionLog: NSObject {
         return base.appendingPathComponent("manual-correction.log", isDirectory: false).path
     }
 
-    /// One line: ISO8601\treading\tcontext\tchosen\n
-    @objc static func append(reading: String, context: String, chosen: String) {
+    /// Schema v1: schemaVer \t ISO8601 \t reading \t left_context \t wrong_char \t chosen
+    @objc static func append(
+        reading: String,
+        leftContext: String,
+        wrongChar: String,
+        chosen: String
+    ) {
         guard Preferences.enableManualCorrectionLog else { return }
         guard !reading.isEmpty, !chosen.isEmpty else { return }
         let esc: (String) -> String = {
@@ -27,7 +39,8 @@ final class ManualCorrectionLog: NSObject {
                 .replacingOccurrences(of: "\n", with: " ")
         }
         let ts = ISO8601DateFormatter().string(from: Date())
-        let line = "\(ts)\t\(esc(reading))\t\(esc(context))\t\(esc(chosen))\n"
+        let line =
+            "\(schemaVersion)\t\(ts)\t\(esc(reading))\t\(esc(leftContext))\t\(esc(wrongChar))\t\(esc(chosen))\n"
         let path = logFilePath
         if !FileManager.default.fileExists(atPath: path) {
             FileManager.default.createFile(atPath: path, contents: nil)
