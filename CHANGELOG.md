@@ -10,7 +10,7 @@
 
 ### 內部 / 開發者改動
 
-（無）
+- **新北極星評分機骨架**（eval only，引擎／產品未改）：`Source/Engine/eval/benchmarks/newstar_homophone_eval.cpp` + `newstar_sample.jsonl` + `README-newstar.md`。字級同音消歧、pair 頻率加權、train/heldout 分報；出貨 scorer（λ=0.75 ν=0.75 v2c）且 UOM 關閉；與 tw538 並存。
 
 ## [2.14.0] — 2026-08-06
 
