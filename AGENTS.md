@@ -239,7 +239,7 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 
 - Do **not** run concurrent `xcodebuild` / CMake builds against the **same** DerivedData directory (PCH races). Prefer isolated paths such as `dd-test/`, `dd-rel/`, `build/dd-rel/`.
 - Do **not** pipe `xcodebuild test` to `| tail` (hides the real exit / `** TEST SUCCEEDED **` line).
-- New `project.pbxproj` file IDs for this fork: **下一個可用是 FACE0339+**（已用到 FACE0336，`ParticleRuleDisambiguator` + `particle-rules.tsv` + `confusion-alphas.tsv`）。加新檔前先 `grep -o "FACE0[0-9]\{3\}" McBopomofo.xcodeproj/project.pbxproj | sort -u | tail -1` 確認，撞號會讓專案檔開不起來。
+- New `project.pbxproj` file IDs for this fork: **下一個可用是 FACE033B+**（已用到 FACE0336，`ParticleRuleDisambiguator` + `particle-rules.tsv` + `confusion-alphas.tsv`）。加新檔前先 `grep -o "FACE0[0-9]\{3\}" McBopomofo.xcodeproj/project.pbxproj | sort -u | tail -1` 確認，撞號會讓專案檔開不起來。
 ### Swift & AppKit
 
 - Use `Preferences` static properties and property wrappers instead of direct `UserDefaults` access
