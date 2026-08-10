@@ -23,6 +23,9 @@
 
 #import "NeuralLMPathScorer.h"
 #import "ParticleRuleDisambiguator.h"
+
+#include <fstream>
+#include <map>
 #import "CompositeContextModel.h"
 #import "CorpusBigramContextModel.h"
 #import "KeyHandler.h"
@@ -71,6 +74,10 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // 「的／得」文法規則消歧。詞頻讓「的」領先「得」約 180 倍，統計層追不回來；
     // 這一層在走完路徑後、用文法把不合法的選項換掉。見 ParticleRuleDisambiguator.h。
     McBopomofo::ParticleRuleDisambiguator *_particleRule;
+
+    // 同音候選的頻率先驗壓縮係數（讀音 → alpha）。見 reading_grid.h
+    // setConfusionAlphas 的說明與 Source/Data/confusion-alphas.tsv。
+    std::map<std::string, double> *_confusionAlphas;
 
     // Neural n-best rerank (candidate A): composing walk stays bit-identical
     // (~0.1 ms); gate is YES only for Enter-commit and Tab-preview walks.
@@ -231,6 +238,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     delete _bpmfReadingBuffer;
     delete _grid;
     delete _particleRule;
+    delete _confusionAlphas;
 }
 
 - (instancetype)init
@@ -256,6 +264,26 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
                      ofType:@"tsv"];
         if (particlePath != nil) {
             _particleRule->load(particlePath.UTF8String);
+        }
+
+        _confusionAlphas = new std::map<std::string, double>();
+        NSString *alphaPath = [[NSBundle bundleForClass:[self class]]
+            pathForResource:@"confusion-alphas"
+                     ofType:@"tsv"];
+        if (alphaPath != nil) {
+            std::ifstream ifs(alphaPath.UTF8String);
+            std::string line;
+            while (std::getline(ifs, line)) {
+                if (line.empty() || line[0] == '#') continue;
+                size_t tab = line.find('\t');
+                if (tab == std::string::npos) continue;
+                try {
+                    (*_confusionAlphas)[line.substr(0, tab)] =
+                        std::stod(line.substr(tab + 1));
+                } catch (...) {
+                    // 壞行略過 —— 表檔毀損不該讓輸入法起不來
+                }
+            }
         }
 
         _inputMode = InputModeBopomofo;
@@ -2927,6 +2955,13 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // since v2.6.0). Gated by _rerankThisWalk: Enter-commit and Tab-preview only;
     // per-keystroke composing walk never pays the ~45 ms rerank.
     // When off / not gated / scorer null, walk() is bit-identical to pre-rerank.
+    // 同音頻率先驗壓縮只在有神經重排時才有意義（它靠 PathScorer 的判斷取代頻率）
+    _grid->setConfusionAlphas(
+        (Preferences.enableNeuralPathRerank && _rerankThisWalk &&
+         _inputMode != InputModePlainBopomofo && _confusionAlphas != nullptr)
+            ? _confusionAlphas
+            : nullptr);
+
     if (Preferences.enableNeuralPathRerank && _rerankThisWalk &&
         _inputMode != InputModePlainBopomofo) {
         static McBopomofo::NeuralLMPathScorer *sharedPathScorer = nullptr;

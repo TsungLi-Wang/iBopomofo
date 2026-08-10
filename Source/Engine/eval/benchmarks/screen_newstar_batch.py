@@ -31,6 +31,49 @@ GROUP = ["在", "再"]
 DIRTY = re.compile(r"[，。、！？：；「」『』（）〈〉…—\s0-9A-Za-z]")
 
 
+def load_word_readings(path):
+    """詞 → 該詞的讀音序列集合。用來在**還沒配注音之前**就判斷
+    目標字在這句裡到底讀什麼音。
+
+    為什麼需要：2026-08-10 讓 Johnny 標了 406 句注音，回來才發現 92 句的
+    目標字根本不在該組的讀音上（「乾兒子」的乾讀 ㄍㄢ 不是 ㄑㄧㄢˊ、
+    「那個」的那讀 ㄋㄚˋ 不是 ㄋㄚˇ、「覺得」的覺讀 ㄐㄩㄝˊ）。
+    那 92 句是白標的 —— 這種事該在生成階段就擋掉。
+    """
+    table = {}
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            if line.startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            syls = tuple(parts[0].split("-"))
+            if len(syls) == len(parts[1]):
+                table.setdefault(parts[1], set()).add(syls)
+    return table
+
+
+def wrong_reading(sentence, idx, reading, word_readings, max_n=4):
+    """目標字在這句裡是不是讀別的音。回傳說明字串，沒問題回 None。
+
+    做法：找包住目標字的詞庫詞，看該詞在那個位置的讀音。
+    長詞優先（「乾兒子」比「乾」準）。
+    """
+    for n in range(max_n, 1, -1):
+        for start in range(max(0, idx - n + 1), min(idx + 1, len(sentence) - n + 1)):
+            word = sentence[start:start + n]
+            legal = word_readings.get(word)
+            if not legal:
+                continue
+            off = idx - start
+            got = {syls[off] for syls in legal if off < len(syls)}
+            if got and reading not in got:
+                return f"「{word}」裡的「{sentence[idx]}」讀 {'/'.join(sorted(got))}，不是 {reading}"
+            return None
+    return None
+
+
 def load_vocab(path):
     vocab = set()
     with open(path, encoding="utf-8") as fh:
@@ -74,12 +117,16 @@ def main():
     ap.add_argument("--group", help="逗號分隔候選字，預設 在,再")
     ap.add_argument("--data", default=DATA_TXT)
     ap.add_argument("--list-freebies", action="store_true", help="列出送分題")
+    ap.add_argument("--reading", help="該組的讀音（例 ㄑㄧㄢˊ）。給了就會檢查"
+                                     "目標字在句中是不是真的讀這個音")
     ap.add_argument("--min-len", type=int, default=8)
     ap.add_argument("--max-len", type=int, default=30)
     args = ap.parse_args()
 
     group = [c.strip() for c in args.group.split(",")] if args.group else list(GROUP)
     vocab = load_vocab(args.data)
+    word_readings = load_word_readings(args.data) if args.reading else {}
+    bad_reading = []
 
     lines = [l.strip() for l in open(args.input, encoding="utf-8") if l.strip()]
     violations, traps, freebies = [], collections.Counter(), []
@@ -99,6 +146,11 @@ def main():
 
         idx = hits[0]
         target = line[idx]
+        if args.reading:
+            why = wrong_reading(line, idx, args.reading, word_readings)
+            if why:
+                bad_reading.append((n, line, why))
+                continue
         dist[target] += 1
         buckets["8-12" if len(line) <= 12 else "13-20" if len(line) <= 20 else "21-30"] += 1
         is_trap, why = classify(line, idx, target, [c for c in group if c != target], vocab)
@@ -129,6 +181,13 @@ def main():
                    else "❌ 嚴重偏斜：有一側大量句子被詞庫一刀切掉，那半沒有鑑別度")
         print(f"  兩側落差 {gap * 100:.0f} 個百分點　{verdict}")
         print("  （存活≠難。真正的難度要跑評分機才知道。）")
+
+    if bad_reading:
+        print(f"\n── ❌ 讀音對不上 {len(bad_reading)} 句（目標字在這句讀別的音，"
+              f"使用者根本打不到這個混淆）──")
+        for n, line, why in bad_reading[:12]:
+            print(f"  #{n} {line}")
+            print(f"        {why}")
 
     if violations:
         print("\n── 硬規則違規 ──")

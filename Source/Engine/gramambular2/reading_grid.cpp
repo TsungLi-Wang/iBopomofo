@@ -331,7 +331,30 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
       for (const auto& rp : nbest) paths.push_back(rp.words);
       std::vector<double> rnns = pathScorer_->scoreNBest(paths);
       for (size_t pi = 0; pi < nbest.size(); ++pi) {
-        double finalScore = nbest[pi].walkScore + pathRerankNu_ * rnns[pi];
+        // 同音候選的頻率先驗壓縮（見 setConfusionAlphas 的說明）。
+        // 對設定過 alpha 的讀音，把「非最高頻候選要付的頻率代價」折扣掉
+        // (1-alpha)，讓 PathScorer 的上下文判斷不被頻率差淹沒。
+        double adjust = 0.0;
+        if (confusionAlphas_ != nullptr && !confusionAlphas_->empty()) {
+          const RankedPath& rp = nbest[pi];
+          for (size_t ni = 0; ni < rp.nodes.size(); ++ni) {
+            // 只壓「單音節節點」。多字詞節點（現在／以前／作品）雖然讀音裡
+            // 含目標音，但那是詞的一部分，候選之間的差異不是同音字混淆 ——
+            // 壓它沒有意義，而且會改變整句路徑、傷到別的位置。
+            // 2026-08-10 實測：不加這道限制，前/錢 −1.5、較/叫 −0.8。
+            if (rp.nodes[ni]->spanningLength() != 1) continue;
+            auto it = confusionAlphas_->find(rp.nodes[ni]->reading());
+            if (it == confusionAlphas_->end() || it->second >= 1.0) continue;
+            const auto& ug = rp.nodes[ni]->unigrams();
+            if (ug.empty() || ni >= rp.selectedUnigramIndices.size()) continue;
+            size_t sel = rp.selectedUnigramIndices[ni];
+            if (sel >= ug.size()) continue;
+            // ug[0] 是該節點最高頻候選；penalty ≤ 0
+            double penalty = ug[sel].score() - ug[0].score();
+            adjust += (1.0 - it->second) * -penalty;
+          }
+        }
+        double finalScore = nbest[pi].walkScore + adjust + pathRerankNu_ * rnns[pi];
         nbest[pi].pathScore = finalScore;
         if (finalScore > bestFinal) {
           bestFinal = finalScore;

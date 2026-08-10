@@ -32,6 +32,7 @@
 		FACE0134FACE0134FACE0134 /* path-char-lstm.bin in Resources */ = {isa = PBXBuildFile; fileRef = FACE0133FACE0133FACE0133 /* path-char-lstm.bin */; };
 		FACE012FFACE012FFACE012F /* path-char-ngrams.tsv in Resources */ = {isa = PBXBuildFile; fileRef = FACE012EFACE012EFACE012E /* path-char-ngrams.tsv */; };
 		FACE0332FACE0332FACE0332 /* ParticleRuleDisambiguator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FACE0330FACE0330FACE0330 /* ParticleRuleDisambiguator.cpp */; };
+		FACE0336FACE0336FACE0336 /* confusion-alphas.tsv in Resources */ = {isa = PBXBuildFile; fileRef = FACE0335FACE0335FACE0335 /* confusion-alphas.tsv */; };
 		FACE0334FACE0334FACE0334 /* particle-rules.tsv in Resources */ = {isa = PBXBuildFile; fileRef = FACE0333FACE0333FACE0333 /* particle-rules.tsv */; };
 		FACE0121FACE0121FACE0121 /* word-bigrams.tsv in Resources */ = {isa = PBXBuildFile; fileRef = FACE0122FACE0122FACE0122 /* word-bigrams.tsv */; };
 		6A68C1C32EC7F2C0005284A0 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = 6A68C1C12EC7F2C0005284A0 /* Localizable.stringsdict */; };
@@ -192,6 +193,7 @@
 		FACE0126FACE0126FACE0126 /* same_path_oracle.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = same_path_oracle.cpp; sourceTree = "<group>"; };
 		FACE0330FACE0330FACE0330 /* ParticleRuleDisambiguator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ParticleRuleDisambiguator.cpp; sourceTree = "<group>"; };
 		FACE0331FACE0331FACE0331 /* ParticleRuleDisambiguator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParticleRuleDisambiguator.h; sourceTree = "<group>"; };
+		FACE0335FACE0335FACE0335 /* confusion-alphas.tsv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "confusion-alphas.tsv"; sourceTree = "<group>"; };
 		FACE0333FACE0333FACE0333 /* particle-rules.tsv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "particle-rules.tsv"; sourceTree = "<group>"; };
 		FACE0122FACE0122FACE0122 /* word-bigrams.tsv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "word-bigrams.tsv"; sourceTree = "<group>"; };
 		6A68C1C22EC7F2C0005284A0 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = en; path = en.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
@@ -513,6 +515,7 @@
 				6A833E4B2F0A0F7F0086AD0C /* bpmfvs-variants.txt */,
 				6A38BBF615FC117A00A8A51F /* data.txt */,
 				6AD7CBC715FE555000691B5B /* data-plain-bpmf.txt */,
+				FACE0335FACE0335FACE0335 /* confusion-alphas.tsv */,
 				FACE0333FACE0333FACE0333 /* particle-rules.tsv */,
 				FACE0122FACE0122FACE0122 /* word-bigrams.tsv */,
 				FACE012EFACE012EFACE012E /* path-char-ngrams.tsv */,
@@ -797,6 +800,7 @@
 				6A2E40F6253A69DA00D1AE1D /* Images.xcassets in Resources */,
 				D4E33D8F27A838F0006DB1CF /* InfoPlist.strings in Resources */,
 				6A38BC1515FC117A00A8A51F /* data.txt in Resources */,
+				FACE0336FACE0336FACE0336 /* confusion-alphas.tsv in Resources */,
 				FACE0334FACE0334FACE0334 /* particle-rules.tsv in Resources */,
 				FACE0121FACE0121FACE0121 /* word-bigrams.tsv in Resources */,
 				FACE012FFACE012FFACE012F /* path-char-ngrams.tsv in Resources */,

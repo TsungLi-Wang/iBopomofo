@@ -28,6 +28,7 @@
 #include <cassert>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -237,6 +238,25 @@ class ReadingGrid {
 
   void setPathScorer(PathScorer* scorer) { pathScorer_ = scorer; }
   void setPathRerankNu(double nu) { pathRerankNu_ = nu; }
+
+  // 同音候選的頻率先驗壓縮係數：讀音 → alpha（1.0 = 完全採信頻率＝原行為，
+  // 0.0 = 同音候選之間不比頻率、只由 PathScorer 的上下文判斷決定）。
+  //
+  // 為什麼需要：語言模型只看字詞常不常用，而同音字之間的頻率差可以到幾十
+  // 上百倍（「的」比「得」常見約 180 倍）。只要兩個字都合法，高頻字永遠贏，
+  // 上下文訊號蓋不過去 —— 實測「該打得的句子」引擎只選對 6.6%。
+  //
+  // 這一層在 n-best 融合時，把「非最高頻候選要付的頻率代價」按 alpha 折扣，
+  // 讓 PathScorer 的判斷浮得出來。只影響同一節點內的候選比較，不影響斷詞。
+  //
+  // 逐讀音設定而非全域，因為各組性質不同（2026-08-10 實測）：
+  //   ㄗㄞˋ 在/再、ㄉㄜ˙ 的/得、ㄗㄨㄛˋ 作/做/坐/座 → alpha 0.0 明顯較好
+  //   ㄅㄚ  吧/八/巴 → alpha 1.0（維持原樣）較好，因為「吧」的高頻是真實的
+  //                    語言規律（句尾語氣詞），壓掉它反而丟失正確訊號
+  // 傳 nullptr 或空表 → 完全不改變原行為。
+  void setConfusionAlphas(const std::map<std::string, double>* alphas) {
+    confusionAlphas_ = alphas;
+  }
   void setPathRerankNBest(size_t n) { pathRerankNBest_ = n == 0 ? 1 : n; }
   [[nodiscard]] PathScorer* pathScorer() const { return pathScorer_; }
   [[nodiscard]] double pathRerankNu() const { return pathRerankNu_; }
@@ -333,6 +353,7 @@ class ReadingGrid {
   ContextModel* contextModel_ = nullptr;
   PathScorer* pathScorer_ = nullptr;
   double pathRerankNu_ = 0.0;
+  const std::map<std::string, double>* confusionAlphas_ = nullptr;
   size_t pathRerankNBest_ = 10;
   // Per-state hypothesis beam for n-best (exact top-1 preserved as best hyp).
   static constexpr size_t kNBestHypK = 8;
