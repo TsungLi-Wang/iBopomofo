@@ -93,6 +93,12 @@ def main():
                          "這一關就是擋『只對得上一兩句』的規則。")
     ap.add_argument("--min-purity", type=float, default=0.95,
                     help="該樣式底下同一個答案要佔到這個比例才收（--criterion purity 時用）")
+    ap.add_argument("--min-exposure-ratio", type=float, default=0.0,
+                    help="支持度 ÷ 觸發字在整份 train 出現的次數，要大於這個值才收。"
+                         "擋的是「掛在高頻字上、但只見過幾次」的規則 —— "
+                         "那種規則在題庫裡純度 100%%，實際打字卻常常踩到。"
+                         "0 表示不啟用。實測安全規則的比值中位數 0.15，"
+                         "會改壞的只有 0.079。")
     ap.add_argument("--criterion", choices=["purity", "sqrt", "wilson"],
                     default="wilson",
                     help="purity：固定純度門檻。sqrt：根號檢定，"
@@ -116,6 +122,14 @@ def main():
         for line in fh:
             f = line.rstrip("\n").split("\t")
             engine_pick[f[0]] = f[4]
+
+    # 觸發字曝險：整份 train（**六組都算**）裡這個字出現幾次。
+    # 為什麼要全部算不是只算本組：規則在真實打字時會遇到各種句子，
+    # 曝險程度跟本組題目多不多無關。封存集不碰。
+    exposure = collections.Counter()
+    for d in items.values():
+        if d["split"] == "train":
+            exposure.update(d["sentence"])
 
     # 只用 train
     train = [d for d in items.values()
@@ -153,6 +167,11 @@ def main():
                     continue
             else:  # wilson
                 if wilson_lower(n, total) < args.min_purity:
+                    continue
+            if args.min_exposure_ratio > 0:
+                trigger = value[0] if isinstance(value, tuple) else value
+                exp = sum(exposure[ch] for ch in trigger) if isinstance(trigger, str) else 0
+                if exp > 0 and total / exp < args.min_exposure_ratio:
                     continue
             picked.append({"tpl": name, "value": value, "to": top,
                            "support": total, "purity": purity})
