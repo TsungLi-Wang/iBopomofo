@@ -27,7 +27,11 @@
 #include <string>
 #include <vector>
 
+#include <map>
+#include <memory>
+
 #include "gtest/gtest.h"
+#include "gramambular2/reading_grid.h"
 
 namespace McBopomofo {
 namespace {
@@ -57,6 +61,46 @@ ParticleRuleDisambiguator MakeDisambiguator() {
 
 std::vector<std::string> Chars(std::initializer_list<const char*> l) {
   return std::vector<std::string>(l.begin(), l.end());
+}
+
+// ── rescoreWalk 的測試用語言模型 ──
+// 只需要「看／的／得／懂」這幾個字，分數讓 walk 預設會選出「看的懂」，
+// 這樣規則才有東西可以改。
+class TinyLM : public Formosa::Gramambular2::LanguageModel {
+ public:
+  TinyLM() {
+    // Unigram(值, 分數) —— 讀音是 map 的 key，不進 Unigram。
+    db_["ㄎㄢˋ"].emplace_back("看", -1.0);
+    db_["ㄉㄜ˙"].emplace_back("的", -1.0);   // 詞頻讓「的」勝出
+    db_["ㄉㄜ˙"].emplace_back("得", -6.0);
+    db_["ㄉㄨㄥˇ"].emplace_back("懂", -1.0);
+  }
+  std::vector<Unigram> getUnigrams(const std::string& key) override {
+    auto f = db_.find(key);
+    return f == db_.end() ? std::vector<Unigram>() : f->second;
+  }
+  bool hasUnigrams(const std::string& key) override {
+    return db_.find(key) != db_.end();
+  }
+
+ private:
+  std::map<std::string, std::vector<Unigram>> db_;
+};
+
+Formosa::Gramambular2::ReadingGrid MakeGrid() {
+  Formosa::Gramambular2::ReadingGrid grid(std::make_shared<TinyLM>());
+  grid.setReadingSeparator("-");
+  for (const char* r : {"ㄎㄢˋ", "ㄉㄜ˙", "ㄉㄨㄥˇ"}) {
+    grid.setCursor(grid.length());
+    EXPECT_TRUE(grid.insertReading(r));
+  }
+  return grid;
+}
+
+std::string Joined(const Formosa::Gramambular2::ReadingGrid::WalkResult& w) {
+  std::string s;
+  for (size_t i = 0; i < w.nodes.size(); ++i) s += w.chosenValueAt(i);
+  return s;
 }
 
 TEST(ParticleRuleDisambiguatorTest, LoadsTable) {
@@ -119,6 +163,54 @@ TEST(ParticleRuleDisambiguatorTest, DictionaryLookupBlocksFlip) {
   d.setDictionaryLookup(
       [](const std::string& w) { return w == "過頭"; });
   EXPECT_FALSE(d.shouldFlip(Chars({"省", "的", "過", "頭"}), 1));
+}
+
+// ── rescoreWalk：整條路徑上實際改字 ──
+// 這幾個測試補的是先前完全沒有涵蓋的部分。之前 9 個測試全部只測 shouldFlip
+// （純粹的字串判斷），而「會不會跟使用者搶」「改字有沒有真的生效」都在
+// rescoreWalk 裡 —— 那才是會傷到使用者的地方。
+
+TEST(ParticleRuleDisambiguatorTest, RescoreWalkFlipsOnPath) {
+  ParticleRuleDisambiguator d = MakeDisambiguator();
+  auto grid = MakeGrid();
+  auto walk = grid.walk();
+  ASSERT_EQ(Joined(walk), "看的懂");   // 詞頻讓「的」勝出
+  EXPECT_TRUE(d.rescoreWalk(walk));
+  EXPECT_EQ(Joined(walk), "看得懂");   // 規則把它改成「得」
+}
+
+TEST(ParticleRuleDisambiguatorTest, RescoreWalkNeverOverridesUserChoice) {
+  // 使用者手動選了「的」→ 規則不准改回去。
+  // 這是最惱人的一類 bug：使用者剛選完，字又自己跳掉。
+  ParticleRuleDisambiguator d = MakeDisambiguator();
+  auto grid = MakeGrid();
+  grid.setCursor(2);
+  ASSERT_TRUE(grid.overrideCandidate(1, "的"));
+  auto walk = grid.walk();
+  ASSERT_EQ(Joined(walk), "看的懂");
+  EXPECT_FALSE(d.rescoreWalk(walk));
+  EXPECT_EQ(Joined(walk), "看的懂");   // 維持使用者的選擇
+}
+
+TEST(ParticleRuleDisambiguatorTest, RescoreWalkIsIdempotent) {
+  // 同一條路徑跑兩次，第二次不該再回報「有改動」——
+  // 否則呼叫端會以為狀態一直在變。
+  ParticleRuleDisambiguator d = MakeDisambiguator();
+  auto grid = MakeGrid();
+  auto walk = grid.walk();
+  EXPECT_TRUE(d.rescoreWalk(walk));
+  EXPECT_EQ(Joined(walk), "看得懂");
+  d.rescoreWalk(walk);
+  EXPECT_EQ(Joined(walk), "看得懂");
+}
+
+TEST(ParticleRuleDisambiguatorTest, EmptyTableLeavesWalkAlone) {
+  ParticleRuleDisambiguator d;   // 沒載入任何規則
+  auto grid = MakeGrid();
+  auto walk = grid.walk();
+  const std::string before = Joined(walk);
+  EXPECT_FALSE(d.rescoreWalk(walk));
+  EXPECT_EQ(Joined(walk), before);
 }
 
 }  // namespace
