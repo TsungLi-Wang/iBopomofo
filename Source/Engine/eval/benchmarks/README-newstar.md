@@ -39,14 +39,36 @@
 ```bash
 # 若 /tmp/newstar_homophone_eval 不在，先建置（見下節）
 /tmp/newstar_homophone_eval \
-  /Users/johnny.w_macmini/Downloads/zai30.jsonl \
+  /Users/johnny.w_macmini/Documents/i注音-語料/EX1166-題庫/EX1166-全部.jsonl \
   /Users/johnny.w_macmini/iBopomofo/Source/Data/data.txt \
   /Users/johnny.w_macmini/iBopomofo/Source/Data/word-bigrams.tsv \
   /Users/johnny.w_macmini/iBopomofo/Source/Engine/eval/models/path-char-lstm-spoken-v2c.bin \
   shipping 0.75 0.75
 ```
 
-換真題庫時只改第一個參數路徑。
+換題庫只改第一個參數路徑。
+
+### 對照實驗（改引擎必跑）
+
+第 8 個參數是 `confusion-alphas.tsv`（不給就完全不套用），第 9 個是逐題結果輸出檔。
+
+```bash
+EX=/Users/johnny.w_macmini/Documents/i注音-語料/EX1166-題庫/EX1166-全部.jsonl
+R=/Users/johnny.w_macmini/iBopomofo
+ARGS="$R/Source/Data/data.txt $R/Source/Data/word-bigrams.tsv \
+      $R/Source/Engine/eval/models/path-char-lstm-spoken-v2c.bin shipping 0.75 0.75"
+
+# 對照組：機制關閉。**先確認這個數字跟你改程式之前一模一樣**，再往下走。
+/tmp/newstar_homophone_eval $EX $ARGS "" dump-off.tsv
+
+# 實驗組
+/tmp/newstar_homophone_eval $EX $ARGS $R/Source/Data/confusion-alphas.tsv dump-on.tsv
+```
+
+然後拿兩份 dump 做 **McNemar 配對檢定**（改對幾題 vs 改錯幾題）。
+
+⚠️ **只看總分會騙人**：「淨 +41 題」可以是「84 對／43 錯」，也可以是「300 對／259 錯」，
+兩者的意義完全不同。淨值一樣，可信度差很多。
 
 ## 建置（執行檔不見時）
 

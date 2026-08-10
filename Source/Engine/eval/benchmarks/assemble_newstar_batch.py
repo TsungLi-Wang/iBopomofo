@@ -102,6 +102,11 @@ def main():
                          "用於第二輪擴充時避免跟已出過的題目重複。")
     ap.add_argument("--sim", type=float, default=0.45,
                     help="近似重複門檻（字元 bigram 包含率），越低擋越兇")
+    ap.add_argument("--balance", choices=["equal", "keep-all"], default="equal",
+                    help="equal：每個答案字取一樣多（--target 均分），少的那個字會拖垮全組；"
+                         "keep-all：全部留著，不砍到齊。"
+                         "用 keep-all 時成績要看**每字準確率的平均**（macro），"
+                         "不能看整體百分比 —— 否則多數字會主導分數。")
     args = ap.parse_args()
 
     group = [c.strip() for c in args.group.split(",")]
@@ -134,6 +139,11 @@ def main():
                 stats["答案字不是剛好一個"] += 1; continue
             if DIRTY.search(line):
                 stats["含標點空格數英"] += 1; continue
+            # 簡體字擋掉。生成端偶爾會漏（2026-08-10 一輪 5652 句混進 5 句：
+            # 装箱／电视／内科／誤点／硬抠）。詞庫是純繁體，簡體字一律查不到，
+            # 拿它當篩子最準 —— 不必外掛 opencc。
+            if any(ch not in vocab for ch in line):
+                stats["含簡體字或詞庫外字"] += 1; continue
             b = bucket_of(len(line))
             if b is None:
                 stats[f"長度出界({len(line)})"] += 1; continue
@@ -153,6 +163,27 @@ def main():
             seen_line.add(line); seen_head.add(line[:4])
             accepted.append((line, trigrams(line)))
             pool[(target, b)].append(line)
+
+    if args.balance == "keep-all":
+        # 不砍到齊。理由：剔掉送分題之後，有些字（例如「作」）剩不到 50 句 ——
+        # 那不是產能不足，是語言事實：那個字在台灣人日常打字裡幾乎只出現在
+        # 固定詞裡，引擎靠詞庫就分得開。硬要等量會把另外三個字的好題目一起丟掉。
+        # 代價：整體百分比會被多數字主導 → 成績一律看每字準確率的平均（macro）。
+        picked = [s for c in group for b, _, _, _ in BUCKETS for s in pool[(c, b)]]
+        with open(args.output, "w", encoding="utf-8") as out:
+            for s in picked:
+                out.write(s + "\n")
+        print(f"讀入 {stats['讀入']} → 全數留用 {len(picked)}")
+        print("\n── 被剔除的 ──")
+        for k, v in stats.most_common():
+            if k != "讀入":
+                print(f"  {k:<22}{v}")
+        print("\n── 每字句數（不等量，成績請看 macro 平均）──")
+        for c in group:
+            n = sum(len(pool[(c, b)]) for b, _, _, _ in BUCKETS)
+            flag = "  ⚠️ 太少，這個字量不出東西" if n < 60 else ""
+            print(f"  {c}　{n}{flag}")
+        return
 
     per_char = args.target // len(group)
     picked, short = [], []

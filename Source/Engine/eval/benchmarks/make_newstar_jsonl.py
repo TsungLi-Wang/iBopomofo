@@ -159,6 +159,11 @@ def main():
     ap.add_argument("--weight", type=float, default=WEIGHT)
     ap.add_argument("--tier", default=TIER)
     ap.add_argument("--heldout-ratio", type=float, default=HELDOUT_RATIO)
+    ap.add_argument("--train-only", default="",
+                    help="一行一句的檔案；裡面的句子一律歸 train，不准進封存集。"
+                         "用途：調機制時看過的句子（例如推 particle-rules.tsv 那批）"
+                         "留在題庫裡沒關係，但拿它當考題等於考自己出的題 —— "
+                         "分數會虛高，而且是那種事後看不出來的虛高。")
     ap.add_argument("--domain", default="")
     ap.add_argument("--source", default="")
     ap.add_argument("--id-prefix", default="")
@@ -178,6 +183,14 @@ def main():
     pair_reading = normalize(args.reading or PAIR_READING)
     pair_id = args.pair_id or PAIR_ID
     prefix = args.id_prefix or (pair_id.replace("/", "") + "-")
+
+    train_only = set()
+    if args.train_only:
+        with open(args.train_only, encoding="utf-8") as fh:
+            for raw in fh:
+                s = raw.strip().split()
+                if s:
+                    train_only.add(s[0])
 
     kept, rejected, suspect, fixed = [], 0, [], []
     with open(args.input, encoding="utf-8") as fh:
@@ -236,7 +249,8 @@ def main():
                 "n_way": 1 + len(wrong),
                 "weight": args.weight,
                 "tier": args.tier,
-                "split": "heldout" if is_heldout(sentence, args.heldout_ratio) else "train",
+                "split": "train" if sentence in train_only
+                         else ("heldout" if is_heldout(sentence, args.heldout_ratio) else "train"),
                 "domain": args.domain,
                 "full_reading": " ".join(syllables),
                 "source": args.source,

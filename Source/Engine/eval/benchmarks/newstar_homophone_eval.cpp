@@ -429,6 +429,13 @@ int main(int argc, char** argv) {
   std::string mode = argc > 5 ? argv[5] : "shipping";
   double lambda = argc > 6 ? std::stod(argv[6]) : 0.75;
   double nu = argc > 7 ? std::stod(argv[7]) : 0.75;
+  // 第 8 個參數：confusion-alphas.tsv（路線 A 的頻率壓縮表）。不給就不套用，
+  // 行為與加這個參數之前完全一致 —— 對照組要能證明「沒開＝原版」。
+  const std::string alphasPath = argc > 8 ? argv[8] : "";
+  // 第 9 個參數：逐題結果輸出路徑。兩次跑出來的檔案拿去比對，才知道
+  // 「淨進步 N 題」底下是幾題改對、幾題改錯 —— 沒有這個就只能猜顯著性，
+  // 而淨值一樣可以是「+50/-9」也可以是「+300/-259」，意義天差地遠。
+  const std::string dumpPath = argc > 9 ? argv[9] : "";
 
   ParselessLM lm;
   if (!lm.open(dataPath.c_str())) {
@@ -448,8 +455,30 @@ int main(int argc, char** argv) {
     std::cerr << "FATAL: shipping mode requires LSTM load: " << lstmPath << "\n";
     return 1;
   }
+  std::map<std::string, double> confusionAlphas;
+  if (!alphasPath.empty()) {
+    std::ifstream af(alphasPath);
+    if (!af) {
+      std::cerr << "FATAL: cannot open alphas: " << alphasPath << "\n";
+      return 1;
+    }
+    std::string aline;
+    while (std::getline(af, aline)) {
+      if (aline.empty() || aline[0] == '#') continue;
+      size_t tab = aline.find('\t');
+      if (tab == std::string::npos) continue;
+      std::string reading = aline.substr(0, tab);
+      std::string val = aline.substr(tab + 1);
+      while (!reading.empty() && (reading.back() == '\r' || reading.back() == ' '))
+        reading.pop_back();
+      if (reading.empty()) continue;
+      confusionAlphas[reading] = std::stod(val);
+    }
+  }
+
   std::cout << "NEWSTAR mode=" << mode << " lambda=" << lambda << " nu=" << nu
             << " path_scorer_loaded=" << (hasScorer ? 1 : 0)
+            << " confusion_alphas=" << confusionAlphas.size()
             << " uom=off\n";
 
   std::ifstream in(itemsPath);
@@ -491,6 +520,15 @@ int main(int argc, char** argv) {
 
   // Groups: tier|split
   std::map<std::string, GroupAgg> groups;
+  std::ofstream dump;
+  if (!dumpPath.empty()) {
+    dump.open(dumpPath);
+    if (!dump) {
+      std::cerr << "FATAL: cannot write dump: " << dumpPath << "\n";
+      return 1;
+    }
+    dump << "sentence_id\tpair_id\tsplit\tcorrect\toutput\n";
+  }
   int feedFail = 0;
   for (const auto& it : items) {
     ReadingGrid g = makeGrid(&lm);
@@ -508,6 +546,10 @@ int main(int argc, char** argv) {
       g.setPathScorer(nullptr);
       g.setPathRerankNu(0.0);
     }
+    // 路線 A 只在 N-best 融合那一段生效，所以沒有 path scorer 時它什麼也不做。
+    if (!confusionAlphas.empty()) {
+      g.setConfusionAlphas(&confusionAlphas);
+    }
     // No UOM / personalization attached (clean measure).
     auto w = g.walk();
     std::string out = joined(w);
@@ -518,6 +560,10 @@ int main(int argc, char** argv) {
     }
     std::string key = it.tier + "|" + it.split;
     addResult(&groups[key], it, ok);
+    if (dump) {
+      dump << it.sentence_id << "\t" << it.pair_id << "\t" << it.split << "\t"
+           << (ok ? 1 : 0) << "\t" << out << "\n";
+    }
   }
   if (feedFail) {
     std::cout << "FEED_FAIL " << feedFail << "\n";
