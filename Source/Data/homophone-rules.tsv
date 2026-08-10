@@ -1,4 +1,40 @@
 # 同音字文法規則表
+# ## ⚠️ 自然文本修剪（2026-08-11）—— 為什麼有些「在 EX1166 很有效」的規則被拿掉
+#
+# 用 5,905 題**真實語料**驗證集（來源與 EX1166 完全不同）發現：v2.16.0 的規則層
+# 在日常文本上是**淨負面**的（救 68、壞 80），而且錯得很明顯：
+#
+#     前女友 → 錢女友　　前世因果 → 錢世因果　　信長的全盛時期 → 信長得
+#     到底是多爛的人 → 多爛得人　　我們結婚吧到底 → 結婚巴
+#     裝睡的人叫不醒 → 較不醒
+#
+# 引擎本來全都是對的，是規則把它們改壞的。
+#
+# 根因：規則是在 EX1166 分布上歸納的，而那份考卷**刻意排除送分題**、
+# 目標位置一律做成有歧義。到了自然文本，同樣的上下文絕大多數取另一個答案。
+#
+# ## 判準：**任何規則在自然文本上不得淨傷害**（壞 > 救就剪）
+#
+# 這條看起來很嚴，但它是先驗上就站得住的：一條在日常打字弊大於利的規則，
+# 不管它在難題考卷多有效都不該留。用「傷害幾題」這種帶門檻的判準會變成
+# 對個別例句調參 —— 試過，結果是「結婚吧 → 結婚巴」剛好卡在門檻下活下來。
+#
+# 傷害最兇的幾條正好是 EX1166 貢獻最大的（狀態形容詞那條 EX1166 +62、
+# 自然文本 −10 且一題也沒救到）。兩者不等重：
+# **把「前女友」變成「錢女友」是使用者一眼看到、會失去信任的錯；
+# 沒修好一個難題則是無感的（使用者本來就得自己改）。**
+#
+# ## ⚠️ 修剪必須反覆做到收斂
+#
+# 規則是「先命中的贏」，剪掉一條之後下一條會遞補上來做同樣的事。
+# 只剪一輪時「我的前女友 → 錢女友」還在（原本 L1_END:的 在改，剪掉後
+# 換 L1:的 頂上）。要重測重剪到沒有新的傷害規則為止。這一輪 3 輪收斂，
+# 共剪掉 18 條邏輯規則。
+#
+# ⚠️ 新增規則後一定要跑自然文本驗證集：
+#    ~/Documents/i注音-語料/EX1166-題庫/自然驗證集-真實語料.jsonl
+#
+
 #
 # 這一層只做「有把握的」。條件不成立就完全不動，那些位置交回給
 # walk ＋ v2c 神經重排決定 —— 規則層與神經層是串接不是取代。
@@ -49,8 +85,6 @@ LIST	的得_stat_R1_得_3	好
 LIST	的得_stat_R1_得_4	我
 RULE	的得/stat:RW2:比較@16/100%	得	的	RW2=的得_stat_RW2_的_0
 RULE	的得/stat:R1:是@28/100%	得	的	R1=的得_stat_R1_的_1
-RULE	的得/stat:R1:超@20/100%	的	得	R1=的得_stat_R1_得_2
-RULE	的得/stat:R1:好@16/100%	的	得	R1=的得_stat_R1_得_3
 RULE	的得/stat:R1:我@15/100%	的	得	R1=的得_stat_R1_得_4
 LIST	的得_grok_狀態形容詞	乾
 LIST	的得_grok_狀態形容詞	亂
@@ -378,7 +412,6 @@ LIST	的得_grok_小句謂語起首	都
 LIST	的得_grok_小句謂語起首	醒
 LIST	的得_grok_小句謂語起首	錢
 LIST	的得_grok_小句謂語起首	馬
-RULE	的得/grok:G1狀態形容詞+補語	的	得	L1=的得_grok_狀態形容詞;R1=的得_grok_得字補語起首
 RULE	的得/grok:G2代詞小句	的	得	R1=的得_grok_人稱代詞;R2=的得_grok_小句謂語起首
 
 # ───────── 在再（我）─────────
@@ -434,17 +467,11 @@ LIST	在再_stat_L1_再_8	你
 LIST	在再_stat_L1_在_9	貓
 RULE	在再/stat:L1_END:了False@21/100%	在	再	L1=在再_stat_L1_END_再_0;NOTEND
 RULE	在再/stat:L1_END:完False@19/100%	在	再	L1=在再_stat_L1_END_再_1;NOTEND
-RULE	在再/stat:L1_END:後False@15/100%	在	再	L1=在再_stat_L1_END_再_2;NOTEND
-RULE	在再/stat:L1_END:你False@13/100%	在	再	L1=在再_stat_L1_END_再_3;NOTEND
 RULE	在再/stat:L1_END:貓False@12/100%	再	在	L1=在再_stat_L1_END_在_4;NOTEND
 RULE	在再/stat:L1:了@21/100%	在	再	L1=在再_stat_L1_再_5
 RULE	在再/stat:L1:完@19/100%	在	再	L1=在再_stat_L1_再_6
-RULE	在再/stat:L1:後@15/100%	在	再	L1=在再_stat_L1_再_7
-RULE	在再/stat:L1:你@13/100%	在	再	L1=在再_stat_L1_再_8
 RULE	在再/stat:L1:貓@12/100%	再	在	L1=在再_stat_L1_在_9
 
-RULE	在再/grokR2:R2:左甲→在	再	在	L1=在再_grokR2_甲
-RULE	在再/grokR2:R2:左乙→在	再	在	L1=在再_grokR2_乙
 # ───────── 吧八巴（我）─────────
 LIST	吧八巴_grokR2_補語	上
 LIST	吧八巴_grokR2_補語	不
@@ -476,14 +503,10 @@ RULE	吧八巴/stat:L1_END:了True@15/93%	八	吧	L1=吧八巴_stat_L1_END_吧_2
 RULE	吧八巴/stat:L1_END:了True@15/93%	巴	吧	L1=吧八巴_stat_L1_END_吧_2;END
 RULE	吧八巴/stat:L1_END:點True@14/93%	八	吧	L1=吧八巴_stat_L1_END_吧_3;END
 RULE	吧八巴/stat:L1_END:點True@14/93%	巴	吧	L1=吧八巴_stat_L1_END_吧_3;END
-RULE	吧八巴/stat:L1:小@13/100%	八	巴	L1=吧八巴_stat_L1_巴_4
-RULE	吧八巴/stat:L1:小@13/100%	吧	巴	L1=吧八巴_stat_L1_巴_4
 RULE	吧八巴/stat:R1:著@13/100%	八	巴	R1=吧八巴_stat_R1_巴_5
 RULE	吧八巴/stat:R1:著@13/100%	吧	巴	R1=吧八巴_stat_R1_巴_5
 RULE	吧八巴/stat:R1:台@12/100%	八	吧	R1=吧八巴_stat_R1_吧_6
 RULE	吧八巴/stat:R1:台@12/100%	巴	吧	R1=吧八巴_stat_R1_吧_6
-RULE	吧八巴/stat:L1:大@26/96%	八	巴	L1=吧八巴_stat_L1_巴_7
-RULE	吧八巴/stat:L1:大@26/96%	吧	巴	L1=吧八巴_stat_L1_巴_7
 
 RULE	吧八巴/grokR2:R2:右補語→巴	吧	巴	R1=吧八巴_grokR2_補語
 RULE	吧八巴/grokR2:R2:右補語→巴	八	巴	R1=吧八巴_grokR2_補語
@@ -575,18 +598,9 @@ LIST	作做坐座_grok_書面賓語	數
 LIST	作做坐座_grok_書面賓語	樣
 LIST	作做坐座_grok_書面賓語	為
 LIST	作做坐座_grok_書面賓語	繭
-RULE	作做坐座/grok:G1a姿勢補語→坐	作	坐	R1=作做坐座_grok_姿勢補語
-RULE	作做坐座/grok:G1a姿勢補語→坐	做	坐	R1=作做坐座_grok_姿勢補語
-RULE	作做坐座/grok:G1a姿勢補語→坐	座	坐	R1=作做坐座_grok_姿勢補語
 RULE	作做坐座/grok:G1b不+能性→坐	作	坐	R1=作做坐座_grok_否定;R2=作做坐座_grok_能性補語
 RULE	作做坐座/grok:G1b不+能性→坐	做	坐	R1=作做坐座_grok_否定;R2=作做坐座_grok_能性補語
 RULE	作做坐座/grok:G1b不+能性→坐	座	坐	R1=作做坐座_grok_否定;R2=作做坐座_grok_能性補語
-RULE	作做坐座/grok:G2處所→坐	作	坐	R1=作做坐座_grok_處所
-RULE	作做坐座/grok:G2處所→坐	做	坐	R1=作做坐座_grok_處所
-RULE	作做坐座/grok:G2處所→坐	座	坐	R1=作做坐座_grok_處所
-RULE	作做坐座/grok:G3指示詞→座	作	座	L1=作做坐座_grok_指示詞
-RULE	作做坐座/grok:G3指示詞→座	做	座	L1=作做坐座_grok_指示詞
-RULE	作做坐座/grok:G3指示詞→座	坐	座	L1=作做坐座_grok_指示詞
 RULE	作做坐座/grok:G4量詞→座	作	座	L1=作做坐座_grok_量詞座
 RULE	作做坐座/grok:G4量詞→座	做	座	L1=作做坐座_grok_量詞座
 RULE	作做坐座/grok:G4量詞→座	坐	座	L1=作做坐座_grok_量詞座
@@ -594,15 +608,10 @@ RULE	作做坐座/grok:G5書面賓語→作	做	作	R1=作做坐座_grok_書面�
 RULE	作做坐座/grok:G5書面賓語→作	坐	作	R1=作做坐座_grok_書面賓語
 RULE	作做坐座/grok:G5書面賓語→作	座	作	R1=作做坐座_grok_書面賓語
 
-RULE	作做坐座/grokR2:R2:左3是→座	作	座	L3=作做坐座_grokR2_A
-RULE	作做坐座/grokR2:R2:左3是→座	做	座	L3=作做坐座_grokR2_A
-RULE	作做坐座/grokR2:R2:左3是→座	坐	座	L3=作做坐座_grokR2_A
 # ───────── 前錢（我）─────────
 LIST	前錢_stat_L1_END_錢_0	的
 LIST	前錢_stat_L1_錢_1	的
 LIST	前錢_stat_R1_前_2	把
-RULE	前錢/stat:L1_END:的False@32/100%	前	錢	L1=前錢_stat_L1_END_錢_0;NOTEND
-RULE	前錢/stat:L1:的@36/100%	前	錢	L1=前錢_stat_L1_錢_1
 RULE	前錢/stat:R1:把@13/92%	錢	前	R1=前錢_stat_R1_前_2
 
 # ───────── 較叫（合併）─────────
@@ -615,7 +624,6 @@ RULE	較叫/stat:R1:我@43/100%	較	叫	R1=較叫_stat_R1_叫_0
 RULE	較叫/stat:R1:他@19/100%	較	叫	R1=較叫_stat_R1_叫_1
 RULE	較叫/stat:R1:木@13/100%	較	叫	R1=較叫_stat_R1_叫_2
 RULE	較叫/stat:R1:房@12/100%	較	叫	R1=較叫_stat_R1_叫_3
-RULE	較叫/stat:R1:不@14/93%	叫	較	R1=較叫_stat_R1_較_4
 LIST	較叫_grok_祈使對象詞首	他
 LIST	較叫_grok_祈使對象詞首	代
 LIST	較叫_grok_祈使對象詞首	你

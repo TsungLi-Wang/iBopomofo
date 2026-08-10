@@ -134,6 +134,9 @@ int main(int argc, char** argv) {
     return 1;
   }
   const size_t nbest = argc > 5 ? std::stoul(argv[5]) : 10;
+  // 第 6 個參數：逐題診斷輸出。給了就寫出每一題的分層資訊，
+  // 讓 error_taxonomy.py 判斷「這個錯誤是哪一層造成的」。
+  const std::string diagPath = argc > 6 ? argv[6] : "";
 
   ParselessLM lm;
   if (!lm.open(argv[2])) {
@@ -171,6 +174,12 @@ int main(int argc, char** argv) {
   };
   std::map<std::string, Agg> per;   // split|pair
   std::map<std::string, Agg> tot;   // split
+  std::ofstream diag;
+  if (!diagPath.empty()) {
+    diag.open(diagPath);
+    diag << "sentence\tpair\tsplit\tgold\tchosen\tin_node\tin_10best\t"
+            "in_200best\tnode_len\tscore_gap\tsegments\n";
+  }
 
   for (const Item& it : items) {
     ReadingGrid grid(std::shared_ptr<Formosa::Gramambular2::LanguageModel>(
@@ -264,6 +273,44 @@ int main(int argc, char** argv) {
     if (anyPath) {
       a->o3++;
       t->o3++;
+    }
+
+    if (diag) {
+      // 目標位置所在節點的長度，以及「被選中的候選」與「正解候選」的分數差。
+      // 分數差就是頻率先驗的落差 —— 它是判斷「是不是被詞頻壓死」的關鍵。
+      int seen = 0;
+      size_t nodeLen = 0;
+      double gap = 0.0;
+      std::string chosen;
+      std::string segs;
+      for (size_t ni = 0; ni < w.nodes.size(); ++ni) {
+        if (ni) segs += "|";
+        segs += w.chosenValueAt(ni);
+      }
+      for (size_t ni = 0; ni < w.nodes.size(); ++ni) {
+        std::vector<std::string> cs = utf8Chars(w.chosenValueAt(ni));
+        int len = static_cast<int>(cs.size());
+        if (it.target_index < seen + len) {
+          nodeLen = cs.size();
+          size_t off = static_cast<size_t>(it.target_index - seen);
+          chosen = cs[off];
+          double chosenScore = 0.0, goldScore = 0.0;
+          bool haveC = false, haveG = false;
+          for (const auto& ug : w.nodes[ni]->unigrams()) {
+            std::vector<std::string> uc = utf8Chars(ug.value());
+            if (uc.size() != cs.size() || off >= uc.size()) continue;
+            if (!haveC && uc[off] == chosen) { chosenScore = ug.score(); haveC = true; }
+            if (!haveG && uc[off] == it.target_char) { goldScore = ug.score(); haveG = true; }
+          }
+          if (haveC && haveG) gap = chosenScore - goldScore;
+          break;
+        }
+        seen += len;
+      }
+      diag << it.sentence << "\t" << it.pair_id << "\t" << it.split << "\t"
+           << it.target_char << "\t" << chosen << "\t" << (repick ? 1 : 0)
+           << "\t" << (inNBest ? 1 : 0) << "\t" << (anyPath ? 1 : 0) << "\t"
+           << nodeLen << "\t" << gap << "\t" << segs << "\n";
     }
   }
 
