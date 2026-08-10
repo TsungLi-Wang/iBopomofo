@@ -68,7 +68,7 @@ This is a **permanent** rule, not a one-off cleanup.
 
 **非發版棒**（研究、harness、文件）只要第 1 項的 internal 條目，其餘不動。
 
-**收工前跑 `./scripts/doc-check.sh`** —— 它會自動抓：現況版本宣稱是否寫死在文件裡、
+**發版時 `package-dmg.sh` 會自動先跑 `doc-check.sh`，沒過就不打包**（要跳過：`DOC_CHECK_SKIP=1`）。非發版棒收工也建議自己跑一次。它 —— 它會自動抓：現況版本宣稱是否寫死在文件裡、
 兩份 plist 是否同步、CHANGELOG 頂部是否對得上 plist、文件提到的檔案是否真的存在、
 pbxproj 新檔 ID 起點是否過時、被 git 追蹤的建置產物是否髒了。
 上面表格第 4~7 項因此**不用手動維護**：文件不再抄版本號，改成指向 CHANGELOG。

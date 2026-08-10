@@ -5,6 +5,24 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+# ── 文件體檢閘門 ──────────────────────────────────────────────
+# 為什麼擋在這裡：2026-08-10 發現現役版本在五個檔案裡有四種說法、交班檔指向
+# 不存在的檔。根因是「沒有任何機制強迫收工時檢查」。打包是發版的必經之路，
+# 擋在這裡就漏不掉。
+# 真的要跳過（例如只想試打包）：DOC_CHECK_SKIP=1 ./package-dmg.sh
+if [ "${DOC_CHECK_SKIP:-0}" != "1" ]; then
+  echo "[0/3] 文件體檢 …"
+  if ! "$ROOT/scripts/doc-check.sh"; then
+    echo ""
+    echo "❌ 文件體檢沒過，不打包。"
+    echo "   發版前把上面的問題修掉——版本敘事漂掉之後，下一棒就接不住。"
+    echo "   （真的要跳過：DOC_CHECK_SKIP=1 ./package-dmg.sh）"
+    exit 1
+  fi
+  echo ""
+fi
+
 DD="$ROOT/build/dd-rel"
 OUT="$ROOT/dist"
 DMG="$OUT/iBopomofo.dmg"
