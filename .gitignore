@@ -67,3 +67,6 @@ __pycache__/
 # macOS 建置
 DerivedData/
 dd-*/
+
+# ctest 產物（cmake -B 產生的暫時建置目錄）
+Source/Engine/build-*/

@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #import "NeuralLMPathScorer.h"
+#import "ParticleRuleDisambiguator.h"
 #import "CompositeContextModel.h"
 #import "CorpusBigramContextModel.h"
 #import "KeyHandler.h"
@@ -66,6 +67,10 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     Formosa::Gramambular2::ReadingGrid *_grid;
     Formosa::Gramambular2::ReadingGrid::WalkResult _latestWalk;
+
+    // 「的／得」文法規則消歧。詞頻讓「的」領先「得」約 180 倍，統計層追不回來；
+    // 這一層在走完路徑後、用文法把不合法的選項換掉。見 ParticleRuleDisambiguator.h。
+    McBopomofo::ParticleRuleDisambiguator *_particleRule;
 
     // Neural n-best rerank (candidate A): composing walk stays bit-identical
     // (~0.1 ms); gate is YES only for Enter-commit and Tab-preview walks.
@@ -225,6 +230,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 {
     delete _bpmfReadingBuffer;
     delete _grid;
+    delete _particleRule;
 }
 
 - (instancetype)init
@@ -243,6 +249,14 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         _grid = new Formosa::Gramambular2::ReadingGrid(lm);
         _grid->setReadingSeparator("-");
         _lastTabPinnedBuffer = nil;
+
+        _particleRule = new McBopomofo::ParticleRuleDisambiguator();
+        NSString *particlePath = [[NSBundle bundleForClass:[self class]]
+            pathForResource:@"particle-rules"
+                     ofType:@"tsv"];
+        if (particlePath != nil) {
+            _particleRule->load(particlePath.UTF8String);
+        }
 
         _inputMode = InputModeBopomofo;
     }
@@ -425,6 +439,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _latestWalk = Formosa::Gramambular2::ReadingGrid::WalkResult {};
     _lastTabPinnedBuffer = nil;
     _softFinalized = NO;
+    if (_particleRule != nullptr) {
+        _particleRule->reset();
+    }
 }
 
 // Canonical 定案: 改字 (rerank) + 收底線 (hard commit). Does NOT send.
@@ -2939,6 +2956,12 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     _latestWalk = _grid->walk();
 
+    // 「的／得」文法規則：在既有候選裡改選（不生成新字），不碰使用者手選或
+    // UOM 覆寫過的節點，也不回寫 UOM。分詞與節點分數都不受影響，不需要重走。
+    if (_inputMode != InputModePlainBopomofo && _particleRule != nullptr &&
+        _particleRule->isLoaded()) {
+        _particleRule->rescoreWalk(_latestWalk);
+    }
 }
 
 - (InputStateChoosingCandidate *)_buildCandidateStateFromInputtingState:(InputStateInputting *)inputting useVerticalMode:(BOOL)useVerticalMode

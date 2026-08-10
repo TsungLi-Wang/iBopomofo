@@ -20,6 +20,7 @@ add_library(McBopomofoLMLib
         CharNGramPathScorer.cpp
         NeuralLMPathScorer.h
         NeuralLMPathScorer.cpp
+        ParticleRuleDisambiguator.cpp
         McBopomofoLM.cpp
         McBopomofoLM.h
         MemoryMappedFile.h
@@ -104,6 +105,7 @@ if (ENABLE_TEST)
                 McBopomofoLMTest.cpp
                 MemoryMappedFileTest.cpp
                 NeuralLMPathScorerEqualityTest.cpp
+                ParticleRuleDisambiguatorTest.cpp
                 ParselessLMTest.cpp
                 ParselessPhraseDBTest.cpp
                 PhraseReplacementMapTest.cpp

@@ -231,7 +231,10 @@ final class PreferencesTests {
 
         Preferences.migratePreferencesIfNeeded()
 
-        #expect(UserDefaults.standard.integer(forKey: "PrefsSchemaVersion") == 1)
+        // 斷言跑到「當前 schema 版本」而不是寫死 1 —— migratePreferencesIfNeeded()
+        // 是一路遷移到最新版的迴圈，寫死版號會在每次 schema 演進時假失敗。
+        #expect(UserDefaults.standard.integer(forKey: "PrefsSchemaVersion")
+            == ShippingRerankConstants.prefsSchemaVersion)
         #expect(UserDefaults.standard.object(forKey: "EnableGlobalNeuralRerank") == nil)
         #expect(UserDefaults.standard.object(forKey: "AICorrectionBackend") == nil)
         // Missing live key → code default true (old residual OFF would be explicit false).
@@ -239,7 +242,8 @@ final class PreferencesTests {
 
         // Idempotent second run.
         Preferences.migratePreferencesIfNeeded()
-        #expect(UserDefaults.standard.integer(forKey: "PrefsSchemaVersion") == 1)
+        #expect(UserDefaults.standard.integer(forKey: "PrefsSchemaVersion")
+            == ShippingRerankConstants.prefsSchemaVersion)
     }
 
     @Test("Test rerank diff log append only when changed")
