@@ -5,6 +5,21 @@
 > **現役版本不寫在這裡** —— 見 `CHANGELOG.md` 最上面的已發布段落。
 > 本檔只寫「現在的狀況」與「試過不行的路」；歷史交班日誌已搬到 `AI_HANDOFF_ARCHIVE.md`。
 
+## 開場先做這件事
+
+**現在的狀況、下一步、什麼別再試，全部在 GitHub Issues，不在文件裡。**
+
+```bash
+gh issue list --label deadend --state all   # 什麼試過不行（動手前必看）
+gh issue list --label needs-johnny          # Johnny 卡著什麼
+gh issue list                               # 目前開著的工作
+```
+
+為什麼放 issues 不放文件：關 issue 是做事的副產品，會自動反映現況；
+寫在文件裡就要人記得同步，而那個「記得」在 2026-08-10 被證實會漂到五個檔案四種說法。
+
+**動手前先搜 `deadend`。** AI 沒有同事可以問「這個要不要試」，那個標籤就是替代品。
+
 ## 先讀文件
 
 1. `AGENTS.md`（版本鐵則、Current line、產品 UX 總表、**收工清單**）
