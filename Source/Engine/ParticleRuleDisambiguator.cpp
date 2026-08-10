@@ -352,6 +352,19 @@ bool ParticleRuleDisambiguator::shouldFlip(
   return !replacementFor(chars, index).empty();
 }
 
+std::string ParticleRuleDisambiguator::ruleNameFor(
+    const std::vector<std::string>& chars, size_t index) const {
+  for (const Rule& rule : rules_) {
+    if (rule.from != chars[index]) continue;
+    bool all = true;
+    for (const Condition& c : rule.conditions) {
+      if (!conditionHolds(c, chars, index)) { all = false; break; }
+    }
+    if (all) return rule.name;
+  }
+  return std::string();
+}
+
 bool ParticleRuleDisambiguator::rescoreWalk(const ReadingGrid::WalkResult& walk) {
   if (empty()) {
     return false;
@@ -423,6 +436,10 @@ bool ParticleRuleDisambiguator::rescoreWalk(const ReadingGrid::WalkResult& walk)
                 kOverrideValueWithScoreFromTopUnigram)) {
       applied_[node.get()] = node;
       changed = true;
+      if (trace_ != nullptr) {
+        trace_->record(i, replacement, DecisionTrace::Layer::kGrammarRule,
+                       ruleNameFor(chars, i));
+      }
     }
   }
   return changed;

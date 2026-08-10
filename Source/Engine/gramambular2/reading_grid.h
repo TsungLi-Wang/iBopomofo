@@ -29,6 +29,8 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+
+#include "../DecisionTrace.h"
 #include <memory>
 #include <optional>
 #include <string>
@@ -254,6 +256,12 @@ class ReadingGrid {
   //   ㄅㄚ  吧/八/巴 → alpha 1.0（維持原樣）較好，因為「吧」的高頻是真實的
   //                    語言規律（句尾語氣詞），壓掉它反而丟失正確訊號
   // 傳 nullptr 或空表 → 完全不改變原行為。
+  // 決策軌跡（可選）。給了就會記錄「重排／頻率壓縮各換掉了什麼」。
+  // 預設 nullptr → 完全沒有額外成本，行為逐位相同。
+  void setDecisionTrace(McBopomofo::DecisionTrace* trace) {
+    decisionTrace_ = trace;
+  }
+
   void setConfusionAlphas(const std::map<std::string, double>* alphas) {
     confusionAlphas_ = alphas;
   }
@@ -355,6 +363,7 @@ class ReadingGrid {
   double pathRerankNu_ = 0.0;
   const std::map<std::string, double>* confusionAlphas_ = nullptr;
   size_t pathRerankNBest_ = 10;
+  McBopomofo::DecisionTrace* decisionTrace_ = nullptr;
   // Per-state hypothesis beam for n-best (exact top-1 preserved as best hyp).
   static constexpr size_t kNBestHypK = 8;
 

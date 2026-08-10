@@ -113,6 +113,13 @@ std::optional<ReadingGrid::NodePtr> ReadingGrid::findInSpan(
 
 namespace {
 
+std::string Join(const std::vector<std::string>& v) {
+  std::string s;
+  for (const auto& x : v) s += x;
+  return s;
+}
+
+
 int64_t GetEpochNowInMicroseconds() {
   auto now = std::chrono::system_clock::now();
   int64_t timestamp =
@@ -326,6 +333,8 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
     if (!nbest.empty()) {
       size_t bestIdx = 0;
       double bestFinal = -std::numeric_limits<double>::infinity();
+      size_t bestNoAlphaIdx = 0;
+      double bestNoAlpha = -std::numeric_limits<double>::infinity();
       std::vector<std::vector<std::string>> paths;
       paths.reserve(nbest.size());
       for (const auto& rp : nbest) paths.push_back(rp.words);
@@ -354,11 +363,40 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
             adjust += (1.0 - it->second) * -penalty;
           }
         }
+        // 記軌跡時要知道「沒有壓縮的話誰會贏」，才分得出是重排還是壓縮造成的。
+        if (decisionTrace_ != nullptr && decisionTrace_->enabled()) {
+          double noAlpha = nbest[pi].walkScore + pathRerankNu_ * rnns[pi];
+          if (noAlpha > bestNoAlpha) {
+            bestNoAlpha = noAlpha;
+            bestNoAlphaIdx = pi;
+          }
+        }
         double finalScore = nbest[pi].walkScore + adjust + pathRerankNu_ * rnns[pi];
         nbest[pi].pathScore = finalScore;
         if (finalScore > bestFinal) {
           bestFinal = finalScore;
           bestIdx = pi;
+        }
+      }
+      if (decisionTrace_ != nullptr && decisionTrace_->enabled()) {
+        // 誰換掉了 rank 0？分三種情況記，之後做錯誤分層時就不必事後猜。
+        if (bestNoAlphaIdx != 0) {
+          decisionTrace_->record(McBopomofo::DecisionTrace::kWholePath,
+                                 Join(nbest[bestNoAlphaIdx].words),
+                                 McBopomofo::DecisionTrace::Layer::kPathRerank,
+                                 "rank0→rank" + std::to_string(bestNoAlphaIdx));
+        }
+        if (bestIdx != bestNoAlphaIdx) {
+          decisionTrace_->record(McBopomofo::DecisionTrace::kWholePath,
+                                 Join(nbest[bestIdx].words),
+                                 McBopomofo::DecisionTrace::Layer::kConfusionAlpha,
+                                 "rank" + std::to_string(bestNoAlphaIdx) + "→rank" +
+                                     std::to_string(bestIdx));
+        }
+        if (bestIdx == 0 && bestNoAlphaIdx == 0) {
+          decisionTrace_->record(McBopomofo::DecisionTrace::kWholePath,
+                                 Join(nbest[0].words),
+                                 McBopomofo::DecisionTrace::Layer::kContextModel, "rank0");
         }
       }
       const RankedPath& picked = nbest[bestIdx];

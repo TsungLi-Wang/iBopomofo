@@ -106,6 +106,7 @@ if (ENABLE_TEST)
                 MemoryMappedFileTest.cpp
                 NeuralLMPathScorerEqualityTest.cpp
                 ParticleRuleDisambiguatorTest.cpp
+                DecodePipelineTest.cpp
                 ParselessLMTest.cpp
                 ParselessPhraseDBTest.cpp
                 PhraseReplacementMapTest.cpp

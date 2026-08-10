@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 #import "NeuralLMPathScorer.h"
+#import "DecodePipeline.h"
 #import "ParticleRuleDisambiguator.h"
 
 #include <fstream>
@@ -2907,8 +2908,38 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     return newState;
 }
 
+
+// 決定「這一次 walk 要經過哪幾層」。
+//
+// 這是刻意跟「套用」分開的：組態是純資料，可以印出來、可以在測試裡直接建構。
+// 原本這些判斷散在 _walk 的五個 if 裡，沒有任何地方能一眼看出這次用了哪些層 ——
+// 2026-08-11 那個 chosenValueAt bug 潛伏一整版，就是因為這個。
+- (McBopomofo::DecodePipeline)_currentPipeline
+{
+    // 純注音模式：使用者選這個模式就是不要任何智慧介入。
+    if (_inputMode == InputModePlainBopomofo) {
+        return McBopomofo::DecodePipeline::plainBopomofo();
+    }
+    McBopomofo::DecodePipeline p;
+    p.contextModel = Preferences.enableContextualWalk;
+    p.userModel = (_userOverrideModel != nullptr);
+    p.neuralRerank = Preferences.enableNeuralPathRerank && _rerankThisWalk;
+    if (p.neuralRerank) {
+        p.rerankNu = Preferences.neuralPathRerankNu;
+        p.rerankNBest = 10;
+    }
+    // ⚠️ 頻率壓縮只在 N-best 融合那段生效，所以沒有重排就沒有意義。
+    //    這個相依是刻意的，寫在這裡才看得見。
+    p.confusionAlphas = p.neuralRerank && _confusionAlphas != nullptr &&
+                        !_confusionAlphas->empty();
+    p.grammarRules = (_particleRule != nullptr && _particleRule->isLoaded());
+    return p;
+}
+
 - (void)_walk
 {
+    const McBopomofo::DecodePipeline pipeline = [self _currentPipeline];
+
     // Context model attachment (global corpus bigram and/or user soft
     // personalization). v2.3.0: EnableContextualWalk defaults ON. Hard rule for
     // tw Guard: when neither source is active, setContextModel(nullptr) so the
@@ -2918,7 +2949,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // Global table (~25 MB) is loaded lazily, once, and shared (read-only after
     // load). User soft scores come from UserOverrideModel (persisted separately).
     McBopomofo::CorpusBigramContextModel *globalModel = nullptr;
-    if (Preferences.enableContextualWalk
+    if (pipeline.contextModel
         && _inputMode != InputModePlainBopomofo) {
         static McBopomofo::CorpusBigramContextModel *sharedContextModel = nullptr;
         static dispatch_once_t onceToken;
@@ -2941,7 +2972,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     McBopomofo::UserOverrideModel *userModel = nullptr;
     const double now = [NSDate date].timeIntervalSince1970;
-    if (_inputMode != InputModePlainBopomofo && _userOverrideModel != nullptr &&
+    if (pipeline.userModel &&
         _userOverrideModel->hasUsableSoftEvidence(now)) {
         userModel = _userOverrideModel;
     }
@@ -2965,13 +2996,10 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // per-keystroke composing walk never pays the ~45 ms rerank.
     // When off / not gated / scorer null, walk() is bit-identical to pre-rerank.
     // 同音頻率先驗壓縮只在有神經重排時才有意義（它靠 PathScorer 的判斷取代頻率）
-    _grid->setConfusionAlphas(
-        (Preferences.enableNeuralPathRerank && _rerankThisWalk &&
-         _inputMode != InputModePlainBopomofo && _confusionAlphas != nullptr)
-            ? _confusionAlphas
-            : nullptr);
+    _grid->setConfusionAlphas(pipeline.confusionAlphas ? _confusionAlphas
+                                                       : nullptr);
 
-    if (Preferences.enableNeuralPathRerank && _rerankThisWalk &&
+    if (pipeline.neuralRerank &&
         _inputMode != InputModePlainBopomofo) {
         static McBopomofo::NeuralLMPathScorer *sharedPathScorer = nullptr;
         static dispatch_once_t pathOnce;
@@ -2987,8 +3015,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         });
         if (sharedPathScorer != nullptr && sharedPathScorer->isLoaded()) {
             _grid->setPathScorer(sharedPathScorer);
-            _grid->setPathRerankNu(Preferences.neuralPathRerankNu);
-            _grid->setPathRerankNBest(10);
+            _grid->setPathRerankNu(pipeline.rerankNu);
+            _grid->setPathRerankNBest(pipeline.rerankNBest);
         } else {
             _grid->setPathScorer(nullptr);
             _grid->setPathRerankNu(0.0);
@@ -3002,8 +3030,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     // 「的／得」文法規則：在既有候選裡改選（不生成新字），不碰使用者手選或
     // UOM 覆寫過的節點，也不回寫 UOM。分詞與節點分數都不受影響，不需要重走。
-    if (_inputMode != InputModePlainBopomofo && _particleRule != nullptr &&
-        _particleRule->isLoaded()) {
+    if (pipeline.grammarRules) {
         _particleRule->rescoreWalk(_latestWalk);
     }
 }

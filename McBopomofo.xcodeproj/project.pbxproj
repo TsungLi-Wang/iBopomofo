@@ -194,6 +194,8 @@
 		FACE0126FACE0126FACE0126 /* same_path_oracle.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = same_path_oracle.cpp; sourceTree = "<group>"; };
 		FACE0330FACE0330FACE0330 /* ParticleRuleDisambiguator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ParticleRuleDisambiguator.cpp; sourceTree = "<group>"; };
 		FACE0331FACE0331FACE0331 /* ParticleRuleDisambiguator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParticleRuleDisambiguator.h; sourceTree = "<group>"; };
+		FACE0339FACE0339FACE0339 /* DecisionTrace.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DecisionTrace.h; sourceTree = "<group>"; };
+		FACE033AFACE033AFACE033A /* DecodePipeline.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DecodePipeline.h; sourceTree = "<group>"; };
 		FACE0335FACE0335FACE0335 /* confusion-alphas.tsv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "confusion-alphas.tsv"; sourceTree = "<group>"; };
 		FACE0333FACE0333FACE0333 /* particle-rules.tsv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "particle-rules.tsv"; sourceTree = "<group>"; };
 		FACE0337FACE0337FACE0337 /* homophone-rules.tsv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "homophone-rules.tsv"; sourceTree = "<group>"; };
@@ -457,6 +459,8 @@
 				FACE012CFACE012CFACE012C /* CharNGramPathScorer.h */,
 				FACE0330FACE0330FACE0330 /* ParticleRuleDisambiguator.cpp */,
 				FACE0331FACE0331FACE0331 /* ParticleRuleDisambiguator.h */,
+				FACE0339FACE0339FACE0339 /* DecisionTrace.h */,
+				FACE033AFACE033AFACE033A /* DecodePipeline.h */,
 				FACE0130FACE0130FACE0130 /* NeuralLMPathScorer.cpp */,
 				FACE0131FACE0131FACE0131 /* NeuralLMPathScorer.h */,
 				D41355D9278E6D17005E5CBD /* McBopomofoLM.cpp */,

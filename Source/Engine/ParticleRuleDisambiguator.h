@@ -123,6 +123,10 @@ class ParticleRuleDisambiguator {
   // 換句子時呼叫，清掉「這些節點是我改的」的紀錄。
   void reset() { applied_.clear(); }
 
+  // 決策軌跡（可選）。給了就會記下「哪一條規則在哪個位置出手」，
+  // 錯誤分層時不必再事後推論。預設 nullptr，零成本。
+  void setDecisionTrace(DecisionTrace* trace) { trace_ = trace; }
+
   void setDictionaryLookup(DictionaryLookup lookup) {
     dictionaryLookup_ = std::move(lookup);
   }
@@ -161,6 +165,11 @@ class ParticleRuleDisambiguator {
                      std::unique_ptr<std::unordered_set<std::string>>> lists_;
   std::vector<Rule> rules_;
 
+  // 找出「在這個位置會出手的那條規則」的名字，只有記軌跡時才呼叫。
+  [[nodiscard]] std::string ruleNameFor(const std::vector<std::string>& chars,
+                                        size_t index) const;
+
+  DecisionTrace* trace_ = nullptr;
   DictionaryLookup dictionaryLookup_;
   std::unordered_map<const Formosa::Gramambular2::ReadingGrid::Node*,
                      std::weak_ptr<Formosa::Gramambular2::ReadingGrid::Node>>
