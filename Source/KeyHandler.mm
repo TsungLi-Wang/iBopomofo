@@ -265,6 +265,15 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if (particlePath != nil) {
             _particleRule->load(particlePath.UTF8String);
         }
+        // 六組同音字的通用文法規則（在再／吧八巴／作做坐座／前錢／較叫，以及
+        // 「的／得」統計歸納補的那部分）。跟 particle-rules.tsv 同一個物件、
+        // 同一套判斷路徑，load 可以呼叫多次累加。
+        NSString *homophonePath = [[NSBundle bundleForClass:[self class]]
+            pathForResource:@"homophone-rules"
+                     ofType:@"tsv"];
+        if (homophonePath != nil) {
+            _particleRule->load(homophonePath.UTF8String);
+        }
 
         _confusionAlphas = new std::map<std::string, double>();
         NSString *alphaPath = [[NSBundle bundleForClass:[self class]]

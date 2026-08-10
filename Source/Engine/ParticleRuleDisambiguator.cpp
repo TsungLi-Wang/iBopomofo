@@ -71,7 +71,96 @@ std::vector<std::string> SplitBy(const std::string& s, char delim) {
 
 }  // namespace
 
+namespace {
+
+// 舊格式（只有的／得那組）的暫存。載完之後會合成一條通用規則，
+// 這樣引擎只留一套判斷路徑 —— 兩套邏輯遲早會漂掉。
+struct LegacyTable {
+  std::string reading, from, to;
+  std::vector<std::string> heads, tails, nevers, neverHeads, nouns;
+  bool any() const { return !heads.empty() || !tails.empty(); }
+};
+
+}  // namespace
+
+std::unordered_set<std::string>* ParticleRuleDisambiguator::listNamed(
+    const std::string& name) {
+  auto it = lists_.find(name);
+  if (it != lists_.end()) {
+    return it->second.get();
+  }
+  auto inserted = lists_.emplace(
+      name, std::make_unique<std::unordered_set<std::string>>());
+  return inserted.first->second.get();
+}
+
+bool ParticleRuleDisambiguator::parseCondition(const std::string& text,
+                                               Condition* out) {
+  std::string body = text;
+  out->negated = false;
+  if (!body.empty() && body[0] == '!') {
+    out->negated = true;
+    body = body.substr(1);
+  }
+  if (body == "END") {
+    out->slot = Condition::Slot::kAtEnd;
+    return true;
+  }
+  if (body == "NOTEND") {
+    out->slot = Condition::Slot::kAtEnd;
+    out->negated = !out->negated;
+    return true;
+  }
+  if (body == "START") {
+    out->slot = Condition::Slot::kAtStart;
+    return true;
+  }
+  if (body == "NOTSTART") {
+    out->slot = Condition::Slot::kAtStart;
+    out->negated = !out->negated;
+    return true;
+  }
+  size_t eq = body.find('=');
+  if (eq == std::string::npos) {
+    return false;
+  }
+  const std::string slot = body.substr(0, eq);
+  const std::string name = body.substr(eq + 1);
+  if (slot == "L1") {
+    out->slot = Condition::Slot::kL1;
+  } else if (slot == "L2") {
+    out->slot = Condition::Slot::kL2;
+  } else if (slot == "L3") {
+    out->slot = Condition::Slot::kL3;
+  } else if (slot == "R3") {
+    out->slot = Condition::Slot::kR3;
+  } else if (slot == "R1") {
+    out->slot = Condition::Slot::kR1;
+  } else if (slot == "R2") {
+    out->slot = Condition::Slot::kR2;
+  } else if (slot == "LW2") {
+    out->slot = Condition::Slot::kLW2;
+  } else if (slot == "RW2") {
+    out->slot = Condition::Slot::kRW2;
+  } else if (slot == "L1T") {
+    out->slot = Condition::Slot::kL1T;
+  } else if (slot == "TR1") {
+    out->slot = Condition::Slot::kTR1;
+  } else {
+    return false;
+  }
+  if (name == "@DICT") {
+    out->useDictionary = true;
+    out->list = nullptr;
+  } else {
+    out->useDictionary = false;
+    out->list = listNamed(name);
+  }
+  return true;
+}
+
 bool ParticleRuleDisambiguator::load(std::istream& input) {
+  LegacyTable legacy;
   std::string line;
   while (std::getline(input, line)) {
     if (!line.empty() && line.back() == '\r') {
@@ -81,28 +170,88 @@ bool ParticleRuleDisambiguator::load(std::istream& input) {
       continue;
     }
     std::vector<std::string> f = SplitBy(line, '\t');
-    if (f.size() != 2 || f[1].empty()) {
+    if (f.size() < 2 || f[1].empty()) {
       continue;  // 壞行略過，不讓表檔毀損害輸入法起不來
     }
-    if (f[0] == "READING") {
-      reading_ = f[1];
+    // ── 舊格式 ──
+    if (f[0] == "READING" && f.size() == 2) {
+      legacy.reading = f[1];
     } else if (f[0] == "FROM") {
-      from_ = f[1];
+      legacy.from = f[1];
     } else if (f[0] == "TO") {
-      to_ = f[1];
+      legacy.to = f[1];
     } else if (f[0] == "HEAD") {
-      heads_.insert(f[1]);
+      legacy.heads.push_back(f[1]);
     } else if (f[0] == "TAIL") {
-      tails_.insert(f[1]);
+      legacy.tails.push_back(f[1]);
     } else if (f[0] == "NEVER") {
-      neverWords_.insert(f[1]);
+      legacy.nevers.push_back(f[1]);
     } else if (f[0] == "NEVERHEAD") {
-      neverHeads_.insert(f[1]);
+      legacy.neverHeads.push_back(f[1]);
     } else if (f[0] == "NOUN") {
-      nouns_.insert(f[1]);
+      legacy.nouns.push_back(f[1]);
+      // ── 新格式 ──
+    } else if (f[0] == "LIST" && f.size() >= 3 && !f[2].empty()) {
+      listNamed(f[1])->insert(f[2]);
+    } else if (f[0] == "RULE" && f.size() >= 5) {
+      Rule rule;
+      rule.name = f[1];
+      rule.from = f[2];
+      rule.to = f[3];
+      if (rule.from.empty() || rule.to.empty() || rule.from == rule.to) {
+        continue;
+      }
+      bool ok = true;
+      for (const std::string& part : SplitBy(f[4], ';')) {
+        if (part.empty()) {
+          continue;
+        }
+        Condition cond;
+        if (!parseCondition(part, &cond)) {
+          ok = false;
+          break;
+        }
+        rule.conditions.push_back(cond);
+      }
+      if (ok && !rule.conditions.empty()) {
+        rules_.push_back(std::move(rule));
+      }
     }
   }
-  loaded_ = !reading_.empty() && !from_.empty() && !to_.empty() && !empty();
+
+  // 舊格式 → 一條通用規則。條件與原本 shouldFlip 逐項對應：
+  //   左邊是動詞 且 右邊是結果補語 且 左邊不是「我你他真有」
+  //   且 左1+目標不是「真的／有的」 且 右邊兩字不是名詞、也不是詞庫收的詞
+  if (legacy.any() && !legacy.from.empty() && !legacy.to.empty()) {
+    const std::string tag = "_legacy_" + legacy.from + legacy.to + "_";
+    for (const std::string& v : legacy.heads) listNamed(tag + "HEAD")->insert(v);
+    for (const std::string& v : legacy.tails) listNamed(tag + "TAIL")->insert(v);
+    for (const std::string& v : legacy.nevers) listNamed(tag + "NEVER")->insert(v);
+    for (const std::string& v : legacy.neverHeads)
+      listNamed(tag + "NEVERHEAD")->insert(v);
+    for (const std::string& v : legacy.nouns) listNamed(tag + "NOUN")->insert(v);
+
+    Rule rule;
+    rule.name = legacy.from + "→" + legacy.to;
+    rule.from = legacy.from;
+    rule.to = legacy.to;
+    const char* conds[] = {"NOTSTART", "NOTEND", nullptr};
+    for (int i = 0; conds[i] != nullptr; ++i) {
+      Condition c;
+      if (parseCondition(conds[i], &c)) rule.conditions.push_back(c);
+    }
+    const std::string more[] = {
+        "L1=" + tag + "HEAD",      "R1=" + tag + "TAIL",
+        "!L1=" + tag + "NEVERHEAD", "!L1T=" + tag + "NEVER",
+        "!RW2=" + tag + "NOUN",    "!RW2=@DICT"};
+    for (const std::string& m : more) {
+      Condition c;
+      if (parseCondition(m, &c)) rule.conditions.push_back(c);
+    }
+    rules_.push_back(std::move(rule));
+  }
+
+  loaded_ = !rules_.empty();
   return loaded_;
 }
 
@@ -114,34 +263,93 @@ bool ParticleRuleDisambiguator::load(const std::string& path) {
   return load(ifs);
 }
 
-bool ParticleRuleDisambiguator::shouldFlip(
-    const std::vector<std::string>& chars, size_t index) const {
-  // 句首或句尾沒有前後文，不動。
-  if (index == 0 || index + 1 >= chars.size()) {
-    return false;
+bool ParticleRuleDisambiguator::conditionHolds(
+    const Condition& cond, const std::vector<std::string>& chars,
+    size_t i) const {
+  const size_t n = chars.size();
+  bool got = false;
+  switch (cond.slot) {
+    case Condition::Slot::kAtEnd:
+      got = (i + 1 == n);
+      return cond.negated ? !got : got;
+    case Condition::Slot::kAtStart:
+      got = (i == 0);
+      return cond.negated ? !got : got;
+    default:
+      break;
   }
-  const std::string& left = chars[index - 1];
-  const std::string& right = chars[index + 1];
 
-  // 「真的／有的／似的／別的」這種固定詞絕對不碰。
-  if (neverHeads_.count(left) || neverWords_.count(left + chars[index])) {
-    return false;
+  std::string value;
+  bool have = false;
+  switch (cond.slot) {
+    case Condition::Slot::kL1:
+      if (i >= 1) { value = chars[i - 1]; have = true; }
+      break;
+    case Condition::Slot::kL2:
+      if (i >= 2) { value = chars[i - 2]; have = true; }
+      break;
+    case Condition::Slot::kR1:
+      if (i + 1 < n) { value = chars[i + 1]; have = true; }
+      break;
+    case Condition::Slot::kR2:
+      if (i + 2 < n) { value = chars[i + 2]; have = true; }
+      break;
+    case Condition::Slot::kL3:
+      if (i >= 3) { value = chars[i - 3]; have = true; }
+      break;
+    case Condition::Slot::kR3:
+      if (i + 3 < n) { value = chars[i + 3]; have = true; }
+      break;
+    case Condition::Slot::kLW2:
+      if (i >= 2) { value = chars[i - 2] + chars[i - 1]; have = true; }
+      break;
+    case Condition::Slot::kRW2:
+      if (i + 2 < n) { value = chars[i + 1] + chars[i + 2]; have = true; }
+      break;
+    case Condition::Slot::kL1T:
+      if (i >= 1) { value = chars[i - 1] + chars[i]; have = true; }
+      break;
+    case Condition::Slot::kTR1:
+      if (i + 1 < n) { value = chars[i] + chars[i + 1]; have = true; }
+      break;
+    default:
+      break;
   }
-  if (!heads_.count(left)) {
-    return false;
+
+  if (have) {
+    got = cond.useDictionary
+              ? (dictionaryLookup_ && dictionaryLookup_(value))
+              : (cond.list != nullptr && cond.list->count(value) > 0);
   }
-  if (!tails_.count(right)) {
-    return false;
+  return cond.negated ? !got : got;
+}
+
+std::string ParticleRuleDisambiguator::replacementFor(
+    const std::vector<std::string>& chars, size_t index) const {
+  if (index >= chars.size()) {
+    return std::string();
   }
-  // 右邊兩個字如果是名詞（下場／出路／過法／到府），不要動。
-  if (index + 2 < chars.size()) {
-    const std::string pair = right + chars[index + 2];
-    if (nouns_.count(pair) ||
-        (dictionaryLookup_ && dictionaryLookup_(pair))) {
-      return false;
+  for (const Rule& rule : rules_) {
+    if (rule.from != chars[index]) {
+      continue;
+    }
+    bool all = true;
+    for (const Condition& cond : rule.conditions) {
+      if (!conditionHolds(cond, chars, index)) {
+        all = false;
+        break;
+      }
+    }
+    if (all) {
+      return rule.to;
     }
   }
-  return true;
+  return std::string();
+}
+
+bool ParticleRuleDisambiguator::shouldFlip(
+    const std::vector<std::string>& chars, size_t index) const {
+  return !replacementFor(chars, index).empty();
 }
 
 bool ParticleRuleDisambiguator::rescoreWalk(const ReadingGrid::WalkResult& walk) {
@@ -170,10 +378,9 @@ bool ParticleRuleDisambiguator::rescoreWalk(const ReadingGrid::WalkResult& walk)
 
   bool changed = false;
   for (size_t i = 0; i < chars.size(); ++i) {
-    if (chars[i] != from_) {
-      continue;
-    }
-    if (!shouldFlip(chars, i)) {
+    // 規則自己會比對「引擎選了哪個字」，沒有規則出手就回空字串。
+    const std::string replacement = replacementFor(chars, i);
+    if (replacement.empty()) {
       continue;
     }
 
@@ -189,7 +396,7 @@ bool ParticleRuleDisambiguator::rescoreWalk(const ReadingGrid::WalkResult& walk)
     if (offsetInNode[i] >= nodeChars.size()) {
       continue;
     }
-    nodeChars[offsetInNode[i]] = to_;
+    nodeChars[offsetInNode[i]] = replacement;
     std::string target;
     for (const std::string& c : nodeChars) {
       target += c;

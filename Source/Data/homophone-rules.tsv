@@ -1,0 +1,665 @@
+# 同音字文法規則表
+#
+# 兩條來源，每組用哪條是**在 train 上**決定的（封存集不參與選擇）：
+#   stat = induce_rules.py 從 train 統計歸納（支持度≥12、純度≥90%）
+#   grok = 派外部 AI 做語法分析後人工轉檔（原始回覆在 ~/ai-handoff/rules/）
+#
+# 兩條路線互補，實測不是誰取代誰：
+#   統計贏在 在再／吧八巴／前錢 —— 那些規律是搭配，數得出來
+#   grok 贏在 作做坐座／較叫 —— 那些規律是結構（姿勢補語、量詞、祈使句型），
+#   統計看得到搭配但看不出理由，推廣不到清單外的字
+#
+# ⚠️ 支持度門檻是 12，不是 5。
+#    5 的版本在 train 上出手準確率 98%，封存集掉到 85% —— 低支持度規則過擬合。
+#    而且實機打「轉彎前要坐穩」會被一條 support=8 的規則改成「要做穩」。
+#    把使用者本來打對的字改壞，比沒修好還糟，所以寧可少收規則。
+#
+# ⚠️ 清單名稱必須全域唯一，用「組名_來源_」前綴隔開，否則會互相污染。
+# ⚠️ 改完一定要：try_rules.py 試跑 → 評分機對照實驗 → e2e-typing-check 實機驗證。
+#    三關缺一不可，這一輪就是最後一關才抓到「要坐穩」的問題。
+
+# ───────── 的得（合併）─────────
+LIST	的得_stat_RW2_的_0	比較
+LIST	的得_stat_R1_的_1	是
+LIST	的得_stat_R1_得_2	超
+LIST	的得_stat_R1_得_3	好
+LIST	的得_stat_R1_得_4	我
+RULE	的得/stat:RW2:比較@16/100%	得	的	RW2=的得_stat_RW2_的_0
+RULE	的得/stat:R1:是@28/100%	得	的	R1=的得_stat_R1_的_1
+RULE	的得/stat:R1:超@20/100%	的	得	R1=的得_stat_R1_得_2
+RULE	的得/stat:R1:好@16/100%	的	得	R1=的得_stat_R1_得_3
+RULE	的得/stat:R1:我@15/100%	的	得	R1=的得_stat_R1_得_4
+LIST	的得_grok_狀態形容詞	乾
+LIST	的得_grok_狀態形容詞	亂
+LIST	的得_grok_狀態形容詞	亮
+LIST	的得_grok_狀態形容詞	低
+LIST	的得_grok_狀態形容詞	假
+LIST	的得_grok_狀態形容詞	偏
+LIST	的得_grok_狀態形容詞	兇
+LIST	的得_grok_狀態形容詞	冰
+LIST	的得_grok_狀態形容詞	冷
+LIST	的得_grok_狀態形容詞	凶
+LIST	的得_grok_狀態形容詞	利
+LIST	的得_grok_狀態形容詞	厚
+LIST	的得_grok_狀態形容詞	嗆
+LIST	的得_grok_狀態形容詞	圓
+LIST	的得_grok_狀態形容詞	堵
+LIST	的得_grok_狀態形容詞	塞
+LIST	的得_grok_狀態形容詞	壞
+LIST	的得_grok_狀態形容詞	多
+LIST	的得_grok_狀態形容詞	大
+LIST	的得_grok_狀態形容詞	奮
+LIST	的得_grok_狀態形容詞	好
+LIST	的得_grok_狀態形容詞	嫩
+LIST	的得_grok_狀態形容詞	寬
+LIST	的得_grok_狀態形容詞	小
+LIST	的得_grok_狀態形容詞	少
+LIST	的得_grok_狀態形容詞	尖
+LIST	的得_grok_狀態形容詞	尬
+LIST	的得_grok_狀態形容詞	弱
+LIST	的得_grok_狀態形容詞	強
+LIST	的得_grok_狀態形容詞	忙
+LIST	的得_grok_狀態形容詞	快
+LIST	的得_grok_狀態形容詞	急
+LIST	的得_grok_狀態形容詞	悶
+LIST	的得_grok_狀態形容詞	慘
+LIST	的得_grok_狀態形容詞	慢
+LIST	的得_grok_狀態形容詞	懶
+LIST	的得_grok_狀態形容詞	扁
+LIST	的得_grok_狀態形容詞	擠
+LIST	的得_grok_狀態形容詞	斜
+LIST	的得_grok_狀態形容詞	新
+LIST	的得_grok_狀態形容詞	易
+LIST	的得_grok_狀態形容詞	暈
+LIST	的得_grok_狀態形容詞	暗
+LIST	的得_grok_狀態形容詞	樂
+LIST	的得_grok_狀態形容詞	正
+LIST	的得_grok_狀態形容詞	歪
+LIST	的得_grok_狀態形容詞	毒
+LIST	的得_grok_狀態形容詞	油
+LIST	的得_grok_狀態形容詞	涼
+LIST	的得_grok_狀態形容詞	淡
+LIST	的得_grok_狀態形容詞	淨
+LIST	的得_grok_狀態形容詞	深
+LIST	的得_grok_狀態形容詞	淺
+LIST	的得_grok_狀態形容詞	清
+LIST	的得_grok_狀態形容詞	準
+LIST	的得_grok_狀態形容詞	滑
+LIST	的得_grok_狀態形容詞	滿
+LIST	的得_grok_狀態形容詞	潮
+LIST	的得_grok_狀態形容詞	濁
+LIST	的得_grok_狀態形容詞	濃
+LIST	的得_grok_狀態形容詞	濕
+LIST	的得_grok_狀態形容詞	烈
+LIST	的得_grok_狀態形容詞	熱
+LIST	的得_grok_狀態形容詞	燙
+LIST	的得_grok_狀態形容詞	爛
+LIST	的得_grok_狀態形容詞	狂
+LIST	的得_grok_狀態形容詞	猛
+LIST	的得_grok_狀態形容詞	甜
+LIST	的得_grok_狀態形容詞	痛
+LIST	的得_grok_狀態形容詞	瘦
+LIST	的得_grok_狀態形容詞	真
+LIST	的得_grok_狀態形容詞	短
+LIST	的得_grok_狀態形容詞	破
+LIST	的得_grok_狀態形容詞	硬
+LIST	的得_grok_狀態形容詞	穩
+LIST	的得_grok_狀態形容詞	空
+LIST	的得_grok_狀態形容詞	窄
+LIST	的得_grok_狀態形容詞	笨
+LIST	的得_grok_狀態形容詞	粗
+LIST	的得_grok_狀態形容詞	糊
+LIST	的得_grok_狀態形容詞	糟
+LIST	的得_grok_狀態形容詞	累
+LIST	的得_grok_狀態形容詞	細
+LIST	的得_grok_狀態形容詞	緊
+LIST	的得_grok_狀態形容詞	美
+LIST	的得_grok_狀態形容詞	老
+LIST	的得_grok_狀態形容詞	胖
+LIST	的得_grok_狀態形容詞	脆
+LIST	的得_grok_狀態形容詞	腥
+LIST	的得_grok_狀態形容詞	腫
+LIST	的得_grok_狀態形容詞	膩
+LIST	的得_grok_狀態形容詞	臭
+LIST	的得_grok_狀態形容詞	舊
+LIST	的得_grok_狀態形容詞	苦
+LIST	的得_grok_狀態形容詞	薄
+LIST	的得_grok_狀態形容詞	貴
+LIST	的得_grok_狀態形容詞	賤
+LIST	的得_grok_狀態形容詞	軟
+LIST	的得_grok_狀態形容詞	輕
+LIST	的得_grok_狀態形容詞	辣
+LIST	的得_grok_狀態形容詞	近
+LIST	的得_grok_狀態形容詞	遠
+LIST	的得_grok_狀態形容詞	酥
+LIST	的得_grok_狀態形容詞	酷
+LIST	的得_grok_狀態形容詞	酸
+LIST	的得_grok_狀態形容詞	醜
+LIST	的得_grok_狀態形容詞	重
+LIST	的得_grok_狀態形容詞	钝
+LIST	的得_grok_狀態形容詞	長
+LIST	的得_grok_狀態形容詞	閒
+LIST	的得_grok_狀態形容詞	險
+LIST	的得_grok_狀態形容詞	難
+LIST	的得_grok_狀態形容詞	靜
+LIST	的得_grok_狀態形容詞	飽
+LIST	的得_grok_狀態形容詞	餓
+LIST	的得_grok_狀態形容詞	香
+LIST	的得_grok_狀態形容詞	髒
+LIST	的得_grok_狀態形容詞	高
+LIST	的得_grok_狀態形容詞	鬆
+LIST	的得_grok_狀態形容詞	鹹
+LIST	的得_grok_狀態形容詞	麻
+LIST	的得_grok_狀態形容詞	黏
+LIST	的得_grok_得字補語起首	一
+LIST	的得_grok_得字補語起首	不
+LIST	的得_grok_得字補語起首	亮
+LIST	的得_grok_得字補語起首	人
+LIST	的得_grok_得字補語起首	他
+LIST	的得_grok_得字補語起首	你
+LIST	的得_grok_得字補語起首	倒
+LIST	的得_grok_得字補語起首	傷
+LIST	的得_grok_得字補語起首	像
+LIST	的得_grok_得字補語起首	全
+LIST	的得_grok_得字補語起首	划
+LIST	的得_grok_得字補語起首	半
+LIST	的得_grok_得字補語起首	又
+LIST	的得_grok_得字補語起首	受
+LIST	的得_grok_得字補語起首	叫
+LIST	的得_grok_得字補語起首	吐
+LIST	的得_grok_得字補語起首	哭
+LIST	的得_grok_得字補語起首	噴
+LIST	的得_grok_得字補語起首	嚇
+LIST	的得_grok_得字補語起首	四
+LIST	的得_grok_得字補語起首	團
+LIST	的得_grok_得字補語起首	地
+LIST	的得_grok_得字補語起首	夠
+LIST	的得_grok_得字補語起首	太
+LIST	的得_grok_得字補語起首	她
+LIST	的得_grok_得字補語起首	好
+LIST	的得_grok_得字補語起首	嬰
+LIST	的得_grok_得字補語起首	它
+LIST	的得_grok_得字補語起首	家
+LIST	的得_grok_得字補語起首	對
+LIST	的得_grok_得字補語起首	工
+LIST	的得_grok_得字補語起首	差
+LIST	的得_grok_得字補語起首	幾
+LIST	的得_grok_得字補語起首	彎
+LIST	的得_grok_得字補語起首	很
+LIST	的得_grok_得字補語起首	徹
+LIST	的得_grok_得字補語起首	忽
+LIST	的得_grok_得字補語起首	怎
+LIST	的得_grok_得字補語起首	想
+LIST	的得_grok_得字補語起首	我
+LIST	的得_grok_得字補語起首	扁
+LIST	的得_grok_得字補語起首	手
+LIST	的得_grok_得字補語起首	扣
+LIST	的得_grok_得字補語起首	抬
+LIST	的得_grok_得字補語起首	抱
+LIST	的得_grok_得字補語起首	挺
+LIST	的得_grok_得字補語起首	提
+LIST	的得_grok_得字補語起首	握
+LIST	的得_grok_得字補語起首	撕
+LIST	的得_grok_得字補語起首	整
+LIST	的得_grok_得字補語起首	暈
+LIST	的得_grok_得字補語起首	更
+LIST	的得_grok_得字補語起首	最
+LIST	的得_grok_得字補語起首	根
+LIST	的得_grok_得字補語起首	極
+LIST	的得_grok_得字補語起首	模
+LIST	的得_grok_得字補語起首	正
+LIST	的得_grok_得字補語起首	死
+LIST	的得_grok_得字補語起首	沒
+LIST	的得_grok_得字補語起首	沙
+LIST	的得_grok_得字補語起首	流
+LIST	的得_grok_得字補語起首	滴
+LIST	的得_grok_得字補語起首	滿
+LIST	的得_grok_得字補語起首	漂
+LIST	的得_grok_得字補語起首	漏
+LIST	的得_grok_得字補語起首	火
+LIST	的得_grok_得字補語起首	灰
+LIST	的得_grok_得字補語起首	牙
+LIST	的得_grok_得字補語起首	牠
+LIST	的得_grok_得字補語起首	特
+LIST	的得_grok_得字補語起首	發
+LIST	的得_grok_得字補語起首	皮
+LIST	的得_grok_得字補語起首	看
+LIST	的得_grok_得字補語起首	真
+LIST	的得_grok_得字補語起首	眼
+LIST	的得_grok_得字補語起首	睡
+LIST	的得_grok_得字補語起首	瞇
+LIST	的得_grok_得字補語起首	稀
+LIST	的得_grok_得字補語起首	稍
+LIST	的得_grok_得字補語起首	穩
+LIST	的得_grok_得字補語起首	穿
+LIST	的得_grok_得字補語起首	窗
+LIST	的得_grok_得字補語起首	站
+LIST	的得_grok_得字補語起首	笑
+LIST	的得_grok_得字補語起首	紙
+LIST	的得_grok_得字補語起首	緊
+LIST	的得_grok_得字補語起首	縮
+LIST	的得_grok_得字補語起首	繞
+LIST	的得_grok_得字補語起首	罵
+LIST	的得_grok_得字補語起首	背
+LIST	的得_grok_得字補語起首	腳
+LIST	的得_grok_得字補語起首	腿
+LIST	的得_grok_得字補語起首	膝
+LIST	的得_grok_得字補語起首	臉
+LIST	的得_grok_得字補語起首	舌
+LIST	的得_grok_得字補語起首	莫
+LIST	的得_grok_得字補語起首	蓬
+LIST	的得_grok_得字補語起首	裂
+LIST	的得_grok_得字補語起首	要
+LIST	的得_grok_得字補語起首	見
+LIST	的得_grok_得字補語起首	訂
+LIST	的得_grok_得字補語起首	該
+LIST	的得_grok_得字補語起首	誇
+LIST	的得_grok_得字補語起首	誰
+LIST	的得_grok_得字補語起首	變
+LIST	的得_grok_得字補語起首	讓
+LIST	的得_grok_得字補語起首	走
+LIST	的得_grok_得字補語起首	超
+LIST	的得_grok_得字補語起首	趕
+LIST	的得_grok_得字補語起首	趴
+LIST	的得_grok_得字補語起首	跟
+LIST	的得_grok_得字補語起首	車
+LIST	的得_grok_得字補語起首	迷
+LIST	的得_grok_得字補語起首	透
+LIST	的得_grok_得字補語起首	連
+LIST	的得_grok_得字補語起首	還
+LIST	的得_grok_得字補語起首	鄰
+LIST	的得_grok_得字補語起首	酸
+LIST	的得_grok_得字補語起首	醒
+LIST	的得_grok_得字補語起首	錯
+LIST	的得_grok_得字補語起首	鑽
+LIST	的得_grok_得字補語起首	長
+LIST	的得_grok_得字補語起首	開
+LIST	的得_grok_得字補語起首	鞋
+LIST	的得_grok_得字補語起首	順
+LIST	的得_grok_得字補語起首	頭
+LIST	的得_grok_得字補語起首	飛
+LIST	的得_grok_得字補語起首	齊
+LIST	的得_grok_人稱代詞	他
+LIST	的得_grok_人稱代詞	你
+LIST	的得_grok_人稱代詞	她
+LIST	的得_grok_人稱代詞	它
+LIST	的得_grok_人稱代詞	我
+LIST	的得_grok_人稱代詞	牠
+LIST	的得_grok_人稱代詞	誰
+LIST	的得_grok_小句謂語起首	一
+LIST	的得_grok_小句謂語起首	上
+LIST	的得_grok_小句謂語起首	下
+LIST	的得_grok_小句謂語起首	不
+LIST	的得_grok_小句謂語起首	來
+LIST	的得_grok_小句謂語起首	出
+LIST	的得_grok_小句謂語起首	到
+LIST	的得_grok_小句謂語起首	去
+LIST	的得_grok_小句謂語起首	叫
+LIST	的得_grok_小句謂語起首	吃
+LIST	的得_grok_小句謂語起首	咳
+LIST	的得_grok_小句謂語起首	哭
+LIST	的得_grok_小句謂語起首	喝
+LIST	的得_grok_小句謂語起首	在
+LIST	的得_grok_小句謂語起首	多
+LIST	的得_grok_小句謂語起首	大
+LIST	的得_grok_小句謂語起首	太
+LIST	的得_grok_小句謂語起首	好
+LIST	的得_grok_小句謂語起首	安
+LIST	的得_grok_小句謂語起首	寫
+LIST	的得_grok_小句謂語起首	小
+LIST	的得_grok_小句謂語起首	少
+LIST	的得_grok_小句謂語起首	差
+LIST	的得_grok_小句謂語起首	弄
+LIST	的得_grok_小句謂語起首	很
+LIST	的得_grok_小句謂語起首	得
+LIST	的得_grok_小句謂語起首	想
+LIST	的得_grok_小句謂語起首	慘
+LIST	的得_grok_小句謂語起首	成
+LIST	的得_grok_小句謂語起首	手
+LIST	的得_grok_小句謂語起首	打
+LIST	的得_grok_小句謂語起首	把
+LIST	的得_grok_小句謂語起首	拿
+LIST	的得_grok_小句謂語起首	會
+LIST	的得_grok_小句謂語起首	有
+LIST	的得_grok_小句謂語起首	沒
+LIST	的得_grok_小句謂語起首	滿
+LIST	的得_grok_小句謂語起首	牙
+LIST	的得_grok_小句謂語起首	用
+LIST	的得_grok_小句謂語起首	當
+LIST	的得_grok_小句謂語起首	發
+LIST	的得_grok_小句謂語起首	皮
+LIST	的得_grok_小句謂語起首	直
+LIST	的得_grok_小句謂語起首	看
+LIST	的得_grok_小句謂語起首	真
+LIST	的得_grok_小句謂語起首	睡
+LIST	的得_grok_小句謂語起首	站
+LIST	的得_grok_小句謂語起首	笑
+LIST	的得_grok_小句謂語起首	糊
+LIST	的得_grok_小句謂語起首	給
+LIST	的得_grok_小句謂語起首	聽
+LIST	的得_grok_小句謂語起首	能
+LIST	的得_grok_小句謂語起首	腿
+LIST	的得_grok_小句謂語起首	被
+LIST	的得_grok_小句謂語起首	要
+LIST	的得_grok_小句謂語起首	說
+LIST	的得_grok_小句謂語起首	變
+LIST	的得_grok_小句謂語起首	走
+LIST	的得_grok_小句謂語起首	起
+LIST	的得_grok_小句謂語起首	超
+LIST	的得_grok_小句謂語起首	跑
+LIST	的得_grok_小句謂語起首	退
+LIST	的得_grok_小句謂語起首	逃
+LIST	的得_grok_小句謂語起首	進
+LIST	的得_grok_小句謂語起首	過
+LIST	的得_grok_小句謂語起首	都
+LIST	的得_grok_小句謂語起首	醒
+LIST	的得_grok_小句謂語起首	錢
+LIST	的得_grok_小句謂語起首	馬
+RULE	的得/grok:G1狀態形容詞+補語	的	得	L1=的得_grok_狀態形容詞;R1=的得_grok_得字補語起首
+RULE	的得/grok:G2代詞小句	的	得	R1=的得_grok_人稱代詞;R2=的得_grok_小句謂語起首
+
+# ───────── 在再（我）─────────
+LIST	在再_stat_L1_END_再_0	了
+LIST	在再_stat_L1_END_再_1	完
+LIST	在再_stat_L1_END_再_2	後
+LIST	在再_stat_L1_END_再_3	你
+LIST	在再_stat_L1_END_在_4	貓
+LIST	在再_stat_L1_再_5	了
+LIST	在再_stat_L1_再_6	完
+LIST	在再_stat_L1_再_7	後
+LIST	在再_stat_L1_再_8	你
+LIST	在再_stat_L1_在_9	貓
+RULE	在再/stat:L1_END:了False@21/100%	在	再	L1=在再_stat_L1_END_再_0;NOTEND
+RULE	在再/stat:L1_END:完False@19/100%	在	再	L1=在再_stat_L1_END_再_1;NOTEND
+RULE	在再/stat:L1_END:後False@15/100%	在	再	L1=在再_stat_L1_END_再_2;NOTEND
+RULE	在再/stat:L1_END:你False@13/100%	在	再	L1=在再_stat_L1_END_再_3;NOTEND
+RULE	在再/stat:L1_END:貓False@12/100%	再	在	L1=在再_stat_L1_END_在_4;NOTEND
+RULE	在再/stat:L1:了@21/100%	在	再	L1=在再_stat_L1_再_5
+RULE	在再/stat:L1:完@19/100%	在	再	L1=在再_stat_L1_再_6
+RULE	在再/stat:L1:後@15/100%	在	再	L1=在再_stat_L1_再_7
+RULE	在再/stat:L1:你@13/100%	在	再	L1=在再_stat_L1_再_8
+RULE	在再/stat:L1:貓@12/100%	再	在	L1=在再_stat_L1_在_9
+
+# ───────── 吧八巴（我）─────────
+LIST	吧八巴_stat_L1_END_巴_0	大
+LIST	吧八巴_stat_L1_END_巴_1	小
+LIST	吧八巴_stat_L1_END_吧_2	了
+LIST	吧八巴_stat_L1_END_吧_3	點
+LIST	吧八巴_stat_L1_巴_4	小
+LIST	吧八巴_stat_R1_巴_5	著
+LIST	吧八巴_stat_R1_吧_6	台
+LIST	吧八巴_stat_L1_巴_7	大
+RULE	吧八巴/stat:L1_END:大False@21/100%	八	巴	L1=吧八巴_stat_L1_END_巴_0;NOTEND
+RULE	吧八巴/stat:L1_END:大False@21/100%	吧	巴	L1=吧八巴_stat_L1_END_巴_0;NOTEND
+RULE	吧八巴/stat:L1_END:小False@13/100%	八	巴	L1=吧八巴_stat_L1_END_巴_1;NOTEND
+RULE	吧八巴/stat:L1_END:小False@13/100%	吧	巴	L1=吧八巴_stat_L1_END_巴_1;NOTEND
+RULE	吧八巴/stat:L1_END:了True@15/93%	八	吧	L1=吧八巴_stat_L1_END_吧_2;END
+RULE	吧八巴/stat:L1_END:了True@15/93%	巴	吧	L1=吧八巴_stat_L1_END_吧_2;END
+RULE	吧八巴/stat:L1_END:點True@14/93%	八	吧	L1=吧八巴_stat_L1_END_吧_3;END
+RULE	吧八巴/stat:L1_END:點True@14/93%	巴	吧	L1=吧八巴_stat_L1_END_吧_3;END
+RULE	吧八巴/stat:L1:小@13/100%	八	巴	L1=吧八巴_stat_L1_巴_4
+RULE	吧八巴/stat:L1:小@13/100%	吧	巴	L1=吧八巴_stat_L1_巴_4
+RULE	吧八巴/stat:R1:著@13/100%	八	巴	R1=吧八巴_stat_R1_巴_5
+RULE	吧八巴/stat:R1:著@13/100%	吧	巴	R1=吧八巴_stat_R1_巴_5
+RULE	吧八巴/stat:R1:台@12/100%	八	吧	R1=吧八巴_stat_R1_吧_6
+RULE	吧八巴/stat:R1:台@12/100%	巴	吧	R1=吧八巴_stat_R1_吧_6
+RULE	吧八巴/stat:L1:大@26/96%	八	巴	L1=吧八巴_stat_L1_巴_7
+RULE	吧八巴/stat:L1:大@26/96%	吧	巴	L1=吧八巴_stat_L1_巴_7
+
+# ───────── 作做坐座（grok）─────────
+LIST	作做坐座_grok_姿勢補語	回
+LIST	作做坐座_grok_姿勢補語	直
+LIST	作做坐座_grok_姿勢補語	穩
+LIST	作做坐座_grok_否定	不
+LIST	作做坐座_grok_能性補語	下
+LIST	作做坐座_grok_能性補語	住
+LIST	作做坐座_grok_能性補語	穩
+LIST	作做坐座_grok_處所	公
+LIST	作做坐座_grok_處所	凳
+LIST	作做坐座_grok_處所	前
+LIST	作做坐座_grok_處所	反
+LIST	作做坐座_grok_處所	吧
+LIST	作做坐座_grok_處所	圖
+LIST	作做坐座_grok_處所	坑
+LIST	作做坐座_grok_處所	坪
+LIST	作做坐座_grok_處所	場
+LIST	作做坐座_grok_處所	塢
+LIST	作做坐座_grok_處所	墊
+LIST	作做坐座_grok_處所	壇
+LIST	作做坐座_grok_處所	床
+LIST	作做坐座_grok_處所	廁
+LIST	作做坐座_grok_處所	廂
+LIST	作做坐座_grok_處所	廊
+LIST	作做坐座_grok_處所	廳
+LIST	作做坐座_grok_處所	後
+LIST	作做坐座_grok_處所	懷
+LIST	作做坐座_grok_處所	所
+LIST	作做坐座_grok_處所	捷
+LIST	作做坐座_grok_處所	排
+LIST	作做坐座_grok_處所	推
+LIST	作做坐座_grok_處所	月
+LIST	作做坐座_grok_處所	板
+LIST	作做坐座_grok_處所	桌
+LIST	作做坐座_grok_處所	梯
+LIST	作做坐座_grok_處所	椅
+LIST	作做坐座_grok_處所	櫃
+LIST	作做坐座_grok_處所	汽
+LIST	作做坐座_grok_處所	沙
+LIST	作做坐座_grok_處所	消
+LIST	作做坐座_grok_處所	港
+LIST	作做坐座_grok_處所	灣
+LIST	作做坐座_grok_處所	炕
+LIST	作做坐座_grok_處所	玄
+LIST	作做坐座_grok_處所	窗
+LIST	作做坐座_grok_處所	站
+LIST	作做坐座_grok_處所	船
+LIST	作做坐座_grok_處所	艙
+LIST	作做坐座_grok_處所	行
+LIST	作做坐座_grok_處所	角
+LIST	作做坐座_grok_處所	走
+LIST	作做坐座_grok_處所	輪
+LIST	作做坐座_grok_處所	鐵
+LIST	作做坐座_grok_處所	院
+LIST	作做坐座_grok_處所	階
+LIST	作做坐座_grok_處所	電
+LIST	作做坐座_grok_處所	霸
+LIST	作做坐座_grok_處所	飛
+LIST	作做坐座_grok_處所	館
+LIST	作做坐座_grok_指示詞	這
+LIST	作做坐座_grok_指示詞	那
+LIST	作做坐座_grok_量詞座	七
+LIST	作做坐座_grok_量詞座	九
+LIST	作做坐座_grok_量詞座	五
+LIST	作做坐座_grok_量詞座	併
+LIST	作做坐座_grok_量詞座	個
+LIST	作做坐座_grok_量詞座	兩
+LIST	作做坐座_grok_量詞座	八
+LIST	作做坐座_grok_量詞座	六
+LIST	作做坐座_grok_量詞座	十
+LIST	作做坐座_grok_量詞座	四
+LIST	作做坐座_grok_量詞座	每
+LIST	作做坐座_grok_量詞座	連
+LIST	作做坐座_grok_量詞座	鄰
+LIST	作做坐座_grok_量詞座	雙
+LIST	作做坐座_grok_量詞座	駕
+LIST	作做坐座_grok_量詞座	駛
+LIST	作做坐座_grok_書面賓語	俑
+LIST	作做坐座_grok_書面賓語	則
+LIST	作做坐座_grok_書面賓語	實
+LIST	作做坐座_grok_書面賓語	帳
+LIST	作做坐座_grok_書面賓語	憑
+LIST	作做坐座_grok_書面賓語	押
+LIST	作做坐座_grok_書面賓語	數
+LIST	作做坐座_grok_書面賓語	樣
+LIST	作做坐座_grok_書面賓語	為
+LIST	作做坐座_grok_書面賓語	繭
+RULE	作做坐座/grok:G1a姿勢補語→坐	作	坐	R1=作做坐座_grok_姿勢補語
+RULE	作做坐座/grok:G1a姿勢補語→坐	做	坐	R1=作做坐座_grok_姿勢補語
+RULE	作做坐座/grok:G1a姿勢補語→坐	座	坐	R1=作做坐座_grok_姿勢補語
+RULE	作做坐座/grok:G1b不+能性→坐	作	坐	R1=作做坐座_grok_否定;R2=作做坐座_grok_能性補語
+RULE	作做坐座/grok:G1b不+能性→坐	做	坐	R1=作做坐座_grok_否定;R2=作做坐座_grok_能性補語
+RULE	作做坐座/grok:G1b不+能性→坐	座	坐	R1=作做坐座_grok_否定;R2=作做坐座_grok_能性補語
+RULE	作做坐座/grok:G2處所→坐	作	坐	R1=作做坐座_grok_處所
+RULE	作做坐座/grok:G2處所→坐	做	坐	R1=作做坐座_grok_處所
+RULE	作做坐座/grok:G2處所→坐	座	坐	R1=作做坐座_grok_處所
+RULE	作做坐座/grok:G3指示詞→座	作	座	L1=作做坐座_grok_指示詞
+RULE	作做坐座/grok:G3指示詞→座	做	座	L1=作做坐座_grok_指示詞
+RULE	作做坐座/grok:G3指示詞→座	坐	座	L1=作做坐座_grok_指示詞
+RULE	作做坐座/grok:G4量詞→座	作	座	L1=作做坐座_grok_量詞座
+RULE	作做坐座/grok:G4量詞→座	做	座	L1=作做坐座_grok_量詞座
+RULE	作做坐座/grok:G4量詞→座	坐	座	L1=作做坐座_grok_量詞座
+RULE	作做坐座/grok:G5書面賓語→作	做	作	R1=作做坐座_grok_書面賓語
+RULE	作做坐座/grok:G5書面賓語→作	坐	作	R1=作做坐座_grok_書面賓語
+RULE	作做坐座/grok:G5書面賓語→作	座	作	R1=作做坐座_grok_書面賓語
+
+# ───────── 前錢（我）─────────
+LIST	前錢_stat_L1_END_錢_0	的
+LIST	前錢_stat_L1_錢_1	的
+LIST	前錢_stat_R1_前_2	把
+RULE	前錢/stat:L1_END:的False@32/100%	前	錢	L1=前錢_stat_L1_END_錢_0;NOTEND
+RULE	前錢/stat:L1:的@36/100%	前	錢	L1=前錢_stat_L1_錢_1
+RULE	前錢/stat:R1:把@13/92%	錢	前	R1=前錢_stat_R1_前_2
+
+# ───────── 較叫（合併）─────────
+LIST	較叫_stat_R1_叫_0	我
+LIST	較叫_stat_R1_叫_1	他
+LIST	較叫_stat_R1_叫_2	木
+LIST	較叫_stat_R1_叫_3	房
+LIST	較叫_stat_R1_較_4	不
+RULE	較叫/stat:R1:我@43/100%	較	叫	R1=較叫_stat_R1_叫_0
+RULE	較叫/stat:R1:他@19/100%	較	叫	R1=較叫_stat_R1_叫_1
+RULE	較叫/stat:R1:木@13/100%	較	叫	R1=較叫_stat_R1_叫_2
+RULE	較叫/stat:R1:房@12/100%	較	叫	R1=較叫_stat_R1_叫_3
+RULE	較叫/stat:R1:不@14/93%	叫	較	R1=較叫_stat_R1_較_4
+LIST	較叫_grok_祈使對象詞首	他
+LIST	較叫_grok_祈使對象詞首	代
+LIST	較叫_grok_祈使對象詞首	你
+LIST	較叫_grok_祈使對象詞首	保
+LIST	較叫_grok_祈使對象詞首	同
+LIST	較叫_grok_祈使對象詞首	員
+LIST	較叫_grok_祈使對象詞首	學
+LIST	較叫_grok_祈使對象詞首	客
+LIST	較叫_grok_祈使對象詞首	家
+LIST	較叫_grok_祈使對象詞首	工
+LIST	較叫_grok_祈使對象詞首	師
+LIST	較叫_grok_祈使對象詞首	帳
+LIST	較叫_grok_祈使對象詞首	幹
+LIST	較叫_grok_祈使對象詞首	店
+LIST	較叫_grok_祈使對象詞首	廚
+LIST	較叫_grok_祈使對象詞首	弟
+LIST	較叫_grok_祈使對象詞首	我
+LIST	較叫_grok_祈使對象詞首	房
+LIST	較叫_grok_祈使對象詞首	朋
+LIST	較叫_grok_祈使對象詞首	木
+LIST	較叫_grok_祈使對象詞首	業
+LIST	較叫_grok_祈使對象詞首	櫃
+LIST	較叫_grok_祈使對象詞首	水
+LIST	較叫_grok_祈使對象詞首	油
+LIST	較叫_grok_祈使對象詞首	泥
+LIST	較叫_grok_祈使對象詞首	清
+LIST	較叫_grok_祈使對象詞首	病
+LIST	較叫_grok_祈使對象詞首	社
+LIST	較叫_grok_祈使對象詞首	組
+LIST	較叫_grok_祈使對象詞首	經
+LIST	較叫_grok_祈使對象詞首	老
+LIST	較叫_grok_祈使對象詞首	考
+LIST	較叫_grok_祈使對象詞首	行
+LIST	較叫_grok_祈使對象詞首	警
+LIST	較叫_grok_祈使對象詞首	護
+LIST	較叫_grok_祈使對象詞首	送
+LIST	較叫_grok_祈使對象詞首	醫
+LIST	較叫_grok_祈使對象詞首	鎖
+LIST	較叫_grok_祈使對象詞首	電
+LIST	較叫_grok_祈使對象詞首	顧
+LIST	較叫_grok_祈使對象詞首	駕
+LIST	較叫_grok_叫好凝固	好
+LIST	較叫_grok_單音程度／規格	久
+LIST	較叫_grok_單音程度／規格	乾
+LIST	較叫_grok_單音程度／規格	亮
+LIST	較叫_grok_單音程度／規格	低
+LIST	較叫_grok_單音程度／規格	冷
+LIST	較叫_grok_單音程度／規格	厚
+LIST	較叫_grok_單音程度／規格	大
+LIST	較叫_grok_單音程度／規格	寬
+LIST	較叫_grok_單音程度／規格	小
+LIST	較叫_grok_單音程度／規格	弱
+LIST	較叫_grok_單音程度／規格	強
+LIST	較叫_grok_單音程度／規格	快
+LIST	較叫_grok_單音程度／規格	慢
+LIST	較叫_grok_單音程度／規格	早
+LIST	較叫_grok_單音程度／規格	晚
+LIST	較叫_grok_單音程度／規格	暗
+LIST	較叫_grok_單音程度／規格	淡
+LIST	較叫_grok_單音程度／規格	深
+LIST	較叫_grok_單音程度／規格	淺
+LIST	較叫_grok_單音程度／規格	清
+LIST	較叫_grok_單音程度／規格	溫
+LIST	較叫_grok_單音程度／規格	滿
+LIST	較叫_grok_單音程度／規格	濃
+LIST	較叫_grok_單音程度／規格	濕
+LIST	較叫_grok_單音程度／規格	熟
+LIST	較叫_grok_單音程度／規格	熱
+LIST	較叫_grok_單音程度／規格	燙
+LIST	較叫_grok_單音程度／規格	生
+LIST	較叫_grok_單音程度／規格	短
+LIST	較叫_grok_單音程度／規格	穩
+LIST	較叫_grok_單音程度／規格	窄
+LIST	較叫_grok_單音程度／規格	緊
+LIST	較叫_grok_單音程度／規格	薄
+LIST	較叫_grok_單音程度／規格	輕
+LIST	較叫_grok_單音程度／規格	近
+LIST	較叫_grok_單音程度／規格	遠
+LIST	較叫_grok_單音程度／規格	重
+LIST	較叫_grok_單音程度／規格	長
+LIST	較叫_grok_單音程度／規格	高
+LIST	較叫_grok_單音程度／規格	鬆
+LIST	較叫_grok_一	一
+LIST	較叫_grok_點	點
+LIST	較叫_grok_點餐量度	冰
+LIST	較叫_grok_點餐量度	厚
+LIST	較叫_grok_點餐量度	多
+LIST	較叫_grok_點餐量度	大
+LIST	較叫_grok_點餐量度	小
+LIST	較叫_grok_點餐量度	少
+LIST	較叫_grok_點餐量度	淡
+LIST	較叫_grok_點餐量度	清
+LIST	較叫_grok_點餐量度	滿
+LIST	較叫_grok_點餐量度	熟
+LIST	較叫_grok_點餐量度	熱
+LIST	較叫_grok_點餐量度	燙
+LIST	較叫_grok_點餐量度	甜
+LIST	較叫_grok_點餐量度	薄
+LIST	較叫_grok_可點品項／單位	份
+LIST	較叫_grok_可點品項／單位	冰
+LIST	較叫_grok_可點品項／單位	咖
+LIST	較叫_grok_可點品項／單位	啤
+LIST	較叫_grok_可點品項／單位	奶
+LIST	較叫_grok_可點品項／單位	料
+LIST	較叫_grok_可點品項／單位	杯
+LIST	較叫_grok_可點品項／單位	水
+LIST	較叫_grok_可點品項／單位	油
+LIST	較叫_grok_可點品項／單位	湯
+LIST	較叫_grok_可點品項／單位	漿
+LIST	較叫_grok_可點品項／單位	片
+LIST	較叫_grok_可點品項／單位	的
+LIST	較叫_grok_可點品項／單位	米
+LIST	較叫_grok_可點品項／單位	糖
+LIST	較叫_grok_可點品項／單位	肉
+LIST	較叫_grok_可點品項／單位	茶
+LIST	較叫_grok_可點品項／單位	菜
+LIST	較叫_grok_可點品項／單位	蒜
+LIST	較叫_grok_可點品項／單位	蔥
+LIST	較叫_grok_可點品項／單位	蛋
+LIST	較叫_grok_可點品項／單位	豆
+LIST	較叫_grok_可點品項／單位	辣
+LIST	較叫_grok_可點品項／單位	酒
+LIST	較叫_grok_可點品項／單位	醬
+LIST	較叫_grok_可點品項／單位	飯
+LIST	較叫_grok_可點品項／單位	餐
+LIST	較叫_grok_可點品項／單位	鹹
+LIST	較叫_grok_可點品項／單位	麵
+LIST	較叫_grok_可點品項／單位	點
+RULE	較叫/grok:G1句首祈使	較	叫	START;R1=較叫_grok_祈使對象詞首
+RULE	較叫/grok:G2叫好	較	叫	R1=較叫_grok_叫好凝固;END
+RULE	較叫/grok:G3X一點	較	叫	R1=較叫_grok_單音程度／規格;R2=較叫_grok_一;R3=較叫_grok_點
+RULE	較叫/grok:G4點餐	較	叫	R1=較叫_grok_點餐量度;R2=較叫_grok_可點品項／單位
