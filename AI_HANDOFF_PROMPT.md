@@ -2,33 +2,41 @@
 
 你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
 
-**最後更新：2026-08-06**（**v2.14.0 定案後校正進 UOM ＋ correction log schema v1**）
+**最後更新：2026-08-10**（v2.15.0 的/得 文法規則消歧）
 
-**現役**：**v2.14.0** / build **2312** / tag **`v2.14.0`**  
-**引擎**：walk/v2c **凍結**；tw538 **387/537**（自 v2.6 出貨配置未變）
+**現役**：**v2.15.0** / build **2313** / tag **`v2.15.0`**
 
-**作廢**：2.12.x 互相打架的補指令；soft-finalize「藏底線當定案」；Enter 一次就送出；定案後假刪再插（會讓句子變長）。
+> **版本真源是 `Source/McBopomofo-Info.plist` ＋ `CHANGELOG.md` 最上面的已發布段落。**
+> 本檔以下任何段落若與那兩者不符，以那兩者為準。**歷史交班日誌只當歷史，不是現況。**
 
 ## 先讀文件
 
-1. `AGENTS.md`（版本鐵則、Current line、**產品 UX 總表**）
-2. `CHANGELOG.md`（**v2.9.0→v2.13.3** 人話 + commit 範圍）
-3. **本檔**（先讀「目前真相 v2.13.3」；交班日誌只作歷史）
-4. 總交接檔：`~/Documents/i注音-總交接檔-v5.md`（研究／數學／北極星；**產品現況以本檔 + CHANGELOG 為準**）
+1. `AGENTS.md`（版本鐵則、Current line、產品 UX 總表、**收工清單**）
+2. `CHANGELOG.md`（每版人話 + commit 範圍）
+3. **本檔**（讀「三行同步狀態」即可；再往下是歷史日誌）
+4. `~/Documents/i注音-傳承交接檔.md`（軍師視角：研究脈絡、死亡名單、判斷經驗。**產品現況不以此為準**）
 5. 改詞庫：`Source/Data/AGENTS.md`；深算法：`algorithm.md`
-6. 功能盤點：`Source/Engine/eval/analysis/feature-inventory.md`（**偏 v2.7**，按鍵表以本檔為準）
+
+> ⚠️ 舊文件曾指向 `~/Documents/i注音-總交接檔-v5.md`，**該檔不存在**（另有 `~/Downloads/i注音-總交接檔-v6.md` 但停在 v2.8.0，亦不可信）。已改為上面第 4 項。
 
 ### 版本可追溯鐵則（常設）
 
-見 `AGENTS.md` 與總交接檔。有行為改動 → CHANGELOG 人話；發布點 → 兩 plist + annotated tag + commit 範圍。
+見 `AGENTS.md`。有行為改動 → CHANGELOG 人話；發布點 → 兩 plist + annotated tag + commit 範圍。
 
 ---
 
-## 三行同步狀態（2026-08-06）
+## 三行同步狀態（2026-08-10）
 
-1. **發版**：**v2.14.0**（build **2312**，tag **`v2.14.0`**）。定案後刪回重組成功 → **UOM soft 學習**（一次達門檻）＋ **correction log schema v1**（left_context / wrong_char / chosen）。引擎未改；tw538 **387/537**。
-2. **公開**：https://github.com/TsungLi-Wang/iBopomofo — Releases **Latest = v2.14.0**。
-3. **下一刀（產品）**：真機 dogfood T1–T5（改一次下次記得；log 欄位正確；LINE 降級不誤學）。
+1. **發版**：**v2.15.0**（build **2313**，tag **`v2.15.0`**）。新增 **的/得 文法規則消歧**（`ParticleRuleDisambiguator`，掛在 `_walk` 之後）：打「看的懂／養的起／打的過」自動修成「得」。真實語料抽 40 例 39 正確；每萬字出手一次；「我的書／真的很好／唱的歌」不受影響。已實機 e2e 驗證。
+2. **公開**：https://github.com/TsungLi-Wang/iBopomofo — Releases **Latest = v2.15.0**。
+3. **下一刀**：新北極星 EX1166 題庫（目前只有 9 組共 499 句生成句，未過小麥注音、未成題庫）。**注意：tw538 已作廢，目前沒有制度化的引擎驗收門檻**——改引擎要在 CHANGELOG 寫清楚你用什麼資料、怎麼量的。
+
+### v2.15.0 已排除的路（別重試）
+
+- **神經模型解不了的/得**：拿掉詞頻優勢、只問 v2c 哪句順，59 句 66%，該打「得」的只對 9/29 且錯的全選「的」。根因是 v2c 的 PTT 訓練語料本身四成寫錯。
+- **的/得 的程度副詞半邊（得很／得超／得太）**：五種寫法都試過，誤改率地板 20%。「你說的超展開」「你問的太平島」跟「你說得很誇張」在前後三字內完全同形，要看懂整句結構才分得出來。
+- **舊的 在/再 混淆表（`confusion-pairs.tsv`，v2.7.0 刪除）**：取回實測 **93% → 90.25%（變差）**。它是 v2c 成為主力前訓的（913 句合成語料），現在會跟 v2c 搶決定。**七月那次刪除是對的，不是誤刪。**
+- **補 v2c 的視野死角**：實測 400 題只有 **1.2%** 是「正確答案沒進十條候選」，天花板太低。真正的錯（23/28）是「看到了還選錯」。
 
 ### tw538 基準線
 

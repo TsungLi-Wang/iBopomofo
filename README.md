@@ -5,7 +5,7 @@ macOS 上的**繁體中文注音輸入法**。在成熟的開源注音引擎之�
 | | |
 |---|---|
 | **產品名** | i注音（英文／ASCII：**iBopomofo**） |
-| **目前版本** | **2.13.3**（build **2311**） |
+| **目前版本** | **2.15.0**（build **2313**） |
 | **授權** | MIT（衍生自 [McBopomofo](https://github.com/openvanilla/McBopomofo)；見 [LICENSE](LICENSE) 與 [NOTICE](NOTICE)） |
 | **平台** | macOS 10.15+（開發建議 14.7+ / Xcode 15.3+） |
 
@@ -118,9 +118,11 @@ open "$HOME/Library/Input Methods/McBopomofo.app"
 | 2.9–2.12 | 定案／重選探索（多版迭代；細節見 CHANGELOG） |
 | **2.13.0** | **行為總則：定案 ≠ 送出** |
 | 2.13.1–2.13.2 | 句號／逗號觸發；定案後方向鍵放行 |
-| **2.13.3** | **定案後重選 1→1 驗證置換（不疊字）** |
+| **2.15.0** | **「的／得」自動修正**（看的懂→看得懂、養的起→養得起） |
+| **2.14.0** | 定案後改的同音字會被記住（個人化學習） |
+| **2.13.3** | 定案後重選 1→1 驗證置換（不疊字） |
 
-完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：`v2.13.3`。
+完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：`v2.15.0`。
 
 ## 已知取捨（開源後）
 

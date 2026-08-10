@@ -2,7 +2,7 @@
 
 本檔記錄i注音的版本變更。格式參考 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本號遵循 [語意化版本](https://semver.org/lang/zh-TW/)。
 
-正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/laowang-zhuyin/releases)。
+正式發佈與 DMG 下載位於 [GitHub Releases](https://github.com/TsungLi-Wang/iBopomofo/releases)。
 
 **版本可追溯（常設）**：每個正式版本段落必須標 **commit 範圍** 與（若有）**tag**。打字行為或使用者可見改動的棒，收尾須更新本檔人話條目；發布點須遞增版本號並打 annotated tag。詳見交接檔卷一「版本可追溯鐵則」、`AGENTS.md`。
 
