@@ -74,6 +74,7 @@ class TinyLM : public Formosa::Gramambular2::LanguageModel {
     db_["ㄉㄜ˙"].emplace_back("的", -1.0);   // 詞頻讓「的」勝出
     db_["ㄉㄜ˙"].emplace_back("得", -6.0);
     db_["ㄉㄨㄥˇ"].emplace_back("懂", -1.0);
+    db_["，"].emplace_back("，", -1.0);   // 標點在引擎裡也是一個節點
   }
   std::vector<Unigram> getUnigrams(const std::string& key) override {
     auto f = db_.find(key);
@@ -202,6 +203,26 @@ TEST(ParticleRuleDisambiguatorTest, RescoreWalkIsIdempotent) {
   EXPECT_EQ(Joined(walk), "看得懂");
   d.rescoreWalk(walk);
   EXPECT_EQ(Joined(walk), "看得懂");
+}
+
+TEST(ParticleRuleDisambiguatorTest, PunctuationBlocksRuleAcrossBoundary) {
+  // 標點會被 insertReading 進詞圖、變成一個節點，所以它天然是規則的屏障：
+  // 「看，的懂」裡「的」的左鄰是「，」而不是「看」，規則不該出手。
+  //
+  // 這件事看起來理所當然，但它是**靠標點也占一個字位**才成立的 ——
+  // 哪天改成「標點不進詞圖」，規則就會跨過標點誤開火（他很長，的確 → 長得確）。
+  // 這個測試就是釘住那個前提。
+  ParticleRuleDisambiguator d = MakeDisambiguator();
+  Formosa::Gramambular2::ReadingGrid grid(std::make_shared<TinyLM>());
+  grid.setReadingSeparator("-");
+  for (const char* r : {"ㄎㄢˋ", "，", "ㄉㄜ˙", "ㄉㄨㄥˇ"}) {
+    grid.setCursor(grid.length());
+    ASSERT_TRUE(grid.insertReading(r));
+  }
+  auto walk = grid.walk();
+  ASSERT_EQ(Joined(walk), "看，的懂");
+  EXPECT_FALSE(d.rescoreWalk(walk));
+  EXPECT_EQ(Joined(walk), "看，的懂");
 }
 
 TEST(ParticleRuleDisambiguatorTest, EmptyTableLeavesWalkAlone) {
