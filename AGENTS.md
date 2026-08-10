@@ -8,7 +8,7 @@ iBopomofo (i注音) is a macOS Traditional Chinese Bopomofo input method forked 
 
 The repository still intentionally keeps many upstream identifiers (`McBopomofo` target/module names, bundle id, input source ids, C++ namespaces) because they are tied to IMK registration, user data paths, and upstream merge cost. Prefer product-facing cleanup first; do not rename these internal identifiers without a migration plan.
 
-**Current line:** **i注音 / iBopomofo v2.15.0** (build **2313**; tag **`v2.15.0`**).  
+**Current line:** 現役版本不寫在這裡 —— 見 `CHANGELOG.md` 最上面的已發布段落，或 `Source/McBopomofo-Info.plist`。收工前跑 `./scripts/doc-check.sh` 驗一致性。  
 **Canonical product rule (v2.13.0+):** 定案 ≠ 送出; post-commit ↓ reselect 1→1; **v2.14.0** post-commit correction also feeds UOM soft personalization (one pick → soft active). **v2.15.0** adds the 的/得 grammar rule after `walk()` (`ParticleRuleDisambiguator`).  
 Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md` + `~/Documents/i注音-傳承交接檔.md`（軍師視角／研究脈絡；**產品現況以 CHANGELOG + plist 為準**）。
 
@@ -51,7 +51,7 @@ This is a **permanent** rule, not a one-off cleanup.
 
 ### 收工必更新清單（2026-08-10 新增 — 這條是為了止住「版本敘事漂移」）
 
-**為什麼有這條**：2026-08-10 用一個完全沒有前文的 AI 實測交接文件，發現現役版本在五個檔案裡有四種說法（`CLAUDE.md` 寫 v2.7.0、`AGENTS.md` 寫 v2.14.0、`AI_HANDOFF_PROMPT.md` 自己頂部寫 v2.14.0 但內文寫 v2.13.3、`README.md` 寫 v2.13.3），實際是 v2.15.0。根因是**舊規則只強制更新 CHANGELOG 和 plist，沒有任何一條要求同步「現況」那一層**，所以那一層一路漂。
+**為什麼有這條**：2026-08-10 用一個完全沒有前文的 AI 實測交接文件，發現現役版本在五個檔案裡有四種說法（`CLAUDE.md` 寫 v2.7.0、`AGENTS.md` 寫 v2.14.0、`AI_HANDOFF_PROMPT.md` 自己頂部寫 v2.14.0 但內文寫 v2.13.3、`README.md` 寫 v2.13.3），實際是 v2.15.0。根因是**舊規則只強制更新 CHANGELOG 和 plist，沒有任何一條要求同步「現況」那一層**，所以那一層一路漂。 <!-- doc-check-ignore -->
 
 **發版棒收工時，下列每一項都要更新，缺一不可：**
 
@@ -60,13 +60,18 @@ This is a **permanent** rule, not a one-off cleanup.
 | 1 | `CHANGELOG.md` | 新版段落（人話 + 版號 + build + tag + commit 範圍） |
 | 2 | `Source/McBopomofo-Info.plist` | `CFBundleShortVersionString` + `CFBundleVersion` |
 | 3 | `Source/Installer/Installer-Info.plist` | 同上（**兩份都要**，漏掉這份是歷史上最常犯的） |
-| 4 | `CLAUDE.md` | 「現役版本」那一行 |
-| 5 | `AGENTS.md` | **Current line** 那一行（本檔 L11） |
-| 6 | `AI_HANDOFF_PROMPT.md` | 頂部「現役」＋「三行同步狀態」＋下一刀 |
-| 7 | `README.md` | 版本列 |
+| 4 | `AI_HANDOFF_PROMPT.md` | 「三行同步狀態」＋下一刀＋（若有）「已排除的路」 |
+| 5 | `README.md` | 版本歷程表加一列 |
+| 6 | — | ~~CLAUDE.md / AGENTS.md 版本行~~ **已不需要**：它們不再抄版本號 |
+| 7 | `./scripts/doc-check.sh` | 跑一次，要全綠 |
 | 8 | git | annotated tag（訊息含 commit 範圍）＋ push |
 
 **非發版棒**（研究、harness、文件）只要第 1 項的 internal 條目，其餘不動。
+
+**收工前跑 `./scripts/doc-check.sh`** —— 它會自動抓：現況版本宣稱是否寫死在文件裡、
+兩份 plist 是否同步、CHANGELOG 頂部是否對得上 plist、文件提到的檔案是否真的存在、
+pbxproj 新檔 ID 起點是否過時、被 git 追蹤的建置產物是否髒了。
+上面表格第 4~7 項因此**不用手動維護**：文件不再抄版本號，改成指向 CHANGELOG。
 
 **引擎行為改動額外要求**：在 CHANGELOG 條目裡寫清楚**用什麼資料、怎麼量的、數字多少**。tw538 已作廢、EX1166 未建齊，目前沒有制度化門檻，所以驗收方法必須逐棒自述，否則下一棒無從判斷你的改動是進步還是退步。
 
@@ -309,7 +314,7 @@ The `Packages/` directory contains local Swift Package dependencies:
 - `NotifierUI`: User notifications
 - `NSStringUtils`: String utility functions
 - `OpenCCBridge`: Traditional/Simplified Chinese conversion (wraps SwiftyOpenCC)
-- `SystemCharacterInfo`: Character information lookup (uses SQLite.swift)
+- `SystemCharacterInfo`: Character information lookup (uses SQLite.swift) <!-- doc-check-ignore -->
 - `TooltipUI`: Tooltip display
 
 These are referenced directly by Xcode project, not through Package.swift.
@@ -318,5 +323,5 @@ These are referenced directly by Xcode project, not through Package.swift.
 
 The project also depends on these external Swift packages (resolved automatically by Xcode):
 - `swift-toolchain-sqlite` (1.0.4): Low-level SQLite bindings from Swift toolchain
-- `SQLite.swift` (0.15.4): Swift wrapper for SQLite3
+- `SQLite.swift` (0.15.4): Swift wrapper for SQLite3 <!-- doc-check-ignore -->
 - `SwiftyOpenCC` (2.0.0-beta): Swift wrapper for OpenCC (Chinese text conversion)

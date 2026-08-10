@@ -2,10 +2,9 @@
 
 給 Claude Code 的專案指引。
 
-**現役版本：v2.15.0**（build 2313，tag `v2.15.0`）
-
-> **版本真源只有兩個：`Source/McBopomofo-Info.plist` 和 `CHANGELOG.md` 最上面的已發布段落。**
-> 任何說明文件（含本檔）寫的版本都可能落後——不一致時以那兩個為準，並順手把落後的改掉。
+> **現役版本不寫在這裡。** 看 `CHANGELOG.md` 最上面的已發布段落，或 `Source/McBopomofo-Info.plist`。
+> 說明文件一律不抄版本號 —— 抄了就會漂（2026-08-10 曾漂到五個檔案四種說法）。
+> 收工前跑 `./scripts/doc-check.sh` 會自動抓這類不一致。
 
 進來先讀（照順序）：
 
