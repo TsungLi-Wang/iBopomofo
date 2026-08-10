@@ -23,6 +23,21 @@
 # train 淨賺 +190（比支持12 的 +123 好），**但封存集只有 +48、準確率反而
 # 從 89.8% 掉到 86.4%**。train 上多出來的都是幻覺。已放棄，門檻維持 12。
 #
+# ## 第二輪（grokR2）
+#
+# 拿「第一輪規則修完之後還錯的殘渣」再派一次，只有三組交得出東西，各 1~2 條：
+#   在再   左邊是稱謂／職稱／處所詞尾（李阿姨、王經理、房間…）→ 在   封存集 +8
+#   吧八巴 右邊是黏附義補語（住／到／緊／牢／掉…）→ 巴            封存集 +5
+#   作做坐座 左邊第 3 個字是「是」→ 座                            封存集 +1
+#
+# grok 對剩下的殘渣說「拆不開」，理由值得留著（跟 oracle 的結論獨立吻合）：
+#   * 「坐／做」都是高頻動詞，共用太多功能詞環境（別坐／別做、先坐／先做），
+#     要靠賓語語意（處所 vs 事務）才分得開 —— 超出「左右 N 格」的表達力
+#   * 「八 vs 巴」在表格代號裡同形（寫八／寫巴），只能靠「是數字還是字母 B」
+#   * 「二十吧」（約數語氣）vs「二十八」（數字）在句尾結構完全相同、答案相反
+#
+# 這代表規則層已經接近它的表達力上限，不是清單收不齊。
+#
 # ⚠️ 清單名稱必須全域唯一，用「組名_來源_」前綴隔開。
 # ⚠️ 改完必跑三關：try_rules.py → 評分機對照實驗 → e2e-typing-check 實機。
 
@@ -367,6 +382,46 @@ RULE	的得/grok:G1狀態形容詞+補語	的	得	L1=的得_grok_狀態形容詞
 RULE	的得/grok:G2代詞小句	的	得	R1=的得_grok_人稱代詞;R2=的得_grok_小句謂語起首
 
 # ───────── 在再（我）─────────
+LIST	在再_grokR2_甲	事
+LIST	在再_grokR2_甲	伯
+LIST	在再_grokR2_甲	傅
+LIST	在再_grokR2_甲	公
+LIST	在再_grokR2_甲	叔
+LIST	在再_grokR2_甲	員
+LIST	在再_grokR2_甲	哥
+LIST	在再_grokR2_甲	問
+LIST	在再_grokR2_甲	奶
+LIST	在再_grokR2_甲	妹
+LIST	在再_grokR2_甲	姐
+LIST	在再_grokR2_甲	姑
+LIST	在再_grokR2_甲	姨
+LIST	在再_grokR2_甲	婆
+LIST	在再_grokR2_甲	媽
+LIST	在再_grokR2_甲	嫂
+LIST	在再_grokR2_甲	官
+LIST	在再_grokR2_甲	審
+LIST	在再_grokR2_甲	師
+LIST	在再_grokR2_甲	弟
+LIST	在再_grokR2_甲	服
+LIST	在再_grokR2_甲	東
+LIST	在再_grokR2_甲	爸
+LIST	在再_grokR2_甲	理
+LIST	在再_grokR2_甲	練
+LIST	在再_grokR2_甲	計
+LIST	在再_grokR2_甲	部
+LIST	在再_grokR2_甲	闆
+LIST	在再_grokR2_乙	室
+LIST	在再_grokR2_乙	廳
+LIST	在再_grokR2_乙	房
+LIST	在再_grokR2_乙	旁
+LIST	在再_grokR2_乙	李
+LIST	在再_grokR2_乙	樓
+LIST	在再_grokR2_乙	牆
+LIST	在再_grokR2_乙	簾
+LIST	在再_grokR2_乙	網
+LIST	在再_grokR2_乙	蓋
+LIST	在再_grokR2_乙	金
+LIST	在再_grokR2_乙	電
 LIST	在再_stat_L1_END_再_0	了
 LIST	在再_stat_L1_END_再_1	完
 LIST	在再_stat_L1_END_再_2	後
@@ -388,7 +443,23 @@ RULE	在再/stat:L1:後@15/100%	在	再	L1=在再_stat_L1_再_7
 RULE	在再/stat:L1:你@13/100%	在	再	L1=在再_stat_L1_再_8
 RULE	在再/stat:L1:貓@12/100%	再	在	L1=在再_stat_L1_在_9
 
+RULE	在再/grokR2:R2:左甲→在	再	在	L1=在再_grokR2_甲
+RULE	在再/grokR2:R2:左乙→在	再	在	L1=在再_grokR2_乙
 # ───────── 吧八巴（我）─────────
+LIST	吧八巴_grokR2_補語	上
+LIST	吧八巴_grokR2_補語	不
+LIST	吧八巴_grokR2_補語	住
+LIST	吧八巴_grokR2_補語	到
+LIST	吧八巴_grokR2_補語	反
+LIST	吧八巴_grokR2_補語	在
+LIST	吧八巴_grokR2_補語	壞
+LIST	吧八巴_grokR2_補語	平
+LIST	吧八巴_grokR2_補語	掉
+LIST	吧八巴_grokR2_補語	歪
+LIST	吧八巴_grokR2_補語	爛
+LIST	吧八巴_grokR2_補語	牢
+LIST	吧八巴_grokR2_補語	緊
+LIST	吧八巴_grokR2_補語	著
 LIST	吧八巴_stat_L1_END_巴_0	大
 LIST	吧八巴_stat_L1_END_巴_1	小
 LIST	吧八巴_stat_L1_END_吧_2	了
@@ -414,7 +485,10 @@ RULE	吧八巴/stat:R1:台@12/100%	巴	吧	R1=吧八巴_stat_R1_吧_6
 RULE	吧八巴/stat:L1:大@26/96%	八	巴	L1=吧八巴_stat_L1_巴_7
 RULE	吧八巴/stat:L1:大@26/96%	吧	巴	L1=吧八巴_stat_L1_巴_7
 
+RULE	吧八巴/grokR2:R2:右補語→巴	吧	巴	R1=吧八巴_grokR2_補語
+RULE	吧八巴/grokR2:R2:右補語→巴	八	巴	R1=吧八巴_grokR2_補語
 # ───────── 作做坐座（grok）─────────
+LIST	作做坐座_grokR2_A	是
 LIST	作做坐座_grok_姿勢補語	回
 LIST	作做坐座_grok_姿勢補語	直
 LIST	作做坐座_grok_姿勢補語	穩
@@ -520,6 +594,9 @@ RULE	作做坐座/grok:G5書面賓語→作	做	作	R1=作做坐座_grok_書面�
 RULE	作做坐座/grok:G5書面賓語→作	坐	作	R1=作做坐座_grok_書面賓語
 RULE	作做坐座/grok:G5書面賓語→作	座	作	R1=作做坐座_grok_書面賓語
 
+RULE	作做坐座/grokR2:R2:左3是→座	作	座	L3=作做坐座_grokR2_A
+RULE	作做坐座/grokR2:R2:左3是→座	做	座	L3=作做坐座_grokR2_A
+RULE	作做坐座/grokR2:R2:左3是→座	坐	座	L3=作做坐座_grokR2_A
 # ───────── 前錢（我）─────────
 LIST	前錢_stat_L1_END_錢_0	的
 LIST	前錢_stat_L1_錢_1	的

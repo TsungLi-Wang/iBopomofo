@@ -363,12 +363,22 @@ bool ParticleRuleDisambiguator::rescoreWalk(const ReadingGrid::WalkResult& walk)
   }
 
   // 把整條路徑攤平成字元序列，同時記住每個字屬於哪個節點的第幾個字。
+  //
+  // ⚠️ 一定要用 walk.chosenValueAt(n)，不能用 nodes[n]->value()。
+  // chosenValueAt 的優先序是「節點覆寫 > 情境模型 DP 選的 > value()（最高頻）」，
+  // value() 是最低優先序的那一個。開了情境 walk 或神經重排之後，DP 常常選的
+  // 不是最高頻候選 —— 這時 value() 給的字跟使用者實際看到的不一樣，
+  // 規則就會拿錯的文字去比對條件、或以為不必出手。
+  //
+  // 2026-08-10 實測：這個 bug 讓規則層在封存集少修約三成
+  //（模擬器說會修 75 題，真引擎只修了 53 題）。v2.15.0 出貨的「的／得」規則
+  // 也一直讀到錯的文字。
   std::vector<std::string> chars;
   std::vector<size_t> ownerNode;
   std::vector<size_t> offsetInNode;
   const std::vector<ReadingGrid::NodePtr>& nodes = walk.nodes;
   for (size_t n = 0; n < nodes.size(); ++n) {
-    std::vector<std::string> nodeChars = SplitChars(nodes[n]->value());
+    std::vector<std::string> nodeChars = SplitChars(walk.chosenValueAt(n));
     for (size_t k = 0; k < nodeChars.size(); ++k) {
       chars.push_back(nodeChars[k]);
       ownerNode.push_back(n);
@@ -392,7 +402,10 @@ bool ParticleRuleDisambiguator::rescoreWalk(const ReadingGrid::WalkResult& walk)
     }
 
     // 目標字串：把節點裡那一個字換掉，其餘不動。
-    std::vector<std::string> nodeChars = SplitChars(node->value());
+    // 同樣要用 chosenValueAt —— 拿 value() 組出來的字串會跟節點目前的選擇
+    // 不一致，selectOverrideUnigram 找不到那個候選就靜默失敗。
+    std::vector<std::string> nodeChars =
+        SplitChars(walk.chosenValueAt(ownerNode[i]));
     if (offsetInNode[i] >= nodeChars.size()) {
       continue;
     }
