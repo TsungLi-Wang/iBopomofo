@@ -183,13 +183,22 @@ EX1166 封存集剩下的 510 個錯誤：
 
 ### 產品（待發版建議 2.16.3）
 
-- **的／得 警察 v0（棒③）**：節點層高置信規則 `Source/Data/police-de-v0.tsv`
-  （省得／得像／來得好／得津津），與 particle-rules 並載、強棄權。
-  MAIN 全尺 **b=0**、的得子集 **c=4**（1633→1637／1647）；棄權率 ≈99.76%。
-  未 push／未 tag。回報 `~/ai-handoff/20260811-baton3-report.md`。
+- **的／得 警察 v1（棒④）**：以句法規則取代 v0 字元查表。`Source/Data/police-de-v1.tsv`
+  （v1得像／v1得津津／v1省得／v1來得好），KeyHandler 改載 v1；v0 檔保留作對照。
+  新硬門檻 `de_negative_probe.tsv`（120 句，gold=的）**誤殺=0**；MAIN 全尺 **b=0**、
+  的得 **c=5**（1637→1642／**1663**，修資料地基後分母）。τ=HIGH。
+  未 push／未 tag。回報 `~/ai-handoff/20260811-baton4-report.md`。
+- **的／得 警察 v0（棒③ · 已由 v1 取代出貨掛載）**：原 `police-de-v0.tsv` 四條在
+  反例探針上全會誤殺（E1：8／15 句）；MAIN 的 b=0 對其中三條無反例可證偽（E2）。
+  機制可運作但證據力不足。回報 `~/ai-handoff/20260811-baton3-report.md`。
 
 ### 內部 / 開發者改動（未發版）
 
+- **MAIN 資料地基（棒④ · 2026-08-11）**：24 筆 `sentence_target_mismatch`（sentence 存
+  錯誤形式）改回 gold 可計分；REJECTED 24→0、ITEMS 3371→3395、的得 1647→1663。
+  備份 `~/laowang-data/main-scale/backups/MAIN_SCALE.jsonl.pre-baton4`；真實錯誤另存
+  `~/laowang-data/observed-errors/OBSERVED_ERRORS.jsonl`（24 筆 heldout，含的得 16）。
+  **棒①–③ 在舊分母上的正確率不可與新基線直接比**。
 - **棒② 較叫 v2d 式微調（研究 · FAIL · 2026-08-11）**：自 float v2d 只解凍較／叫、
   EX1166 較叫 train×2 對比微調。MAIN in-group `b=7 c=0 FLOOR_PASS=False`；全尺
   3218→3212／3371 顯著淨傷害；`b_other=0`。EX1166 train 較叫升、heldout／MAIN 降。

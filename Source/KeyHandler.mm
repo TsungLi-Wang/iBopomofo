@@ -266,10 +266,11 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if (particlePath != nil) {
             _particleRule->load(particlePath.UTF8String);
         }
-        // 的／得 警察 v0（2026-08-11 棒③）：高置信句法規則，強棄權。
-        // load 可多次累加；未命中 = 不 override。須 MAIN 上 b=0 才可出貨。
+        // 的／得 警察 v1（2026-08-11 棒④）：句法規則，強棄權。
+        // v0 四條全會誤殺（E1）；v1 每條須過 de_negative_probe 誤殺=0。
+        // load 可多次累加；未命中 = 不 override。須 MAIN b=0 + 反例誤殺=0。
         NSString *policeDePath = [[NSBundle bundleForClass:[self class]]
-            pathForResource:@"police-de-v0"
+            pathForResource:@"police-de-v1"
                      ofType:@"tsv"];
         if (policeDePath != nil) {
             _particleRule->load(policeDePath.UTF8String);

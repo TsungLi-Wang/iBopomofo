@@ -1,0 +1,123 @@
+# de_negative_probe.tsv — gold must be 的; any 的→得 is false positive
+# columns: sentence\ttarget_index\tgold\tsource\tnote
+# 2026-08-11 baton4
+我的目的像是一座橋	1	的	E1-evidence	must-cover
+我的目的像是一座橋	3	的	E1-evidence	must-cover
+節省的方法有很多	2	的	E1-evidence	must-cover
+他帶來的好消息	3	的	E1-evidence	must-cover
+他的津貼很高	1	的	E1-evidence	must-cover
+外來的好東西	2	的	E1-evidence	must-cover
+未來的好日子	2	的	E1-evidence	must-cover
+我的津貼	1	的	E1-evidence	must-cover
+帶來的好處	2	的	E1-evidence	must-cover
+省的錢拿去投資	1	的	E1-evidence	must-cover
+這是我的像片	3	的	E1-evidence	must-cover
+老師省的時間	3	的	E1-evidence	must-cover
+他省的力氣不少	2	的	E1-evidence	must-cover
+省的水電費	1	的	E1-evidence	must-cover
+天津的朋友	2	的	E1-evidence	must-cover
+節省的電力很可觀	2	的	craft:省的N	
+省的錢可以存起來	1	的	craft:省的錢	
+他的像片很漂亮	1	的	craft:的像片	
+我的像都被刪了	1	的	craft:我的像	
+目的像是遠方	1	的	craft:目的像	
+你的津貼多少	1	的	craft:的津貼	
+公司的津貼制度	2	的	craft:的津貼	
+帶來的好處很多	2	的	craft:來的好	
+他帶來的好消息傳遍全校	3	的	craft:來的好	
+外來的好影響	2	的	craft:來的好	
+未來的好時光	2	的	craft:來的好	
+原來的好習慣	2	的	craft:來的好	
+本來的好朋友	2	的	craft:來的好	
+接下來的好日子	3	的	craft:來的好	
+省的事情別再做	1	的	craft:省的事	
+他的像真的很像爸	1	的	craft:他的像	
+這就是我的目的	4	的	craft:目的-end	
+達成目的像在做夢	3	的	craft:目的像	
+他省的水電費可觀	2	的	craft:省的水	
+他喝的津液不夠	2	的	craft:的津-not-津津	
+當地的津渡很有名	2	的	craft:的津	
+順利地辦完了他的事也沒有受到任何處罰	7	的	MAIN:X-02243	fill score=6
+畢竟交給我的時候就是這麼髒	5	的	MAIN:X-02730	fill score=6
+為了我也為了愛我的家人們	8	的	MAIN:X-00426	fill score=6
+我的電池快不行了該換手機了	1	的	MAIN:X-00838	fill score=6
+我的錢會回來嗎	1	的	MAIN:NAT-03044	fill score=6
+我的時間就不是時間嗎	1	的	MAIN:X-02701	fill score=6
+我是不是已經傷透他的心了	9	的	MAIN:X-01239	fill score=6
+感謝老天讓我的人生這麼精彩	6	的	MAIN:X-01451	fill score=6
+只是層峰不相信我的心境文筆和手速	8	的	MAIN:X-02674	fill score=6
+他的方法就是餓他肚子讓他找你吃東西之後餵藥	1	的	MAIN:X-00134	fill score=6
+沒看穿你的心	4	的	MAIN:NAT-04648	fill score=5
+重訓時我的屁股又抽筋了	4	的	MAIN:X-02321	fill score=4
+那不是我的本意啊	4	的	MAIN:X-01304	fill score=4
+還好我的薪水有準時入帳	3	的	MAIN:X-02458	fill score=4
+這次過年遇到親戚跟我說有看到我的脆跟	15	的	MAIN:X-00392	fill score=4
+這三天我的乘車時間加總將近十一個小時	4	的	MAIN:X-02166	fill score=4
+身為狗勾飼主我的日常就像	7	的	MAIN:X-00258	fill score=4
+讓右邊駕駛好上下車還有不要尻到我的副駕車門	16	的	MAIN:X-02235	fill score=4
+請問我的筆電裡開啟了什麼世界大戰	3	的	MAIN:X-00887	fill score=4
+說要帶狗狗搭我的車我當場面有難色	7	的	MAIN:X-00080	fill score=4
+親戚都不會過問你的私生活	8	的	MAIN:X-00520	fill score=4
+結果口誤講成我是你的狗耶	9	的	MAIN:X-00015	fill score=4
+結果一抬頭然後我的公車來了	8	的	MAIN:X-02288	fill score=4
+累你媽你來過我的生活試試	7	的	MAIN:X-02585	fill score=4
+直到我吃完我的藥我才想到	6	的	MAIN:X-00098	fill score=4
+當你的票券完全化時	2	的	MAIN:X-00989	fill score=4
+然後同事今天看到我說你的臉怎變這麼亮	11	的	MAIN:X-02309	fill score=4
+然後全公司只有我的掛掉	8	的	MAIN:X-00982	fill score=4
+為什麼我的主管今天上班遲到了	4	的	MAIN:X-02563	fill score=4
+為什麼他的眼神好像已經沒有當初那樣了	4	的	MAIN:X-01240	fill score=4
+清晨精準找到我的臉又舔又咬	7	的	MAIN:X-00215	fill score=4
+沃草你的便當	3	的	MAIN:X-01588	fill score=4
+比誰的記憶力好	2	的	MAIN:NAT-04546	fill score=4
+每天下班都很期待下樓後看見他的身影	14	的	MAIN:X-02190	fill score=4
+每到晚上我的邪惡人格就會覺醒	5	的	MAIN:X-01795	fill score=4
+有看到我的脆跟	4	的	MAIN:X-00518	fill score=4
+會遇到其他的樂器朋友	5	的	MAIN:X-01123	fill score=4
+撐住啊我的筆電	4	的	MAIN:X-00847	fill score=4
+拿到畢業證書了到底誰的碩士生涯會這樣	10	的	MAIN:X-01069	fill score=4
+我要去保護我的屁股了	6	的	MAIN:X-00084	fill score=4
+我被我的運氣噁心到了	3	的	MAIN:X-02156	fill score=4
+我的食量變化與飢餓指數就這樣	1	的	MAIN:X-01794	fill score=4
+我的跑友有曖昧對象所以斷了	1	的	MAIN:X-01250	fill score=4
+我的瓜子盒呢	1	的	MAIN:X-00371	fill score=4
+我的狗總是以為推車裡面是其他狗勾	1	的	MAIN:X-00003	fill score=4
+我的狗總是以為推車裡是其他狗	1	的	MAIN:X-00210	fill score=4
+我的手也越來越抖	1	的	MAIN:X-02865	fill score=4
+我的形狀了謝謝	1	的	MAIN:NAT-03042	fill score=4
+我的屁股又抽筋了	1	的	MAIN:X-02398	fill score=4
+我的小狗昨天帶去結紮	1	的	MAIN:X-00010	fill score=4
+我的媽啊好害怕出社會	1	的	MAIN:X-02545	fill score=4
+我的天我要瘋掉了	1	的	MAIN:X-02906	fill score=4
+我的大腿內側好痠	1	的	MAIN:X-02394	fill score=4
+我的問題是不是很大	1	的	MAIN:X-01238	fill score=4
+我的充電線發燙	1	的	MAIN:NAT-03040	fill score=4
+我的健保卡到底要不見多少次	1	的	MAIN:X-00588	fill score=4
+我的假日要消失了	1	的	MAIN:X-01412	fill score=4
+我的乘車時間加總將近十一個小時	1	的	MAIN:X-02262	fill score=4
+我是寵物保姆不是你的保姆	9	的	MAIN:X-00198	fill score=4
+我是你的狗耶	3	的	MAIN:X-00089	fill score=4
+我感覺我的手機已經快不行了	4	的	MAIN:X-00871	fill score=4
+我愛我的朋們	3	的	MAIN:X-02405	fill score=4
+我信誓旦旦說我的論文寫好了五月要交	7	的	MAIN:X-01094	fill score=4
+我信誓旦旦說我的論文寫好了	7	的	MAIN:X-01054	fill score=4
+愛你還願意讀懂你了解你的女孩子	11	的	MAIN:X-00995	fill score=4
+快來看看你的口袋名單有沒有上榜	5	的	MAIN:X-01778	fill score=4
+帶牠來見他的同類	5	的	MAIN:X-00232	fill score=4
+帶史都華來見他的同類	7	的	MAIN:X-00059	fill score=4
+好像高中過後對他的關注度就降低很多	8	的	MAIN:X-00559	fill score=4
+大哥清晨時都能精準找到我的臉又舔又咬痛打一頓	12	的	MAIN:X-00188	fill score=4
+大哥清晨時都能精準找到我的臉又舔又咬	12	的	MAIN:X-00022	fill score=4
+嗚嗚嗚我的狗狗	4	的	MAIN:X-00103	fill score=4
+唉唷你的肉球怎麼這麼臭	3	的	MAIN:X-00020	fill score=4
+千萬不要讓小孩滑你的蝦皮	9	的	MAIN:X-01840	fill score=4
+到底誰的碩士生涯會遇到教授唐突過世	3	的	MAIN:X-01143	fill score=4
+到底誰的碩士生涯會遇到	3	的	MAIN:X-01174	fill score=4
+其實我的肝指數高高低低是常態	3	的	MAIN:X-00672	fill score=4
+其他的都以為我自己是不是有戀醜癖	2	的	MAIN:X-01231	fill score=4
+先吃他的蛋蛋	3	的	MAIN:NAT-00927	fill score=4
+保護我的屁股	3	的	MAIN:X-00327	fill score=4
+你的條件是有點高	1	的	MAIN:X-02760	fill score=4
+你是我的狗耶	3	的	MAIN:X-00090	fill score=4
+但是他後來選擇跟我的好朋友交往	9	的	MAIN:X-01150	fill score=4
+他還拿著我的手看超級曖昧	5	的	MAIN:X-01253	fill score=4
