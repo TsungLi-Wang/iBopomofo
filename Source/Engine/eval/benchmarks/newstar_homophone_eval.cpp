@@ -525,12 +525,28 @@ int main(int argc, char** argv) {
   }
 
   std::cout << "ITEMS_LOADED " << items.size() << " REJECTED " << rejects.size()
-            << "\n";
+            << " LINES_READ " << line_no << "\n";
   if (!rejects.empty()) {
     std::cout << "--- rejected items (excluded from score) ---\n";
-    for (const auto& r : rejects) {
+    // Cap stdout spam; full list goes to <dumpPath>.rejects.tsv when dump set.
+    const size_t kMaxStdoutRejects = 50;
+    for (size_t ri = 0; ri < rejects.size() && ri < kMaxStdoutRejects; ++ri) {
+      const auto& r = rejects[ri];
       std::cout << "REJECT line=" << r.line_no << " id=" << r.sentence_id
                 << " reason=" << r.reason << "\n";
+    }
+    if (rejects.size() > kMaxStdoutRejects) {
+      std::cout << "REJECT … (" << (rejects.size() - kMaxStdoutRejects)
+                << " more; see dump.rejects.tsv if dump path set)\n";
+    }
+    if (!dumpPath.empty()) {
+      std::ofstream rj(dumpPath + ".rejects.tsv");
+      if (rj) {
+        rj << "line_no\tsentence_id\treason\n";
+        for (const auto& r : rejects) {
+          rj << r.line_no << "\t" << r.sentence_id << "\t" << r.reason << "\n";
+        }
+      }
     }
   }
 

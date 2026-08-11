@@ -37,6 +37,17 @@
 
 健檢失敗的題會 `REJECT …` 並列出，**不進分數**。
 
+## 雙尺與 FLOOR（棒① · 2026-08-11）
+
+| 工具 | 用途 |
+|------|------|
+| `main_scale_dedup.py` | 對 FP_train（PTT spoken + v2d 在再訓句）exact+8-gram 去重 → `~/laowang-data/main-scale/MAIN_SCALE.jsonl` |
+| `floor_pass.py` | 基線 dump vs 改動 dump → `b/c/n/p/α/FLOOR_PASS`（單尾；**不要**用 `compare_dumps.py` 當 FLOOR） |
+| `run_dual_scale_baseline.sh` | 一鍵 MAIN + EX1166 shipping 基準 |
+
+出貨配置：`path-char-lstm.bin` + `shipping 0.75 0.75` + `particle-rules.tsv`；UOM off。  
+EX1166 **只參考**；宣稱進步必須主尺 + 後續 `FLOOR_PASS`。
+
 ## 一行跑法（可直接複製；絕對路徑）
 
 ```bash

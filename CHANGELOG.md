@@ -183,6 +183,12 @@ EX1166 封存集剩下的 510 個錯誤：
 
 ### 內部 / 開發者改動（未發版）
 
+- **棒① 歸因儀器／雙尺（eval only，2026-08-11）**：新增
+  `Source/Engine/eval/benchmarks/floor_pass.py`（單尾 exact FLOOR；非 compare_dumps）、
+  `main_scale_dedup.py`（FP_train exact+8-gram → MAIN_SCALE）、
+  `run_dual_scale_baseline.sh`。`newstar_homophone_eval` 增 LINES_READ 與
+  rejects 側車檔。定版主尺與基準 dump 在 `~/laowang-data/main-scale/`（不進
+  git）。出貨引擎／權重未改。回報：`~/ai-handoff/20260811-baton1-report.md`。
 - **文件同步（2026-08-11）**：以本機／git 現役 **v2.16.2** 為準，修正 README、
   AGENTS、AI_HANDOFF_PROMPT 內矛盾敘事（仍寫 tw538 gate、路線 A/B「已出貨」、
   出貨＝純 v2c、EX1166 未建齊等）；README-newstar 改指向出貨 `path-char-lstm.bin`
