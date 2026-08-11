@@ -1,19 +1,21 @@
 # i注音 交班日誌（歷史封存）
 
-> **這份是歷史，不是現況。**
+> **這份是歷史，不是現況。凍結於拆檔當下；內文不會追版號。**
+>
+> - 現況／下一棒：`AI_HANDOFF_PROMPT.md` + GitHub Issues（`deadend`）
+> - 版本：`CHANGELOG.md` 最上方已發布段落／plist（錨：**v2.16.2** 起）
+> - 真正歷史：`git log`
 >
 > 裡面提到的檔案很多已經刪除（`AIAutoCorrector.swift`、`AICorrectionPrompt.swift`、
 > `ConfusionPairDisambiguator.*`、`AISentenceScorer.swift` 等），路徑也可能失效。
 > **要查某個決定為什麼這樣做可以翻這裡；不要照著它動手。**
->
-> 現況看 `AI_HANDOFF_PROMPT.md`；版本看 `CHANGELOG.md`；真正的歷史看 `git log`。
 >
 > 2026-08-10 從 `AI_HANDOFF_PROMPT.md` 拆出 —— 原本 1125 行裡有 970 行是日誌，
 > 新接手的 AI 會讀到一堆過期資訊。
 
 <!-- doc-check-ignore-file -->
 
-## 交班日誌（歷史；以「目前真相 v2.13.3」為準）
+## 交班日誌（歷史；下列小標「目前真相 v2.13.3」僅為當日敘事，已過期）
 
 ### 2026-08-05 文件對齊 v2.13.3（無 code）
 

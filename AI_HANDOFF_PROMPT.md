@@ -125,11 +125,11 @@ gh issue list                               # 目前開著的工作
 Johnny 在對話裡用「路線 A／B／C」稱呼三個方向。**代號本身只存在於對話，
 壓縮之後就沒了** —— 所以在這裡定義，之後提到請一律附上實質內容，不要只講代號。
 
-| 代號 | 實質 | 狀態 |
+| 代號 | 實質 | 狀態（2026-08-11） |
 |---|---|---|
-| **路線 A** | 同音頻率先驗壓縮（`confusion-alphas.tsv`）：把同音候選之間的詞頻差壓平，讓上下文訊號有機會出頭 | ✅ 已證實、已出貨 |
-| **路線 B** | 文法／詞性規則（`Source/Engine/eval/artifacts/homophone-rules-failed.tsv`（已下架） + `ParticleRuleDisambiguator`）：用「只看目標字前後幾個字」的規則直接判斷 | ✅ 已證實、已出貨 |
-| **路線 C** | **對比訓練**：拿現有 v2c 只重訓同音字那幾列權重，目標從「這句順不順」改成「這幾個同音字哪個對」，訓練資料平衡取樣（不給頻率資訊）| ✅ 已證實，**只對在／再有效**，見下節 |
+| **路線 A** | 同音頻率先驗壓縮（`confusion-alphas.tsv`）：把同音候選之間的詞頻差壓平，讓上下文訊號有機會出頭 | ⛔ **機制仍在、生效條目已清空**。在 EX1166 上有效，**真實語料上站不住**（見「已停用」節）。不得再從 EX1166 挑 alpha 直接出貨 |
+| **路線 B** | 文法／詞性規則（`ParticleRuleDisambiguator`） | ⚠️ **只活 的／得 結果補語**（`particle-rules.tsv`，真實語料核對）。六組同音 70 條規則已下架 → `Source/Engine/eval/artifacts/homophone-rules-failed.tsv`（真實語料淨傷害） |
+| **路線 C** | **對比訓練**：拿 v2c 只重訓同音字那幾列權重 → 權重暱稱 **v2d** | ✅ **只對在／再證實且出貨**（`path-char-lstm.bin` = v2d int8）。其他組未證實，要一組一模型獨立驗 |
 
 #### 路線 C 的可行性（用 2026-08-10 的 oracle 資料檢驗）
 
@@ -558,12 +558,13 @@ try_rules.py（幾秒，不編譯）→ 評分機對照實驗（真引擎）→ 
 題庫刻意不砍到等量（`assemble_newstar_batch.py --balance keep-all`），
 硬砍等量會把另外三個字的好題目一起丟掉（8,255 句會塌到 3,000）。
 
-### tw538 基準線
+### tw538 基準線（**歷史 only**；已作廢，不得當 gate）
 
 | 系統 | correct/537 | 備註 |
 |------|-------------|------|
 | walk OFF / ON | 296 / **333** | |
-| **v2c LSTM（出貨）** | **387 @ ν0.75** | 9.73M；進程內 ~45ms 級 |
+| v2c LSTM（舊出貨錨） | **387 @ ν0.75** | 9.73M float 家族；進程內 ~45ms 級 |
+| **現役出貨權重** | **v2d int8**（`Source/Data/path-char-lstm.bin`） | 架構仍是 v2c；只微調在／再。**勿再寫「出貨＝純 v2c 未動權重」** |
 | char-TF 6L/256 | **332 @ ν0.25** | 封存 |
 | 約束 fusion | 335+ | 研究線，非出貨 |
 
@@ -576,7 +577,9 @@ try_rules.py（幾秒，不編譯）→ 評分機對照實驗（真引擎）→ 
 | 版本／build／tag | **見 `CHANGELOG.md` 最上面的已發布段落**（別在這裡抄號碼，會漂）|
 | plist | `Source/McBopomofo-Info.plist` + `Source/Installer/Installer-Info.plist`（一起 bump） |
 | master | 應與 `origin/master` 的最新 tag 對齊 |
-| 引擎驗收 | **EX1166**（`~/Documents/i注音-語料/EX1166-題庫/`）；tw538 已作廢 |
+| 出貨驗收 | **`./scripts/ship-gate.sh`**（真實語料不得淨傷害 + ctest + e2e 抽驗）|
+| 難題尺 | EX1166（`~/Documents/i注音-語料/EX1166-題庫/`）——**只參考，不當出貨依據** |
+| 舊尺 | tw538 **已作廢** |
 | 安裝路徑 | `~/Library/Input Methods/McBopomofo.app`（顯示名 i注音）|
 | 重裝方式 | **就地 `ditto` 覆蓋**，絕不 `rm -rf`（會被踢出選單列）|
 | Commit 作者 | `老王 LaoWang <laowang@users.noreply.github.com>` |
@@ -637,8 +640,9 @@ try_rules.py（幾秒，不編譯）→ 評分機對照實驗（真引擎）→ 
 
 ### 引擎／架構（仍有效）
 
-- **L0** lattice walk：`KeyHandler` / `InputState` 不可繞；`chosenValueAt` 才是 DP 選字。
-- **L0+** 情境 bigram λ=0.75 + UOM soft（預設開）；**神經路徑重排**於**定案**（停頓／。／，／有底線 Enter）觸發，非「Tab 當定案」。
+- **L0** lattice walk：`KeyHandler` / `InputState` 不可繞；`chosenValueAt` 才是 DP 選字（**不要用 `node->value()` 讀目前選字**）。
+- **L0+** 情境 bigram λ=0.75 + UOM soft（預設開）；**神經路徑重排**於**定案**（停頓／。／，／有底線 Enter）觸發；權重檔 `path-char-lstm.bin` = **v2d int8**（架構 v2c）。
+- **節點層規則**：`ParticleRuleDisambiguator` + `particle-rules.tsv`（的／得 結果補語 only）。
 - **L1** 候選窗 n-gram 重排（選單可關）。
 - **L3** 語音 whisper.cpp（連按兩下右 Shift）。
 - 雲端 Claude／常駐 llama：**已移除**（v2.7+）。
@@ -646,7 +650,7 @@ try_rules.py（幾秒，不編譯）→ 評分機對照實驗（真引擎）→ 
 
 ### 開發約束（摘要）
 
-- 不改 walk/v2c 權重與打分邏輯除非 Johnny 明示；動了必跑 tw538，≠387 即 FATAL。
+- 不改 walk／神經權重／規則表除非 Johnny 明示或本棒任務明確要求；動了必跑 **EX1166 + 真實語料**，發版必過 **`ship-gate.sh`**。**禁止**再用 tw538≠387 當 FATAL。
 - 不共用 DerivedData；`xcodebuild test` 不要 `| tail`。
 - 不更名 McBopomofo 內部識別符。
 

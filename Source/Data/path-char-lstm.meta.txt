@@ -1,4 +1,10 @@
-arch=CharLSTM layers=2 emb=64 hidden=128
-vocab=4524 params=1104556
-epochs=4 lr=0.001 seq_len=40
-corpus=generated/tw_corpus.txt wiki=corpus/zhwiki-latest-pages-articles.xml.bz2 max_wiki=800000
+# Shipping neural path scorer (int8). Loaded by the app as path-char-lstm.bin.
+# Architecture family: v2c (CharLSTM L2 emb256 hid512, ~9.73M float params).
+# Weight lineage: v2d = contrastive micro-tune of v2c on 在/再 only (1,538 params),
+# then quantize_lstm_int8 → this file (LWLSTM8). Other groups unchanged.
+# Eval float checkpoint (research): Source/Engine/eval/models/path-char-lstm-spoken-v2d.bin
+# Do not use EX1166 alone to accept new weights — run scripts/ship-gate.sh.
+arch=CharLSTM layers=2 emb=256 hidden=512 format=LWLSTM8(int8)
+base=v2c contrastive=v2d(在/再) shipped=path-char-lstm.bin
+params_float≈9734083 tuned_params=1538
+note=meta updated 2026-08-11 to match v2.16.2 shipping; previous emb64 lines were stale

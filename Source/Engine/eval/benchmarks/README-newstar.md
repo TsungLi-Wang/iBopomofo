@@ -1,8 +1,11 @@
 # 新北極星評分機（newstar_homophone_eval）
 
 字級同音消歧、按混淆對頻率加權、train / held-out 分報。  
-與 **tw538 句級北極星並存**，不取代。  
-引擎零改；預設出貨 scorer（λ=0.75、ν=0.75、v2c）；**UOM 關閉**。
+
+- **tw538 已作廢**（歷史句級尺）；本 harness 是難題／同音消歧尺。  
+- 出貨 gate 是 repo 根目錄 `scripts/ship-gate.sh`（**真實語料**不得淨傷害），**不是**本檔的 EX1166 總分。  
+- 預設 scorer 參數：`shipping`、λ=0.75、ν=0.75；**UOM 關閉**。  
+- 出貨權重請用 **`Source/Data/path-char-lstm.bin`（v2d int8）**；`eval/models/path-char-lstm-spoken-v2c.bin` 是舊 float 基準、`…-v2d.bin` 是 float 微調檔，**量「現役產品」時以 Data 下 int8 為準**。
 
 ## 與最終出題管線的對齊
 
@@ -38,31 +41,38 @@
 
 ```bash
 # 若 /tmp/newstar_homophone_eval 不在，先建置（見下節）
+# 現役出貨權重 = Source/Data/path-char-lstm.bin（v2d int8）
 /tmp/newstar_homophone_eval \
   /Users/johnny.w_macmini/Documents/i注音-語料/EX1166-題庫/EX1166-全部.jsonl \
   /Users/johnny.w_macmini/iBopomofo/Source/Data/data.txt \
   /Users/johnny.w_macmini/iBopomofo/Source/Data/word-bigrams.tsv \
-  /Users/johnny.w_macmini/iBopomofo/Source/Engine/eval/models/path-char-lstm-spoken-v2c.bin \
+  /Users/johnny.w_macmini/iBopomofo/Source/Data/path-char-lstm.bin \
   shipping 0.75 0.75
 ```
 
-換題庫只改第一個參數路徑。
+換題庫只改第一個參數。日常體感另跑：
+
+- `…/自然驗證集-真實語料.jsonl`
+- `…/X驗證集-真實語料.jsonl`
 
 ### 對照實驗（改引擎必跑）
 
-第 8 個參數是 `confusion-alphas.tsv`（不給就完全不套用），第 9 個是逐題結果輸出檔。
+第 8 個參數是 `confusion-alphas.tsv`（不給＝不套用；**現役檔無生效條目**），  
+第 9 個是 dump.tsv，第 10 個可選 `particle-rules.tsv`。
 
 ```bash
 EX=/Users/johnny.w_macmini/Documents/i注音-語料/EX1166-題庫/EX1166-全部.jsonl
 R=/Users/johnny.w_macmini/iBopomofo
 ARGS="$R/Source/Data/data.txt $R/Source/Data/word-bigrams.tsv \
-      $R/Source/Engine/eval/models/path-char-lstm-spoken-v2c.bin shipping 0.75 0.75"
+      $R/Source/Data/path-char-lstm.bin shipping 0.75 0.75"
 
 # 對照組：機制關閉。**先確認這個數字跟你改程式之前一模一樣**，再往下走。
 /tmp/newstar_homophone_eval $EX $ARGS "" dump-off.tsv
 
-# 實驗組
-/tmp/newstar_homophone_eval $EX $ARGS $R/Source/Data/confusion-alphas.tsv dump-on.tsv
+# 實驗組（例：只開 particle 規則；alphas 目前應等同關閉）
+/tmp/newstar_homophone_eval $EX $ARGS \
+  $R/Source/Data/confusion-alphas.tsv dump-on.tsv \
+  $R/Source/Data/particle-rules.tsv
 ```
 
 然後拿兩份 dump 做 **McNemar 配對檢定**（改對幾題 vs 改錯幾題）。
@@ -95,7 +105,7 @@ clang++ -std=c++17 -O2 \
   /Users/johnny.w_macmini/iBopomofo/Source/Engine/eval/benchmarks/newstar_sample.jsonl \
   /Users/johnny.w_macmini/iBopomofo/Source/Data/data.txt \
   /Users/johnny.w_macmini/iBopomofo/Source/Data/word-bigrams.tsv \
-  /Users/johnny.w_macmini/iBopomofo/Source/Engine/eval/models/path-char-lstm-spoken-v2c.bin \
+  /Users/johnny.w_macmini/iBopomofo/Source/Data/path-char-lstm.bin \
   shipping 0.75 0.75
 ```
 
@@ -103,7 +113,7 @@ clang++ -std=c++17 -O2 \
 
 | mode | 行為 |
 |------|------|
-| `shipping`（預設） | contextual λ + v2c path rerank ν；**UOM 關閉** |
+| `shipping`（預設） | contextual λ + 路徑神經重排 ν（出貨權重＝v2d int8）；**UOM 關閉** |
 | `walk` | 僅 walk + contextual bigram，無神經重排 |
 
 ## 現況規格（重要）

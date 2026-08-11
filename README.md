@@ -5,7 +5,7 @@ macOS 上的**繁體中文注音輸入法**。在成熟的開源注音引擎之�
 | | |
 |---|---|
 | **產品名** | i注音（英文／ASCII：**iBopomofo**） |
-| **目前版本** | **2.15.0**（build **2313**） |
+| **目前版本** | 見 [CHANGELOG.md](CHANGELOG.md) 最上方已發布段落，或 `Source/McBopomofo-Info.plist`（本機現役為 **2.16.2**／build **2322**） |
 | **授權** | MIT（衍生自 [McBopomofo](https://github.com/openvanilla/McBopomofo)；見 [LICENSE](LICENSE) 與 [NOTICE](NOTICE)） |
 | **平台** | macOS 10.15+（開發建議 14.7+ / Xcode 15.3+） |
 
@@ -20,32 +20,35 @@ macOS 上的**繁體中文注音輸入法**。在成熟的開源注音引擎之�
    音節 lattice + Viterbi walk；可開**情境化選字**（語料 bigram，看前文選同音字）。
 
 2. **進程內神經路徑重排（完全離線）**  
-   **句子結束定案**時（停頓／。／，若啟用，或組字中 Enter）對整句 N-best 用內嵌 char-LSTM（v2c int8）重打分後 **hard commit**（底線消失、字進 app），**當下不送出**。  
-   實驗室北極星 **tw538**：**387 / 537** 正解（λ=0.75、ν=0.75）。實機還會受個人詞庫影響。
+   **句子結束定案**時（停頓／。／，若啟用，或組字中 Enter）對整句 N-best 用內嵌 char-LSTM 重打分後 **hard commit**（底線消失、字進 app），**當下不送出**。  
+   架構家族仍是 **v2c**（emb256／hid512／路徑層 N-best）；出貨權重為 **v2d**：在 v2c 上只針對「在／再」微調 1,538 個參數後的 int8（`Source/Data/path-char-lstm.bin`）。
 
-3. **定案 ≠ 送出**  
+3. **的／得 文法規則（節點層）**  
+   定案前在既有候選內修正「動詞＋的＋結果補語」→「得」（`particle-rules.tsv`）。程度副詞半邊（得很／得超）**不做**。
+
+4. **定案 ≠ 送出**  
    底線消失後**再按 Enter** 才觸發搜尋／聊天送出／換行。偏好可開：停頓、句號、逗號。
 
-4. **定案後改字（刪回重組）**  
-   ↓ 開同音字 → 選字時**驗證舊字已置換**才完成（失敗 beep、不疊字）。←／→ 為 app 原生移游標。
+5. **定案後改字（刪回重組）**  
+   ↓ 開同音字 → 選字時**驗證舊字已置換**才完成（失敗 beep、不疊字）。成功後可寫入本機個人化（UOM）。←／→ 為 app 原生移游標。
 
-5. **可觀測與本機差異 log**  
+6. **可觀測與本機差異 log**  
    - 選單「顯示目前生效設定…」：版本、GitRevision、重排開關、ν、模型指紋等。  
    - 可選：定案且重排真的改字時，本機 append  
      `~/Library/Application Support/McBopomofo/rerank-diff.log`（不上傳；可關可清）。
 
-6. **語音（可選）**  
+7. **語音（可選）**  
    連按兩下右 Shift：本機 whisper.cpp 聽寫（首次需模型；與注音引擎路徑獨立）。
 
 ## 高階架構（一句話）
 
 ```
 注音鍵入 → lattice walk（可選 contextual bigram + 個人 soft）
-         → 定案觸發：walkNBest(N=10) + 神經 scoreNBest → hard commit（不送出）
+         → 定案觸發：walkNBest(N=10) + 神經 scoreNBest → particle 規則 → hard commit（不送出）
          → 再按 Enter → app 送出；定案後 ↓ → 刪回重組改同音
 ```
 
-硬約束：只在合法同音字裡選，不自由生成；使用者手選優先於神經分數。
+硬約束：只在合法同音字裡選，不自由生成；使用者手選優先於神經分數與規則。
 
 ## 安裝
 
@@ -72,7 +75,7 @@ git clone https://github.com/TsungLi-Wang/iBopomofo.git
 cd iBopomofo
 xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo \
   -configuration Release -derivedDataPath build/dd-rel build
-# 覆蓋安裝（會重啟輸入法進程）
+# 覆蓋安裝（會重啟輸入法進程；勿 rm -rf 安裝路徑）
 killall McBopomofo 2>/dev/null || true
 ditto build/dd-rel/Build/Products/Release/McBopomofo.app \
   "$HOME/Library/Input Methods/McBopomofo.app"
@@ -87,19 +90,20 @@ open "$HOME/Library/Input Methods/McBopomofo.app"
 
 這份 repo 是**真人 + AI 協作**的產品庫。若你是接棒的 AI：
 
-1. 先讀 **[AGENTS.md](AGENTS.md)**（含**版本可追溯鐵則**、build/test、隱私紅線）。  
-2. 再讀 **[AI_HANDOFF_PROMPT.md](AI_HANDOFF_PROMPT.md)**（目前真相、下一刀、交班日誌）。  
-3. 變更歷程：**[CHANGELOG.md](CHANGELOG.md)**。  
-4. 更深算法與評測：`Source/Engine/eval/`、`algorithm.md`（若有）。  
-5. Johnny 本機另有完整交接檔（三卷制）；公開 repo 以本目錄文件為準。
+1. 先跑 `gh issue list --label deadend --state all` 與 `gh issue list`（現況／死亡路在 Issues）。  
+2. 讀 **[AGENTS.md](AGENTS.md)**（建置、UX 總則、**收工清單**、隱私紅線）。  
+3. 讀 **[AI_HANDOFF_PROMPT.md](AI_HANDOFF_PROMPT.md)**（目前真相、試過不行的路、下一棒）。  
+4. 變更歷程：**[CHANGELOG.md](CHANGELOG.md)**（版本號真源）。  
+5. 軍師視角（本機）：`~/Documents/i注音-傳承交接檔.md`——**產品現況不以它為準**。  
+6. 評測：`Source/Engine/eval/benchmarks/README-newstar.md`；出貨前 **`./scripts/ship-gate.sh`**。
 
-**協作模式摘要**：改產品行為必須更新 CHANGELOG 人話；發布點須 bump 兩份 Info.plist + annotated tag；major/minor 由維護者拍板。**勿**把本機 `rerank-diff.log`、UOM cache、API key、`.env` commit 進來。
+**協作模式摘要**：改產品行為必須更新 CHANGELOG 人話；發布點須 bump 兩份 Info.plist + annotated tag + `doc-check`／`ship-gate`；major/minor 由維護者拍板。**勿**把本機 `rerank-diff.log`、UOM cache、API key、`.env` commit 進來。
 
 ## 隱私
 
 - 注音主路徑與神經重排：**離線、進程內**。  
 - 個人化：`~/Library/Application Support/McBopomofo/`（不進安裝包、不上傳）。  
-- 重排差異 log：可選、本機、可清除。  
+- 重排差異 log／手動校正 log：可選、本機、可清除。  
 - 檢查更新可能連 GitHub Releases（僅版本資訊）。
 
 ## 授權與來源
@@ -112,19 +116,20 @@ open "$HOME/Library/Input Methods/McBopomofo.app"
 
 | 版本 | 說明 |
 |------|------|
-| 2.6.0 | 神經路徑重排出貨 |
+| 2.6.0 | 神經路徑重排出貨（v2c 家族） |
 | 2.7.0 | 大掃除（去雲端/llama）+ 可觀測 / diff log + 版本可追溯鐵則 |
 | 2.8.0 | 正式公開開源 + 品牌更名 i注音 / iBopomofo |
 | 2.9–2.12 | 定案／重選探索（多版迭代；細節見 CHANGELOG） |
 | **2.13.0** | **行為總則：定案 ≠ 送出** |
-| 2.13.1–2.13.2 | 句號／逗號觸發；定案後方向鍵放行 |
-| **2.15.0** | **「的／得」自動修正**（看的懂→看得懂、養的起→養得起） |
-| **2.14.0** | 定案後改的同音字會被記住（個人化學習） |
-| **2.13.3** | 定案後重選 1→1 驗證置換（不疊字） |
+| 2.13.1–2.13.3 | 句號／逗號觸發；方向鍵放行；重選 1→1 驗證 |
+| **2.14.0** | 定案後改的同音字寫入個人化（UOM） |
+| **2.15.0** | 「的／得」結果補語自動修正 |
+| 2.16.0–2.16.1 | 同音規則／頻率壓縮實驗（後以真實語料驗證為淨傷害） |
+| **2.16.2** | **退掉上述有害機制**；留下 的／得 規則 + **v2d（在／再）**；`ship-gate` 出貨關卡 |
 
-完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：`v2.15.0`。
+完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：以 `git tag`／GitHub Releases 為準（本機錨：**v2.16.2**）。
 
 ## 已知取捨（開源後）
 
-- **tw538** 評測集隨 repo 公開後，未來外部模型可能將其納入訓練，削弱其作為「乾淨裁判」的長期價值——這是公開的已知代價。  
+- 舊句級集 **tw538** 已作廢、只當歷史；難題集 EX1166 與真實語料驗證集用途不同——**不得拿 EX1166 分數對使用者宣稱**。  
 - 內部 target / C++ namespace / bundle id 仍含歷史名 `McBopomofo`，以維持安裝與 IMK 相容；**品牌層**已統一為 i注音。

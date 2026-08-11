@@ -4,13 +4,13 @@ This file provides guidance to AI coding assistants when working with code in th
 
 ## Project Overview
 
-iBopomofo (i注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds product features on top: **contextual selection** (corpus word-bigram inside `walk()`, **default on since v2.3.0**), **soft personalization** (user picks feed a private on-device cache into the DP), **neural path rerank** (v2c int8 on sentence-end 定案), **post-commit delete-and-recompose reselect** (↓ after 定案; verified 1→1 replace since v2.13.3), optional on-device whisper.cpp voice input, and local observability (effective shipping settings + rerank diff log + manual-correction log). The project is built with Swift (UI/state), Objective-C++ (bridge), and C++ (engine), using macOS Input Method Kit (IMK).
+iBopomofo (i注音) is a macOS Traditional Chinese Bopomofo input method forked from McBopomofo. It keeps the upstream input engine and adds product features on top: **contextual selection** (corpus word-bigram inside `walk()`, **default on since v2.3.0**), **soft personalization** (user picks feed a private on-device cache into the DP), **neural path rerank** (char-LSTM int8 on sentence-end 定案; architecture family **v2c**, shipping weights **v2d** = 在/再 contrastive micro-tune → `Source/Data/path-char-lstm.bin`), **的/得 particle rule** after walk (`ParticleRuleDisambiguator` + `particle-rules.tsv`), **post-commit delete-and-recompose reselect** (↓ after 定案; verified 1→1 replace since v2.13.3; UOM soft learn since v2.14.0), optional on-device whisper.cpp voice input, and local observability (effective shipping settings + rerank diff log + manual-correction log). The project is built with Swift (UI/state), Objective-C++ (bridge), and C++ (engine), using macOS Input Method Kit (IMK).
 
 The repository still intentionally keeps many upstream identifiers (`McBopomofo` target/module names, bundle id, input source ids, C++ namespaces) because they are tied to IMK registration, user data paths, and upstream merge cost. Prefer product-facing cleanup first; do not rename these internal identifiers without a migration plan.
 
-**Current line:** 現役版本不寫在這裡 —— 見 `CHANGELOG.md` 最上面的已發布段落，或 `Source/McBopomofo-Info.plist`。收工前跑 `./scripts/doc-check.sh` 驗一致性。  
-**Canonical product rule (v2.13.0+):** 定案 ≠ 送出; post-commit ↓ reselect 1→1; **v2.14.0** post-commit correction also feeds UOM soft personalization (one pick → soft active). **v2.15.0** adds the 的/得 grammar rule after `walk()` (`ParticleRuleDisambiguator`).  
-Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md` + `~/Documents/i注音-傳承交接檔.md`（軍師視角／研究脈絡；**產品現況以 CHANGELOG + plist 為準**）。
+**Current line:** 現役版本不寫在這裡 —— 見 `CHANGELOG.md` 最上面的已發布段落，或 `Source/McBopomofo-Info.plist`。收工前跑 `./scripts/doc-check.sh` 驗一致性；**發版前**跑 `./scripts/ship-gate.sh`（真實語料不得淨傷害 + 引擎測試 + 實機打字抽驗）。  
+**Canonical product rule (v2.13.0+):** 定案 ≠ 送出; post-commit ↓ reselect 1→1; **v2.14.0** post-commit correction also feeds UOM soft personalization (one pick → soft active). **v2.15.0** 的/得 結果補語規則. **v2.16.2** 退掉 v2.16.0/1 的六組同音規則與頻率壓縮；留下 particle + v2d.  
+Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md` + GitHub Issues（`deadend`／開著的 issue）+ `~/Documents/i注音-傳承交接檔.md`（軍師視角；**產品現況以 CHANGELOG + plist 為準**）。
 
 **Brand vs technical IDs:** User-visible name is **i注音 / iBopomofo**. Internal Xcode target, bundle id `org.openvanilla.inputmethod.McBopomofo`, install path `~/Library/Input Methods/McBopomofo.app`, and many C++/module names remain for IMK continuity — do not rename those without a migration plan.
 
@@ -73,9 +73,9 @@ This is a **permanent** rule, not a one-off cleanup.
 pbxproj 新檔 ID 起點是否過時、被 git 追蹤的建置產物是否髒了。
 上面表格第 4~7 項因此**不用手動維護**：文件不再抄版本號，改成指向 CHANGELOG。
 
-**引擎行為改動額外要求**：在 CHANGELOG 條目裡寫清楚**用什麼資料、怎麼量的、數字多少**。tw538 已作廢、EX1166 未建齊，目前沒有制度化門檻，所以驗收方法必須逐棒自述，否則下一棒無從判斷你的改動是進步還是退步。
+**引擎行為改動額外要求**：在 CHANGELOG 條目裡寫清楚**用什麼資料、怎麼量的、數字多少**。tw538 已作廢。EX1166（難題考卷）與兩份真實語料驗證集已在 `~/Documents/i注音-語料/EX1166-題庫/`；**出貨硬關卡是 `./scripts/ship-gate.sh`**（真實語料不得淨傷害）。EX1166 分數只當難題能力參考，**不得**當唯一驗收或對外宣稱。研究棒仍應在 CHANGELOG 自述量測方法。
 
-**排除的路要寫進 `AI_HANDOFF_PROMPT.md` 的「已排除的路」**：試過但行不通的方向，要連同**實測數字**一起記下來，否則下一棒會重試一次。（例：v2.15.0 那節記了四條。）
+**排除的路要寫進 `AI_HANDOFF_PROMPT.md` 的「已排除的路」或 GitHub issue `deadend`**：試過但行不通的方向，要連同**實測數字**一起記下來，否則下一棒會重試一次。
 
 ### Clean `GitRevision` on formal builds
 
@@ -210,8 +210,11 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 | `McBopomofoTests/PreferencesTests.swift` | Example Swift Testing suite patterns |
 | `Source/Engine/eval/llm_rerank_poc.py` | Historical PoC harness; its sentence scorer is known-broken (measures next-token probability). Use deferred_rerank_sim.py for new experiments |
 | `Source/Engine/eval/deferred_rerank_sim.py` | Deferred neural re-rank simulation with true chain-rule scoring (logit_bias probe); source of truth for L1 neural numbers |
-| `Source/Engine/ParticleRuleDisambiguator.{h,cpp}` | 的/得 文法規則消歧（v2.15.0）；掛在 `KeyHandler._walk` 之後，只在節點既有候選裡改選 |
-| `Source/Data/particle-rules.tsv` | 上面那支的規則表（動詞／補語／禁改詞／名詞護欄） |
+| `Source/Engine/ParticleRuleDisambiguator.{h,cpp}` | 的/得 文法規則消歧（v2.15.0+）；掛在 `KeyHandler._walk` 之後，只在節點既有候選裡改選 |
+| `Source/Data/particle-rules.tsv` | 的/得 結果補語規則（**仍出貨**）；六組同音歸納規則已移至 `Source/Engine/eval/artifacts/homophone-rules-failed.tsv` |
+| `Source/Data/path-char-lstm.bin` | 出貨神經權重（**v2d int8**；架構 v2c） |
+| `Source/Data/confusion-alphas.tsv` | 頻率先驗壓縮表（機制仍在；**條目已清空**，2026-08-11 停用） |
+| `scripts/ship-gate.sh` | 出貨三關；沒過不准發版 |
 
 ## Development Guidelines
 
@@ -239,7 +242,7 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 
 - Do **not** run concurrent `xcodebuild` / CMake builds against the **same** DerivedData directory (PCH races). Prefer isolated paths such as `dd-test/`, `dd-rel/`, `build/dd-rel/`.
 - Do **not** pipe `xcodebuild test` to `| tail` (hides the real exit / `** TEST SUCCEEDED **` line).
-- New `project.pbxproj` file IDs for this fork: **下一個可用是 FACE033B+**（已用到 FACE0336，`ParticleRuleDisambiguator` + `particle-rules.tsv` + `confusion-alphas.tsv`）。加新檔前先 `grep -o "FACE0[0-9]\{3\}" McBopomofo.xcodeproj/project.pbxproj | sort -u | tail -1` 確認，撞號會讓專案檔開不起來。
+- New `project.pbxproj` file IDs for this fork: **下一個可用是 FACE033A+**（已見最高 FACE0339）。加新檔前先 `grep -o "FACE0[0-9A-F]\{3\}" McBopomofo.xcodeproj/project.pbxproj | sort -u | tail -1` 確認，撞號會讓專案檔開不起來。
 ### Swift & AppKit
 
 - Use `Preferences` static properties and property wrappers instead of direct `UserDefaults` access
@@ -278,8 +281,9 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 - **C++ tests:** Add to `Source/Engine/CMakeLists.txt` in `McBopomofoLMLibTest` target, use GoogleTest
 - **Mixed tests:** Use Objective-C++ (`.mm`) with bridging header for Swift-C++ interop
 - Snapshot/restore `UserDefaults` in tests (see `PreferencesTests.swift`)
-- **⚠️ North-star metric: tw538 已由 Johnny 裁決作廢（2026-08），不再是 gate。** 它已飽和：想量的進步比它自己的噪音小，而且歷來調參都拿全部題目調過，等於背考古題。舊參考值（walk ON 333/537、rerank 387/537）只當歷史紀錄，**不得再拿來當「不退步」的驗收門檻**。
-- **接替方案（建置中）：** 新北極星 EX1166 —— 字級同音消歧、按真實錯誤頻率加權、切 held-out。工具在 `Source/Engine/eval/benchmarks/`（`newstar_homophone_eval` + `profile_group_usage.py` / `screen_newstar_batch.py` / `assemble_newstar_batch.py` / `make_newstar_jsonl.py`）。**題庫尚未建齊，所以目前沒有制度化的引擎驗收門檻**——引擎改動的驗收方式必須在該棒的 CHANGELOG 條目裡寫清楚用了什麼資料、怎麼量的。
+- **⚠️ 舊北極星 tw538 已作廢（2026-08），不得再當 gate。** 舊參考值（walk ON 333/537、v2c 387/537）只當歷史。
+- **難題尺 EX1166**（`~/Documents/i注音-語料/EX1166-題庫/`，約 5,646 題）：字級同音消歧、pair 加權、train/heldout。工具：`newstar_homophone_eval` + `profile_group_usage.py` / `screen_newstar_batch.py` / `assemble_newstar_batch.py` / `make_newstar_jsonl.py` / `error_taxonomy.py` / `oracle_ceiling`。**分數只量難題能力，不是日常體感。**
+- **出貨驗收：** `./scripts/ship-gate.sh` —— 真實語料驗證集（PTT／X）不得淨傷害 + 引擎 ctest + 實機打字抽驗。改選字機制時**兩份都要跑**（EX1166 + 真實語料），且**驗證來源必須與機制來源不同**（已用 EX1166 自驗兩次翻車）。
 - **Live end-to-end typing verification (no human needed):** after changing any
   typing-time behavior (L1 rerank, deferred neural rerank, disambiguator, key
   handling, contextual walk, personalization), run `./scripts/e2e-typing-check.sh "<US key sequence>"` — it types

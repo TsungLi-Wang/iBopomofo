@@ -1,15 +1,18 @@
-# Taiwan Typing Benchmark (north-star metric)
+# Taiwan Typing Benchmark (legacy / archive)
+
+> **2026-08：tw538 已作廢，不得再當出貨或「不退步」gate。**  
+> 難題尺 → `README-newstar.md`（EX1166）  
+> 出貨 gate → repo 根目錄 `scripts/ship-gate.sh`（真實語料不得淨傷害）  
+> 出貨神經權重 → `Source/Data/path-char-lstm.bin`（**v2d int8**；架構家族仍稱 v2c）
 
 Full-sentence top-1 character accuracy on clean Taiwan sentences: convert the
 reading key sequence with the engine `walk()` and compare the whole string to
-the expected text. This is the single objective judge for engine changes.
+the expected text. **Historical judge only.**
 
-- **`tw538-northstar.tsv` (current north-star)**: `readings<TAB>expected_text`,
- **537** cases. Real PTT lifestyle-board article bodies (not Gossiping /
- C_Chat), mainland/Cantonese/jargon filtered, Johnny human-reviewed.
- Default for `build-and-run.sh`.
-- `tw538-northstar.tsv` (**archive only**): previous 395-case set. Kept for
- historical comparison; do not use as the default judge for new work.
+- **`tw538-northstar.tsv` (archive)**: `readings<TAB>expected_text`, **537**
+  cases. Real PTT lifestyle-board article bodies (not Gossiping / C_Chat),
+  mainland/Cantonese/jargon filtered, Johnny human-reviewed. Old default for
+  `build-and-run.sh`.
 - `tw_benchmark.cpp` / `build-and-run.sh`: compile against the real dictionary
  and print baseline accuracy. Results are read via `walk().chosenValueAt(i)`,
  the only correct way to read a walk that used a `ContextModel` (the DP records
@@ -43,7 +46,11 @@ scores; use the log only for post-dogfood personal evidence.
 
 ## Reproduce spoken LSTM n-best
 
-### Current best: **387/537** (ν=0.75, N=10) — v2c
+### Historical best on tw538: **387/537** (ν=0.75, N=10) — v2c float family
+
+Shipping app (v2.16.2+) uses **int8 v2d** under `Source/Data/path-char-lstm.bin`
+(v2c architecture + 在/再 contrastive micro-tune). Float checkpoints below are
+for lab reproduction only.
 
 Weights (persistent under `../models/`):
 

@@ -183,6 +183,11 @@ EX1166 封存集剩下的 510 個錯誤：
 
 ### 內部 / 開發者改動（未發版）
 
+- **文件同步（2026-08-11）**：以本機／git 現役 **v2.16.2** 為準，修正 README、
+  AGENTS、AI_HANDOFF_PROMPT 內矛盾敘事（仍寫 tw538 gate、路線 A/B「已出貨」、
+  出貨＝純 v2c、EX1166 未建齊等）；README-newstar 改指向出貨 `path-char-lstm.bin`
+  （v2d int8）；eval README 標 tw538 為 archive；`path-char-lstm.meta.txt` 更正
+  過期的 emb64 描述。產品 code／引擎未改。
 - **北極星 EX1166 第一版題庫建成**：6 組 1,410 題（在再/的得/吧八巴/作做坐座/前錢/較叫），
   句子由 grok 生成、機器篩選、詞庫自動標音。工具全在 `Source/Engine/eval/benchmarks/`。
   **首份成績：整體約五成**（的/得 51.1%、吧八巴 47.1%、作做坐座 48.5%、前錢 58.2%、
