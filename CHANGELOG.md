@@ -181,6 +181,13 @@ EX1166 封存集剩下的 510 個錯誤：
 
 ## [Unreleased]
 
+### 產品（待發版建議 2.16.3）
+
+- **的／得 警察 v0（棒③）**：節點層高置信規則 `Source/Data/police-de-v0.tsv`
+  （省得／得像／來得好／得津津），與 particle-rules 並載、強棄權。
+  MAIN 全尺 **b=0**、的得子集 **c=4**（1633→1637／1647）；棄權率 ≈99.76%。
+  未 push／未 tag。回報 `~/ai-handoff/20260811-baton3-report.md`。
+
 ### 內部 / 開發者改動（未發版）
 
 - **棒② 較叫 v2d 式微調（研究 · FAIL · 2026-08-11）**：自 float v2d 只解凍較／叫、
@@ -188,6 +195,9 @@ EX1166 封存集剩下的 510 個錯誤：
   3218→3212／3371 顯著淨傷害；`b_other=0`。EX1166 train 較叫升、heldout／MAIN 降。
   **未覆蓋** `Source/Data/path-char-lstm.bin`；候選權重在
   `~/laowang-data/baton2-jiaojiao/`。回報 `~/ai-handoff/20260811-baton2-report.md`。
+- **死名單登錄（2026-08-11）**：EX1166-only 當新組 v2d 訓練源 = NO-GO（過擬合考卷、傷
+  MAIN）。後續 v2d 訓練源必須與 MAIN 切開；前錢/吧八巴/較叫 v2d-逐組暫停待真實校正資料。
+  亦寫入 `AI_HANDOFF_PROMPT.md` 已排除的路、`~/ai-handoff/DEADLIST.md`、傳承交接檔。
 - **棒① 歸因儀器／雙尺（eval only，2026-08-11）**：新增
   `Source/Engine/eval/benchmarks/floor_pass.py`（單尾 exact FLOOR；非 compare_dumps）、
   `main_scale_dedup.py`（FP_train exact+8-gram → MAIN_SCALE）、

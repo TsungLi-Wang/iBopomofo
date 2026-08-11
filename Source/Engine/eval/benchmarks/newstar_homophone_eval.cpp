@@ -437,9 +437,14 @@ int main(int argc, char** argv) {
   // 「淨進步 N 題」底下是幾題改對、幾題改錯 —— 沒有這個就只能猜顯著性，
   // 而淨值一樣可以是「+50/-9」也可以是「+300/-259」，意義天差地遠。
   const std::string dumpPath = argc > 9 ? argv[9] : "";
-  // 第 10 個參數：文法規則表（ParticleRuleDisambiguator）。不給就不掛，
-  // 行為與加這段之前逐位相同 —— 對照組要能證明「沒開＝原版」。
-  const std::string rulesPath = argc > 10 ? argv[10] : "";
+  // 第 10 個參數起：文法規則表（ParticleRuleDisambiguator，可多檔累加）。
+  // 例：particle-rules.tsv police-de-v0.tsv。不給就不掛。
+  std::vector<std::string> rulesPaths;
+  for (int ai = 10; ai < argc; ++ai) {
+    if (argv[ai] != nullptr && argv[ai][0] != '\0') {
+      rulesPaths.emplace_back(argv[ai]);
+    }
+  }
 
   ParselessLM lm;
   if (!lm.open(dataPath.c_str())) {
@@ -481,11 +486,13 @@ int main(int argc, char** argv) {
   }
 
   McBopomofo::ParticleRuleDisambiguator particleRule;
-  if (!rulesPath.empty()) {
+  for (const std::string& rulesPath : rulesPaths) {
     if (!particleRule.load(rulesPath)) {
       std::cerr << "FATAL: cannot load rules: " << rulesPath << "\n";
       return 1;
     }
+  }
+  if (particleRule.ruleCount() > 0) {
     // 詞庫查詢：規則用它擋「右邊兩字本身就成詞」的誤判。
     particleRule.setDictionaryLookup(
         [&lm](const std::string& w) { return !lm.getReadings(w).empty(); });
@@ -495,6 +502,7 @@ int main(int argc, char** argv) {
             << " path_scorer_loaded=" << (hasScorer ? 1 : 0)
             << " confusion_alphas=" << confusionAlphas.size()
             << " grammar_rules=" << particleRule.ruleCount()
+            << " rule_files=" << rulesPaths.size()
             << " uom=off\n";
 
   std::ifstream in(itemsPath);

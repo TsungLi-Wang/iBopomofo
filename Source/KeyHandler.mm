@@ -266,6 +266,14 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if (particlePath != nil) {
             _particleRule->load(particlePath.UTF8String);
         }
+        // 的／得 警察 v0（2026-08-11 棒③）：高置信句法規則，強棄權。
+        // load 可多次累加；未命中 = 不 override。須 MAIN 上 b=0 才可出貨。
+        NSString *policeDePath = [[NSBundle bundleForClass:[self class]]
+            pathForResource:@"police-de-v0"
+                     ofType:@"tsv"];
+        if (policeDePath != nil) {
+            _particleRule->load(policeDePath.UTF8String);
+        }
         // ⛔ 2026-08-11 下架 homophone-rules.tsv（六組同音字的歸納規則）。
         //
         // 它在我們自己出的考卷上救 134 題壞 1 題，在兩個**真實語域**合計

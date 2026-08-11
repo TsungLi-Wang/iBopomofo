@@ -1,0 +1,44 @@
+# 的／得 警察 v0 — 節點層規則（強棄權）
+# 2026-08-11 棒③
+#
+# 設計：
+#   * 純規則、免訓練；不吃 EX1166、不吃與 MAIN 未切開之資料。
+#   * 只做高置信句法；沒命中 = 棄權 = 不 override。
+#   * τ 概念：本表內規則即「已過高門檻」；未列之模式一律不動。
+#   * 禁程度補語（很/超/太/這麼）—— 已知誤殺地板約 20%。
+#   * 可與 particle-rules.tsv 並載（load 累加）；手選／UOM 覆寫仍不碰。
+#
+# CONFIG τ = HIGH（僅表內規則可開火）
+
+LIST	V0_PRON	我
+LIST	V0_PRON	你
+LIST	V0_PRON	他
+LIST	V0_PRON	她
+LIST	V0_PRON	它
+LIST	V0_PRON	這
+LIST	V0_PRON	那
+LIST	V0_SHENG	省
+LIST	V0_SHENG_BAD_R1	錢
+LIST	V0_SHENG_BAD_R1	事
+LIST	V0_SHENG_BAD_R1	力
+LIST	V0_SHENG_BAD_R1	電
+LIST	V0_SHENG_BAD_R1	油
+LIST	V0_SHENG_BAD_R1	水
+LIST	V0_SHENG_BAD_R1	時
+LIST	V0_SHENG_BAD_R1	工
+LIST	V0_XIANG	像
+LIST	V0_LAI	來
+LIST	V0_HAO	好
+LIST	V0_JIN	津
+
+# 省得 + VP（非「省的錢/事…」）
+RULE	v0省得	的	得	L1=V0_SHENG;!R1=V0_SHENG_BAD_R1;NOTSTART
+
+# V + 得 + 像…（排除「我的像…」）
+RULE	v0得像	的	得	R1=V0_XIANG;NOTSTART;!L1=V0_PRON
+
+# 來得 + 好…
+RULE	v0來得好	的	得	L1=V0_LAI;R1=V0_HAO;NOTSTART
+
+# …得津津（有味）
+RULE	v0得津津	的	得	R1=V0_JIN;NOTSTART
