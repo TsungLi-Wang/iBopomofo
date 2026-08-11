@@ -266,15 +266,18 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if (particlePath != nil) {
             _particleRule->load(particlePath.UTF8String);
         }
-        // 六組同音字的通用文法規則（在再／吧八巴／作做坐座／前錢／較叫，以及
-        // 「的／得」統計歸納補的那部分）。跟 particle-rules.tsv 同一個物件、
-        // 同一套判斷路徑，load 可以呼叫多次累加。
-        NSString *homophonePath = [[NSBundle bundleForClass:[self class]]
-            pathForResource:@"homophone-rules"
-                     ofType:@"tsv"];
-        if (homophonePath != nil) {
-            _particleRule->load(homophonePath.UTF8String);
-        }
+        // ⛔ 2026-08-11 下架 homophone-rules.tsv（六組同音字的歸納規則）。
+        //
+        // 它在我們自己出的考卷上救 134 題壞 1 題，在兩個**真實語域**合計
+        // 救 3 題壞 27 題（前女友→錢女友、沒事的→沒事得、都在找→都再找）。
+        //
+        // 原因：題庫由 grok 生成，規則又歸納自那個題庫 —— 用同一個模型的
+        // 語言直覺自我驗證。留下來的 particle-rules.tsv 是從 85 萬句真實語料
+        // 抽 40 例人工核對出來的，在真實語域一次都沒誤開火。
+        //
+        // 規則表載入本身仍支援多檔累加（load 可呼叫多次），新增規則前
+        // **必須先在真實語料驗證集上證明不造成傷害**。
+        // 失敗的那份留在 Source/Engine/eval/artifacts/ 當紀錄。
 
         _confusionAlphas = new std::map<std::string, double>();
         NSString *alphaPath = [[NSBundle bundleForClass:[self class]]
