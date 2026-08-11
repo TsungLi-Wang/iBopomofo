@@ -183,6 +183,11 @@ EX1166 封存集剩下的 510 個錯誤：
 
 ### 內部 / 開發者改動（未發版）
 
+- **棒② 較叫 v2d 式微調（研究 · FAIL · 2026-08-11）**：自 float v2d 只解凍較／叫、
+  EX1166 較叫 train×2 對比微調。MAIN in-group `b=7 c=0 FLOOR_PASS=False`；全尺
+  3218→3212／3371 顯著淨傷害；`b_other=0`。EX1166 train 較叫升、heldout／MAIN 降。
+  **未覆蓋** `Source/Data/path-char-lstm.bin`；候選權重在
+  `~/laowang-data/baton2-jiaojiao/`。回報 `~/ai-handoff/20260811-baton2-report.md`。
 - **棒① 歸因儀器／雙尺（eval only，2026-08-11）**：新增
   `Source/Engine/eval/benchmarks/floor_pass.py`（單尾 exact FLOOR；非 compare_dumps）、
   `main_scale_dedup.py`（FP_train exact+8-gram → MAIN_SCALE）、
