@@ -1,7 +1,7 @@
 #!/bin/bash
 # 打包 iBopomofo.dmg — DMG 內只有一個「安裝i注音.app」，別無其他。
 #
-# 用法:  ./package-dmg.sh [path/to/McBopomofo.app]
+# 用法:  ./package-dmg.sh [path/to/iBopomofo.app]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -30,7 +30,7 @@ VOL="i注音"
 
 if [ $# -gt 0 ]; then
   APP="$1"
-  INSTALLER="$DD/Build/Products/Release/McBopomofoInstaller.app"
+  INSTALLER="$DD/Build/Products/Release/iBopomofoInstaller.app"
   if [ ! -d "$INSTALLER" ]; then
     echo "[0/3] 編譯安裝程式 …"
     xcodebuild -quiet \
@@ -44,7 +44,7 @@ else
   echo "[0/3] Release 編譯（輸入法 + 安裝程式）…"
   xcodebuild -quiet \
     -project "$ROOT/iBopomofo.xcodeproj" \
-    -scheme McBopomofo \
+    -scheme iBopomofo \
     -configuration Release \
     -derivedDataPath "$DD" \
     build
@@ -54,8 +54,8 @@ else
     -configuration Release \
     -derivedDataPath "$DD" \
     build
-  APP="$DD/Build/Products/Release/McBopomofo.app"
-  INSTALLER="$DD/Build/Products/Release/McBopomofoInstaller.app"
+  APP="$DD/Build/Products/Release/iBopomofo.app"
+  INSTALLER="$DD/Build/Products/Release/iBopomofoInstaller.app"
 fi
 
 [ -d "$APP" ] || { echo "找不到 app: $APP"; exit 1; }

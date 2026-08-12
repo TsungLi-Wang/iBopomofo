@@ -19,7 +19,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CURRENT=$(swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }' 2>/dev/null)
-if [[ "$CURRENT" != *"McBopomofo"* ]]; then
+if [[ "$CURRENT" != *"iBopomofo"* ]]; then
     echo "目前輸入法不是 i注音：$CURRENT" >&2
     exit 1
 fi
@@ -31,7 +31,7 @@ fi
 # 查了半天以為是引擎排序有問題，重啟之後就正確了。
 #
 # 所以每次驗證前一律重啟，讓結果是確定性的。
-pkill -f "Input Methods/McBopomofo.app" 2>/dev/null || true
+pkill -f "Input Methods/iBopomofo.app" 2>/dev/null || true
 sleep 4
 
 if [ "${1:-}" = "-f" ]; then

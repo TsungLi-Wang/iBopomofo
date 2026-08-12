@@ -2,7 +2,7 @@
 # 打包發版用的 iBopomofo.dmg。
 #
 # 內容與歷代 release 相同：
-#   安裝 i注音.app                  （McBopomofoInstaller，內含輸入法本體）
+#   安裝 i注音.app                  （iBopomofoInstaller，內含輸入法本體）
 #   若 Gatekeeper 擋住請看這裡.txt   （未簽名 app 的自救說明）
 #
 # ⚠️ 會先跑 doc-check.sh，沒過就不打包（要跳過：DOC_CHECK_SKIP=1）。
@@ -25,7 +25,7 @@ trap 'rm -rf "$STAGE"' EXIT
 xcodebuild -project iBopomofo.xcodeproj -scheme iBopomofoInstaller \
   -configuration Release -derivedDataPath "$DD" build >/dev/null
 
-APP="$DD/Build/Products/Release/McBopomofoInstaller.app"
+APP="$DD/Build/Products/Release/iBopomofoInstaller.app"
 [ -d "$APP" ] || { echo "找不到 $APP"; exit 1; }
 
 ditto "$APP" "$STAGE/安裝 i注音.app"

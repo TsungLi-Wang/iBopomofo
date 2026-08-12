@@ -14,7 +14,7 @@ WAIT="${2:-4}"  # 打完到 commit 的等待秒數(延遲重審需 debounce 0.6s
 
 # 確認輸入法
 CURRENT=$(swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }' 2>/dev/null)
-if [[ "$CURRENT" != *"McBopomofo"* ]]; then
+if [[ "$CURRENT" != *"iBopomofo"* ]]; then
     echo "目前輸入法不是i注音: $CURRENT" >&2
     echo "請先切換輸入法再跑。" >&2
     exit 1
