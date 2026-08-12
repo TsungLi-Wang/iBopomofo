@@ -87,22 +87,24 @@ open "$HOME/Library/Input Methods/iBopomofo.app"
 
 ## 開發流程
 
-**同步到 Git ≠ 發布。** 這兩件事在本專案是分開的：
+**同步到 Git ≠ 發布。** 這兩件事必須分開：
 
-| | 做什麼 | 現況 |
+| | 做什麼 | 觸發 |
 |---|---|---|
-| **同步（sync）** | 本地驗證 → commit → push `origin master` → 查 GitHub Actions | 已定義，**日常改動都走這條** |
-| **發布（release）** | bump 兩份 Info.plist → annotated tag → 打包 DMG → Release notes | **本階段未自動化，全手動**；設計分析（三個地雷）見 [AI_HANDOFF_PROMPT.md](AI_HANDOFF_PROMPT.md)「下一棒候選：release workflow」 |
+| **同步（sync）** | 本地驗證 → commit → push `origin master` → 既有 Build／CodeQL | 日常改動；**不**建 Release、**不**打 tag |
+| **發布（release）** | 確認 plist／CHANGELOG → **annotated tag `vX.Y.Z`** → push tag → [Release workflow](.github/workflows/release.yml) → DMG + GitHub Release | 只有合法 version tag |
 
-完整步驟、三階段回報（本地 → push → CI）與安全規則寫在
-**[AGENTS.md](AGENTS.md) 的「同步到 Git」節**——人與 AI 共用同一份，不另開一份會漂的。
+完整步驟見 **[AGENTS.md](AGENTS.md)**「同步到 Git」與「正式發布」。
 
 要點：
 
-- 預設分支是 **`master`**（不是 `main`）；commit 用 Conventional Commits（`type(scope): 中文說明`）。
-- 動到文件必跑 `./scripts/doc-check.sh`；動到選字／引擎另跑相關測試，發版前跑 `./scripts/ship-gate.sh`。
-- **push 成功不等於 CI 通過**——要 `gh run list` 查過才算數；只改 `.md` 不會觸發 Build／CodeQL。
-- 不 force push、不 `git add .`、不把本機 log／個人化 cache commit 進來。
+- 預設分支 **`master`**；commit 用 `type(scope): 中文說明`。
+- 版本真源是 **plist**；tag 必須是 `v` + 同一版號。Actions **不**自動 bump。
+- 發版產物固定 **`iBopomofo.dmg`**（[`scripts/install.sh`](scripts/install.sh)／`releases/latest/download/`），並附 `iBopomofo-vX.Y.Z.dmg`。
+- Actions 上的 ship-gate 只有 **SUBSET**；真實語料 FULL／CORE 在本機跑，**不會**也不該把語料上傳 GitHub。
+- 目前 Release 為 **ad-hoc／未公證**（無 Apple Developer 簽章流程）。
+- **push 成功 ≠ CI 通過**；**有 tag ≠ Release 已成功**——都要查 Actions。
+- 不 force push、不 force tag、不 `git add .`。
 
 ## 給 AI 協作者
 

@@ -10,7 +10,8 @@
 
 1. **AI_HANDOFF_PROMPT.md** — 目前狀態與下一棒優先事項
 2. **AGENTS.md** — 建置、測試、commit 署名、隱私、引擎規則、收工清單
-   - Johnny 說「同步到 Git」時照 **AGENTS.md「同步到 Git」節**做：commit → push → 查 CI，**分 Stage 1/2/3 回報**；push 成功不等於 CI 通過。發布（tag／DMG）本階段未自動化。
+   - 「同步到 Git」→ AGENTS「同步到 Git」（commit→push→查 CI，分 Stage 回報）。
+   - 「正式發布 vX.Y.Z」→ AGENTS「正式發布」（確認 plist／CHANGELOG → annotated tag → push tag → Release workflow）。**禁止**用同步動作去打 tag。
 3. **CHANGELOG.md** — 每一版實際改了什麼
 4. **Source/Data/AGENTS.md** — 只有要動 `Source/Data/` 詞庫時才需要
 

@@ -20,6 +20,10 @@
   實測：`你好`→中文（選字可能為「妳好」）、`我的前女友`→✅；不再出英文鍵序。
 - **CI scheme 舊名**：`.github/workflows` 的 `McBopomofo`／`McBopomofoInstaller` →
   `iBopomofo`／`iBopomofoInstaller`（棒⑥ 漏改導致 Build 自改名後一直紅）。
+- **Release 自動化**：新增 `.github/workflows/release.yml`（僅 `vX.Y.Z` tag 觸發）＋
+  `scripts/extract-changelog-section.sh`。流程：tag==plist → doc-check → ctest →
+  Xcode test → ship-gate **SUBSET** → `package-dmg.sh` → GitHub Release
+  （`iBopomofo.dmg` + versioned 副本）。普通 push 不發版。
 
 ## [2.17.0] — 2026-08-12
 

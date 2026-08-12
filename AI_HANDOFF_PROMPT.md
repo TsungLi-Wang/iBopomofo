@@ -325,11 +325,13 @@ C4 只掃了 app 內的路徑常數與 `install.sh`，**沒掃驗收與打包腳
 無法公證。`install.sh` 就是為了繞這個而存在（直接 `xattr -dr com.apple.quarantine`）。
 建議 workflow 留 secrets 掛載點但預設關閉，Release notes 標明 unsigned。
 
-**建議順序（2026-08-12 更新）**：改名活體已上、同步流程已寫死、CI scheme 已修。  
-**下一階可以排 release workflow**（仍須 Johnny 明示開工）。  
-第一次實彈：用下一次正式 tag（或重跑 v2.17.0 流程）驗證 `tag → build → DMG → GitHub Release`。  
-要改的檔案（屆時）：新增 `.github/workflows/release.yml`；DMG **固定名** `iBopomofo.dmg` 必留（可另存帶版號副本）；Release notes 標 unsigned + 語料未在 CI。  
-`.gitignore` 已涵蓋 build artifact，不用動。
+**Release 自動化已接上（2026-08-12）**：`.github/workflows/release.yml`。  
+- 觸發：`push` tags `v*`（僅 `vX.Y.Z`）或 `workflow_dispatch` dry-run。  
+- 裁判：tag 去 `v` 後必須 = 兩份 plist；doc-check；不 bump。  
+- CI ship-gate：**SUBSET only**；notes 強制 **FULL NOT RUN IN CI**。  
+- DMG：`iBopomofo.dmg` + `iBopomofo-vX.Y.Z.dmg`；ad-hoc／未公證。  
+- **不要**對已存在的 `v2.17.0` force 重打 tag 測流程；用 `workflow_dispatch` dry-run + `ref=v2.17.0`，或等下一個版號。  
+詳細操作：`AGENTS.md`「正式發布」。
 
 ---
 

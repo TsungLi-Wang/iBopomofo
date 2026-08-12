@@ -1,0 +1,299 @@
+# 正式 Release：只由 version tag（vX.Y.Z）觸發。
+# 普通 push / PR 不走這支——既有 Build / CodeQL 維持原樣。
+#
+# 鐵則（見 AGENTS.md / 顧問定案）：
+#   - 版本真源 = plist，tag 必須等於 plist（CI 當裁判，不自動 bump）
+#   - DMG 固定名 iBopomofo.dmg（install.sh / releases/latest）
+#   - 可另附 iBopomofo-vX.Y.Z.dmg
+#   - ship-gate 在 CI 只能 SUBSET；FULL 真實語料不得假裝跑過
+#   - ad-hoc / unsigned；不啟用 notarization
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Validation + package only（不上傳 GitHub Release）"
+        type: boolean
+        default: true
+      ref:
+        description: "要驗證的 git ref（tag 名如 v2.17.0，或 commit SHA）。dry-run 必填。"
+        type: string
+        required: false
+
+# 建立 Release 需要 contents: write；讀 repo 足夠做 dry-run
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release build and publish
+    runs-on: macos-15
+    steps:
+      - name: Resolve ref / tag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            RAW_REF="${{ github.ref }}"
+            case "$RAW_REF" in
+              refs/tags/*) TAG="${RAW_REF#refs/tags/}" ;;
+              *) echo "不是 tag push：$RAW_REF"; exit 1 ;;
+            esac
+            DRY_RUN=false
+            CHECKOUT_REF="$TAG"
+          else
+            # workflow_dispatch：預設 dry-run，禁止沒有合法 tag 時建立假 Release
+            DRY_RUN="${{ inputs.dry_run }}"
+            TAG_OR_REF="${{ inputs.ref }}"
+            if [ -z "$TAG_OR_REF" ]; then
+              echo "workflow_dispatch 必須提供 inputs.ref（例如 v2.17.0）"
+              exit 1
+            fi
+            TAG="$TAG_OR_REF"
+            CHECKOUT_REF="$TAG_OR_REF"
+            # 即使有人把 dry_run 設 false，dispatch 也只允許「TAG 已存在於 repo」時發版；
+            # 且仍須通過後面的 semver / plist 驗證。
+          fi
+
+          # 只允許 vMAJOR.MINOR.PATCH（拒絕 vNext / test / 預釋字尾）
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "非法 tag 格式：$TAG（只要 vX.Y.Z，例如 v2.17.0）"
+            exit 1
+          fi
+          VER="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          echo "checkout_ref=$CHECKOUT_REF" >> "$GITHUB_OUTPUT"
+          echo "Resolved TAG=$TAG VER=$VER DRY_RUN=$DRY_RUN"
+
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.meta.outputs.checkout_ref }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "^26.1.1"
+
+      - name: Verify tag points at this commit (push only)
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.tag }}"
+          # annotated 或 lightweight 都接受；必須解析到目前 HEAD
+          resolved="$(git rev-list -n 1 "$TAG")"
+          head="$(git rev-parse HEAD)"
+          echo "tag → $resolved"
+          echo "HEAD → $head"
+          if [ "$resolved" != "$head" ]; then
+            echo "tag 沒有指到目前 checkout 的 commit"
+            exit 1
+          fi
+
+      - name: Tag must equal plist version (CI is referee)
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="${{ steps.meta.outputs.version }}"
+          PLIST="Source/McBopomofo-Info.plist"
+          INSTALLER="Source/Installer/Installer-Info.plist"
+          PVER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
+          IVER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INSTALLER")"
+          echo "tag version = $VER"
+          echo "app plist   = $PVER"
+          echo "installer   = $IVER"
+          if [ "$VER" != "$PVER" ]; then
+            echo "FAIL: tag v$VER ≠ app plist $PVER —— 不自動改 plist 迎合 tag"
+            exit 1
+          fi
+          if [ "$VER" != "$IVER" ]; then
+            echo "FAIL: installer plist $IVER ≠ app plist $PVER"
+            exit 1
+          fi
+
+      - name: doc-check
+        run: ./scripts/doc-check.sh
+
+      - name: CHANGELOG must have this version section
+        run: ./scripts/extract-changelog-section.sh "${{ steps.meta.outputs.version }}" > /tmp/changelog-body.md
+
+      - name: Engine unit tests (cmake / ctest)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -DENABLE_TEST=1 -S Source/Engine -B Source/Engine/build
+          cmake --build Source/Engine/build
+          (cd Source/Engine/build && ctest --output-on-failure)
+
+          cmake -DENABLE_TEST=1 -S Source/Engine/Mandarin -B Source/Engine/Mandarin/build
+          cmake --build Source/Engine/Mandarin/build
+          (cd Source/Engine/Mandarin/build && ctest --output-on-failure)
+
+          cmake -DENABLE_TEST=1 -S Source/Engine/gramambular2 -B Source/Engine/gramambular2/build
+          cmake --build Source/Engine/gramambular2/build
+          (cd Source/Engine/gramambular2/build && ctest --output-on-failure)
+
+      - name: Xcode Debug test (includes golden suites)
+        run: >
+          xcodebuild
+          -project iBopomofo.xcodeproj
+          -scheme iBopomofo
+          -configuration Debug
+          -derivedDataPath build/dd-test
+          test
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Build eval binary for ship-gate
+        run: ./scripts/build-eval.sh
+
+      - name: ship-gate SUBSET only (no real corpus on Actions)
+        id: shipgate
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 真實語料在維護者本機 Documents，TCC 保護 —— runner 讀不到。
+          # 故意不注入 secrets／不上传语料。期望 SHIP_GATE_STATUS=SUBSET。
+          export SHIP_GATE_E2E=0
+          export IBOPOMOFO_CORPUS_DIR="${RUNNER_TEMP}/no-real-corpus-on-purpose"
+          rm -rf "$IBOPOMOFO_CORPUS_DIR"
+          mkdir -p "$IBOPOMOFO_CORPUS_DIR"
+
+          set +e
+          OUT="$(./scripts/ship-gate.sh 2>&1)"
+          RC=$?
+          set -e
+          printf '%s\n' "$OUT"
+          STATUS="$(printf '%s\n' "$OUT" | sed -n 's/^SHIP_GATE_STATUS=//p' | tail -1)"
+          echo "ship_gate_status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "ship_gate_rc=$RC" >> "$GITHUB_OUTPUT"
+
+          if [ "$RC" -ne 0 ]; then
+            echo "ship-gate 失敗（exit $RC）"
+            exit 1
+          fi
+          case "$STATUS" in
+            SUBSET*)
+              echo "OK: CI 只能跑 SUBSET（真實語料 FULL 未執行）"
+              ;;
+            CORE|FULL)
+              # 理論上 corpus 被清掉不該 CORE；若有人誤掛語料進 runner 仍允許過，但 notes 仍標 FULL 未在 CI
+              echo "WARN: 得到 $STATUS（非預期的 SUBSET）。Release notes 仍標 FULL 未在 CI 執行。"
+              ;;
+            *)
+              echo "FAIL: 無法解析 SHIP_GATE_STATUS（got: ${STATUS:-empty}）"
+              exit 1
+              ;;
+          esac
+
+      - name: Release build + package DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="${{ steps.meta.outputs.version }}"
+          # 正式打包入口：repo 根 package-dmg.sh（內含 doc-check + Release build + DMG）
+          ./package-dmg.sh
+          test -f dist/iBopomofo.dmg
+          cp -f dist/iBopomofo.dmg "dist/iBopomofo-v${VER}.dmg"
+          ls -lh dist/iBopomofo.dmg "dist/iBopomofo-v${VER}.dmg"
+
+      - name: Compose release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="${{ steps.meta.outputs.version }}"
+          TAG="${{ steps.meta.outputs.tag }}"
+          {
+            echo "## Changes"
+            echo ""
+            cat /tmp/changelog-body.md
+            echo ""
+            echo "## Validation"
+            echo ""
+            echo "| Gate | Result |"
+            echo "|------|--------|"
+            echo "| Tag == plist | PASS (\`${TAG}\` = ${VER}) |"
+            echo "| doc-check | PASS |"
+            echo "| Engine ctest | PASS |"
+            echo "| Xcode Debug test (incl. golden) | PASS |"
+            echo "| ship-gate | **SUBSET PASS** (sample + ctest) |"
+            echo "| Real-corpus FULL ship gate | **NOT RUN IN CI** |"
+            echo "| DMG package | PASS |"
+            echo ""
+            echo "> Full real-corpus ship gate was **not** executed in CI because the real evaluation corpus is intentionally unavailable to GitHub Actions (local-only, TCC-protected). CI must not be read as a substitute for local \`./scripts/ship-gate.sh\` when corpora are present (CORE)."
+            echo ""
+            echo "## Distribution"
+            echo ""
+            echo "- \`iBopomofo.dmg\` — stable name for \`install.sh\` / \`releases/latest/download/\`"
+            echo "- \`iBopomofo-v${VER}.dmg\` — immutable versioned copy"
+            echo ""
+            echo "## Signing"
+            echo ""
+            echo "- **Ad-hoc / unsigned** (\`CODE_SIGN_IDENTITY=-\`)."
+            echo "- **Not notarized** (no Apple Developer ID in this pipeline)."
+            echo "- Install via \`scripts/install.sh\` or right-click open (see DMG readme)."
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Upload DMG artifacts (always; useful for dry-run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: iBopomofo-${{ steps.meta.outputs.version }}-dmg
+          path: |
+            dist/iBopomofo.dmg
+            dist/iBopomofo-v${{ steps.meta.outputs.version }}.dmg
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: >-
+          github.event_name == 'push'
+          || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.tag }}"
+          VER="${{ steps.meta.outputs.version }}"
+
+          # 禁止覆寫既有 Release / force 搬 tag
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在 —— 不覆蓋、不 force"
+            exit 1
+          fi
+
+          # tag 必須已在遠端（push tags 觸發時一定有；dispatch 非 dry-run 時也要有）
+          if ! git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "本地看不到 tag $TAG"
+            exit 1
+          fi
+
+          gh release create "$TAG" \
+            "dist/iBopomofo.dmg" \
+            "dist/iBopomofo-v${VER}.dmg" \
+            --title "iBopomofo v${VER}" \
+            --notes-file release-notes.md \
+            --verify-tag
+
+      - name: Dry-run summary
+        if: steps.meta.outputs.dry_run == 'true'
+        run: |
+          echo "DRY-RUN 完成：驗證與打包通過，**沒有**建立 GitHub Release。"
+          echo "Artifacts: iBopomofo-${{ steps.meta.outputs.version }}-dmg"

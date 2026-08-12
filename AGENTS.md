@@ -123,20 +123,18 @@ Johnny 說要改什麼
 | **GitHub Actions** | push／PR 後**固定**跑 workflow 裡寫死的步驟 | 依賴 AI 當下心情 |
 | **本機 ship-gate** | 發版前／改選字時的產品尺（CORE） | 拿來替代 CI；E2E 預設不跑 |
 
-**寫死的對應（精神；Release 自動化見下一階）：**
+**寫死的對應：**
 
-- `push`（改到程式）→ Actions **Build + Test**（+ 條件符合時 CodeQL）
-- `tag` →（**尚未接上**）Package + Release + `iBopomofo.dmg`
+- `push`（改到程式）→ Actions **Build + Test**（+ 條件符合時 CodeQL）—— **不**建 Release
+- `tag vX.Y.Z`（且 tag 版號 = plist）→ Actions **Release**（`.github/workflows/release.yml`）→ DMG + GitHub Release
 
-任何新進 AI：**先讀本節 +「同步到 Git」**；流程不因換模型而變。
+任何新進 AI：**先讀本節 +「同步到 Git」+「正式發布」**；流程不因換模型而變。
 
 ## 同步到 Git（sync）—— 標準流程
 
 **觸發語**：Johnny 說「幫我更新／同步到 Git」「推上去」＝ **commit → push → 查 CI**，三件一組。
 
-⛔ **同步不是發布。** 發布（bump 兩份 plist ／ annotated tag ／ DMG ／ Release notes）在本階段
-**尚未自動化**，也不會因為一句「同步」就發生。設計分析見 `AI_HANDOFF_PROMPT.md`
-「下一棒候選：release workflow」。**沒被明講「發版」→ 不 bump 版號、不打 tag、不碰 `package-dmg.sh`。**
+⛔ **同步不是發布。** 一句「同步」**不准** bump 版號、不准打 tag、不准跑 `package-dmg` 當發版、不准建 GitHub Release。
 
 ### 三階段（回報必須分開講）
 
@@ -202,6 +200,43 @@ gh run watch <run-id>          # 失敗時：gh run view <run-id> --log-failed
 - **黃**：「已 push 到 origin/master（`<hash>`）。**CI 執行中，尚未通過**（run: `<URL>`）。」
   ／「本次只改文件，**未觸發任何 workflow**。」
 - **紅**：「已 push 到 origin/master（`<hash>`）。**CI 失敗**：`<哪個 job、哪一行>`（run: `<URL>`）。要我分析原因嗎？」
+
+## 正式發布（release）—— 標準流程
+
+**觸發語**：Johnny 明說「幫我正式發布 vX.Y.Z」／「發版」—— **不是**「同步到 Git」。
+
+```
+本機確認 plist = X.Y.Z、doc-check、（建議）ship-gate 有語料時 CORE
+    → working tree 乾淨；必要的 release commit 已先同步
+    → git tag -a vX.Y.Z -m "…"   # 禁 -f；tag 已存在就停
+    → git push origin vX.Y.Z
+    → GitHub Actions「Release」workflow
+         tag==plist → doc-check → ctest → xcode test(golden) →
+         ship-gate SUBSET → package-dmg → GitHub Release
+         assets: iBopomofo.dmg + iBopomofo-vX.Y.Z.dmg
+```
+
+| 鐵則 | 說明 |
+|------|------|
+| 版本真源 | **plist**；tag 必須是 `v` + 同一字串。CI **不**改 plist／CHANGELOG 迎合 tag |
+| 普通 push | **永不**建 Release |
+| FULL 語料 | **不在** Actions 跑；Release notes 必須寫 **NOT RUN IN CI** |
+| DMG 檔名 | 固定 `iBopomofo.dmg`（`install.sh`／`releases/latest`）；可另附 versioned 副本 |
+| 簽章 | ad-hoc／未公證；notes 照實寫 |
+| 禁 force tag | `git tag -f`／`push --force` 一律禁止 |
+
+**AI 發版前檢查清單（缺一停手問 Johnny）：**
+
+1. `git status` 乾淨（或已明確 commit 完本版）
+2. 兩份 plist `CFBundleShortVersionString` = 目標版
+3. CHANGELOG 有 `## [X.Y.Z]` 已發布段落（不是只有 Unreleased）
+4. `./scripts/doc-check.sh` 全綠
+5. （強烈建議）本機有語料時 `./scripts/ship-gate.sh` → `CORE`／`FULL`
+6. `git rev-parse vX.Y.Z` 若不存在才 `git tag -a`；已存在 → **停止**
+7. `git push origin vX.Y.Z` → `gh run list --workflow=release.yml`
+8. 回報分階：tag 已推／Release workflow 執行中或通過／Release URL
+
+Dry-run（不建 Release）：GitHub → Actions → Release → Run workflow，`dry_run=true`，`ref=vX.Y.Z`。
 
 **Runtime:** macOS 10.15 (Catalina) or later
 
