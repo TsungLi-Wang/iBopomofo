@@ -1,2 +1,0 @@
-/usr/bin/ar qc libMandarinLib.a CMakeFiles/MandarinLib.dir/Mandarin.cpp.o
-/usr/bin/ranlib libMandarinLib.a

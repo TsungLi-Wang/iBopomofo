@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC -fPIC -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/MandarinTest.dir/MandarinTest.cpp.o -o MandarinTest  ../lib/libgtest_main.a libMandarinLib.a ../lib/libgtest.a

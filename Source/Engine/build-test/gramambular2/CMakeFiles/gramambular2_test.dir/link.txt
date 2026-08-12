@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC -fPIC -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/gramambular2_test.dir/reading_grid_test.cpp.o -o gramambular2_test  ../lib/libgtest_main.a libgramambular2_lib.a ../lib/libgtest.a

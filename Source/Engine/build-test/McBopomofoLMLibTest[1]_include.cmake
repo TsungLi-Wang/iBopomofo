@@ -1,5 +1,0 @@
-if(EXISTS "/Users/johnny.w_macmini/laowang-zhuyin/Source/Engine/build-test/McBopomofoLMLibTest[1]_tests.cmake")
-  include("/Users/johnny.w_macmini/laowang-zhuyin/Source/Engine/build-test/McBopomofoLMLibTest[1]_tests.cmake")
-else()
-  add_test(McBopomofoLMLibTest_NOT_BUILT McBopomofoLMLibTest_NOT_BUILT)
-endif()
