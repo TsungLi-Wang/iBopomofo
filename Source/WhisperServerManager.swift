@@ -81,7 +81,7 @@ final class WhisperServerManager: NSObject {
     /// ~/Library/Application Support/McBopomofo/WhisperModel/
     private var modelDirectoryURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("McBopomofo", isDirectory: true)
+        return base.appendingPathComponent("iBopomofo", isDirectory: true)
             .appendingPathComponent("WhisperModel", isDirectory: true)
     }
 

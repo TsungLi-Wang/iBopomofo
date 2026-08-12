@@ -8,7 +8,7 @@ set -euo pipefail
 
 REPO="TsungLi-Wang/iBopomofo"
 DMG_NAME="iBopomofo.dmg"
-DEST="$HOME/Library/Input Methods/McBopomofo.app"
+DEST="$HOME/Library/Input Methods/iBopomofo.app"
 TMP="$(mktemp -d)"
 MOUNT=""
 
@@ -44,7 +44,7 @@ killall McBopomofo 2>/dev/null || true
 rm -rf "$DEST"
 ditto "$SRC" "$DEST"
 xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
-"$DEST/Contents/MacOS/McBopomofo" install
+"$DEST/Contents/MacOS/iBopomofo" install
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$DEST/Contents/Info.plist" 2>/dev/null || echo '?')"
 echo ""

@@ -24,12 +24,12 @@
 import Cocoa
 import InputSourceHelper
 
-private let kTargetBin = "McBopomofo"
+private let kTargetBin = "iBopomofo"
 private let kTargetType = "app"
 private let kTargetBundle = "McBopomofo.app"
 private let kDestinationPartial = "~/Library/Input Methods/"
-private let kTargetPartialPath = "~/Library/Input Methods/McBopomofo.app"
-private let kTargetFullBinPartialPath = "~/Library/Input Methods/McBopomofo.app/Contents/MacOS/McBopomofo"
+private let kTargetPartialPath = "~/Library/Input Methods/iBopomofo.app"
+private let kTargetFullBinPartialPath = "~/Library/Input Methods/iBopomofo.app/Contents/MacOS/iBopomofo"
 
 private let kTranslocationRemovalTickInterval: TimeInterval = 0.5
 private let kTranslocationRemovalDeadline: TimeInterval = 60.0

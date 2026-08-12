@@ -21,7 +21,7 @@ final class RerankDiffLog: NSObject {
 
     private static var logFileURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("McBopomofo", isDirectory: true)
+            .appendingPathComponent("iBopomofo", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("rerank-diff.log", isDirectory: false)
     }

@@ -757,7 +757,7 @@ extension Preferences {
         let paths = NSSearchPathForDirectoriesInDomains(
             .applicationSupportDirectory, .userDomainMask, true)
         let appSupportPath = paths.first!
-        return (appSupportPath as NSString).appendingPathComponent("McBopomofo")
+        return (appSupportPath as NSString).appendingPathComponent("iBopomofo")
     }
 }
 

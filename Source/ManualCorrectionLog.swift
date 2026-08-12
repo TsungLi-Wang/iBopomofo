@@ -20,7 +20,7 @@ final class ManualCorrectionLog: NSObject {
         let base = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first!
-        .appendingPathComponent("McBopomofo", isDirectory: true)
+        .appendingPathComponent("iBopomofo", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("manual-correction.log", isDirectory: false).path
     }
