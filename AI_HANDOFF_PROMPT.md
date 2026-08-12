@@ -179,6 +179,17 @@ macOS 重開機會清 `/tmp`。棒⑥ 上線這天發現有三樣「重要東西
 
 1. `./scripts/ship-gate.sh` 要 `SHIP_GATE_STATUS=FULL` 且全綠。
    評分機不在時先跑 `./scripts/build-eval.sh`（約 20 秒）。
+
+   ⚠️ **關卡 3（實機打字）現在會擋著。** 2026-08-12 修掉它的假綠燈之後
+   （原本 grep `❌` 判定，`type-as-user.sh` 早退時一句沒打也印綠 —— 當天那次
+   `SHIP_GATE_STATUS=FULL` 的關卡 3 就是這樣來的，**沒有真的打任何字**），
+   `你先坐這裡等一下` → `你先做這裡等一下` 四輪全錯。
+   **已用舊版 McBopomofo 對照，輸出相同，不是棒⑥ 迴歸。**
+   要把它留在 `scripts/ship-gate-sentences.txt` 還是先修引擎 → 產品決策，
+   見 **issue #11**（含關卡 flakiness 根因）與 **#10**（同一個坐/做 的 UOM 問題）。
+
+   另：這一關密集重跑後會因為 macOS 的「單一登入階段砍輸入法次數上限」而失真
+   （輸入法會掉回 ABC）。**要拿它當發版依據，請在剛登入的乾淨 session 跑第一次。**
 2. 兩份 plist 一起 bump（`Source/McBopomofo-Info.plist` +
    `Source/Installer/Installer-Info.plist` —— 漏第二份是歷史上最常犯的）。
 3. `README.md` 版本歷程表加一列、`CHANGELOG.md` 段落改成正式發布並補 commit 範圍與 tag。
