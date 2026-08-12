@@ -5,7 +5,7 @@ macOS 上的**繁體中文注音輸入法**。在成熟的開源注音引擎之�
 | | |
 |---|---|
 | **產品名** | i注音（英文／ASCII：**iBopomofo**） |
-| **目前版本** | 見 [CHANGELOG.md](CHANGELOG.md) 最上方已發布段落，或 `Source/McBopomofo-Info.plist`（本機現役為 **2.16.3**／build **2323**） |
+| **目前版本** | 見 [CHANGELOG.md](CHANGELOG.md) 最上方已發布段落，或 `Source/McBopomofo-Info.plist` |
 | **授權** | MIT（衍生自 [McBopomofo](https://github.com/openvanilla/McBopomofo)；見 [LICENSE](LICENSE) 與 [NOTICE](NOTICE)） |
 | **平台** | macOS 10.15+（開發建議 14.7+ / Xcode 15.3+） |
 
@@ -85,6 +85,25 @@ open "$HOME/Library/Input Methods/iBopomofo.app"
 
 或建 `iBopomofoInstaller` scheme，用安裝器流程。
 
+## 開發流程
+
+**同步到 Git ≠ 發布。** 這兩件事在本專案是分開的：
+
+| | 做什麼 | 現況 |
+|---|---|---|
+| **同步（sync）** | 本地驗證 → commit → push `origin master` → 查 GitHub Actions | 已定義，**日常改動都走這條** |
+| **發布（release）** | bump 兩份 Info.plist → annotated tag → 打包 DMG → Release notes | **本階段未自動化，全手動**；設計分析（三個地雷）見 [AI_HANDOFF_PROMPT.md](AI_HANDOFF_PROMPT.md)「下一棒候選：release workflow」 |
+
+完整步驟、三階段回報（本地 → push → CI）與安全規則寫在
+**[AGENTS.md](AGENTS.md) 的「同步到 Git」節**——人與 AI 共用同一份，不另開一份會漂的。
+
+要點：
+
+- 預設分支是 **`master`**（不是 `main`）；commit 用 Conventional Commits（`type(scope): 中文說明`）。
+- 動到文件必跑 `./scripts/doc-check.sh`；動到選字／引擎另跑相關測試，發版前跑 `./scripts/ship-gate.sh`。
+- **push 成功不等於 CI 通過**——要 `gh run list` 查過才算數；只改 `.md` 不會觸發 Build／CodeQL。
+- 不 force push、不 `git add .`、不把本機 log／個人化 cache commit 進來。
+
 ## 給 AI 協作者
 
 這份 repo 是**真人 + AI 協作**的產品庫。若你是接棒的 AI：
@@ -128,7 +147,7 @@ open "$HOME/Library/Input Methods/iBopomofo.app"
 | **2.16.3** | **的／得警察 v1**（句法規則 + 強棄權，反例考卷誤殺 0）；MAIN 資料地基修復；`ship-gate` 補三個洞 |
 | **2.17.0** | **品牌統一 McBopomofo → iBopomofo**（bundle ID／安裝路徑／資料目錄／namespace）；引擎行為零變更 |
 
-完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：以 `git tag`／GitHub Releases 為準（本機錨：**v2.16.3**）。
+完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：以 `git tag`／GitHub Releases 為準。
 
 ## 已知取捨（開源後）
 

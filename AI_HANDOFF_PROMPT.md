@@ -280,6 +280,16 @@ C4 只掃了 app 內的路徑常數與 `install.sh`，**沒掃驗收與打包腳
 （build+test macos-15／macos-26 雙矩陣、CodeQL、Claude review ×3）。
 缺的只有 **release 那一段**，不是整套 CI/CD。
 
+> ⛔ **先修這個再談 release workflow（2026-08-12 發現）**：棒⑥ 改名後
+> **Build workflow 一直是紅的**，兩個矩陣都掛在同一句：
+> `xcodebuild: error: The project named "iBopomofo" does not contain a scheme named "McBopomofo"`
+> （run 31586081247）。`continuous-integration-workflow-xcode-latest.yml:79-90` 與
+> `codeql.yml:67` 仍寫舊 scheme 名 `McBopomofo` / `McBopomofoInstaller`，改名時漏掉。
+> 本機 build 綠是因為本機用新 scheme 名，**紅燈只在 CI 出現**。
+> 影響：現在任何「CI 通過」的說法都站不住；release workflow 若建在紅底上會更難除錯。
+> 修法是把那幾行 scheme 名換成 `iBopomofo` / `iBopomofoInstaller`（純字串，不動邏輯）——
+> 但那屬於改 workflow，**要 Johnny 點頭**，2026-08-12 這一棒刻意沒動。
+
 **三個地雷（設計時務必守住）**：
 
 1. **DMG 檔名不能改成帶版本號的形式。**

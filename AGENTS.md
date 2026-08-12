@@ -107,6 +107,79 @@ git status            # must show clean for product files
 
 Menu **「顯示目前生效設定…」** shows `version` + `build` + `GitRevision` from the running bundle.
 
+## 同步到 Git（sync）—— 標準流程
+
+**觸發語**：Johnny 說「幫我更新／同步到 Git」「推上去」＝ **commit → push → 查 CI**，三件一組。
+
+⛔ **同步不是發布。** 發布（bump 兩份 plist ／ annotated tag ／ DMG ／ Release notes）在本階段
+**尚未自動化**，也不會因為一句「同步」就發生。設計分析見 `AI_HANDOFF_PROMPT.md`
+「下一棒候選：release workflow」。**沒被明講「發版」→ 不 bump 版號、不打 tag、不碰 `package-dmg.sh`。**
+
+### 三階段（回報必須分開講）
+
+| Stage | 做什麼 | 「完成」的意思 |
+|-------|--------|---------------|
+| **1 本地驗證** | 看 diff、選檔、跑最低必要檢查 | 可以 commit 了 |
+| **2 推上去** | commit + push 到 `origin master` | **只代表程式碼上了 GitHub** |
+| **3 CI 查核** | `gh run list` / `gh run watch` | 過了這階段才叫「CI 通過」 |
+
+⛔ **Stage 2 成功 ≠ Stage 3 通過。** 禁止把 push 成功說成「已更新完成」「CI 通過」「沒問題了」。
+Stage 3 還在跑或沒查，就照實說「執行中」／「未查」。
+
+### 操作清單
+
+```bash
+# ---- Stage 1：看清楚要送什麼 ----
+git status
+git diff                       # 未 staged
+git diff --staged              # 已 staged
+git log --oneline -5
+
+# 最低必要驗證（依改到什麼而定）
+./scripts/doc-check.sh         # 動到文件：必跑，要全綠
+# 動到選字／引擎：另跑相關 Swift／ctest；發版前才跑 ./scripts/ship-gate.sh（預設只 CORE）
+
+git add <明確路徑> …           # 逐檔指定，禁止 git add . / -A
+git commit -m "type(scope): 中文說明"   # Conventional Commits，見上面那節
+
+# ---- Stage 2：推上去 ----
+git push origin master         # 預設分支是 master，不是 main
+
+# ---- Stage 3：查 CI ----
+gh run list --limit 5
+gh run watch <run-id>          # 失敗時：gh run view <run-id> --log-failed
+```
+
+### 哪些改動觸發哪支 CI（路徑過濾）
+
+| Workflow | 檔案 | 何時跑 |
+|----------|------|--------|
+| **Build**（build + test，macos-15／macos-26 雙矩陣） | `continuous-integration-workflow-xcode-latest.yml` | push／PR 且改到 `*.swift`／`*.cpp`／`*.mm`／`*.m`／`*.h`／`*.xcodeproj/**`（**排除** `Source/Data/**`） |
+| **CodeQL Advanced**（swift／cpp／python） | `codeql.yml` | push／PR 到 `master` 且改到上述原始碼或 `*.py`；另每週日排程 |
+| **Build phrase database**（`make check` + `make`） | `continuous-build-data.yml` | 改到 `Source/Data/**` |
+| **Claude Code Review** | `claude-code-review.yml` →`claude-review-reusable.yml` | 開／更新 PR 時自動 review（fork PR 會跳過） |
+| **Claude Code** | `claude.yml` | PR 留言提到 `@claude` 時 |
+
+**只改 `.md` 文件時，上面前三支都不會跑。** 這時 Stage 3 的誠實說法是
+**「未觸發任何 workflow」**，不是「CI 通過」。
+
+### 安全規則（要違反就先停手問 Johnny）
+
+- 禁 `git push --force` / `--force-with-lease`（master 是共用歷史）
+- 禁 `git reset --hard`、`git clean -fd`、`git checkout -- .`：會吃掉還沒存的工
+- 禁 `git add .` / `git add -A`：逐檔指定，避免掃進 build 產物、log、cache
+- **永不 commit**：`user-override-cache.dat`、`rerank-diff.log`、`manual-correction.log`、
+  `.env`、任何 token 或金鑰（隱私紅線見上面 Privacy 節）
+- CI 紅燈 → **回報，不要開「自動改碼再推」的循環**。最多分析原因＋提案，動手要 Johnny 點頭。
+- 只在被要求時建 PR；平常直接推 `master`（本專案現行習慣）
+
+### 三態回報文案（照抄，不要美化）
+
+- **綠**：「已 push 到 origin/master（`<hash>`）。CI：Build 通過／CodeQL 通過（run: `<URL>`）。」
+- **黃**：「已 push 到 origin/master（`<hash>`）。**CI 執行中，尚未通過**（run: `<URL>`）。」
+  ／「本次只改文件，**未觸發任何 workflow**。」
+- **紅**：「已 push 到 origin/master（`<hash>`）。**CI 失敗**：`<哪個 job、哪一行>`（run: `<URL>`）。要我分析原因嗎？」
+
 **Runtime:** macOS 10.15 (Catalina) or later
 
 **Development:**
