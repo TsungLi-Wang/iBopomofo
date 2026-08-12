@@ -137,7 +137,14 @@ jobs:
           set -euo pipefail
           DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
           git fetch --depth=1 origin "$DEFAULT_BRANCH"
-          for f in scripts/doc_check.py scripts/doc-check.sh scripts/extract-changelog-section.sh scripts/build-eval.sh scripts/ship-gate.sh; do
+          for f in \
+            scripts/doc_check.py \
+            scripts/doc-check.sh \
+            scripts/extract-changelog-section.sh \
+            scripts/build-eval.sh \
+            scripts/ship-gate.sh \
+            whisper-runtime/fetch-runtime.sh
+          do
             if git cat-file -e "origin/${DEFAULT_BRANCH}:${f}" 2>/dev/null; then
               mkdir -p "$(dirname "$f")"
               git show "origin/${DEFAULT_BRANCH}:${f}" > "$f"
@@ -167,6 +174,11 @@ jobs:
           cmake -DENABLE_TEST=1 -S Source/Engine/gramambular2 -B Source/Engine/gramambular2/build
           cmake --build Source/Engine/gramambular2/build
           (cd Source/Engine/gramambular2/build && ctest --output-on-failure)
+
+      # whisper-server 不進 git（whisper-runtime/bin/）；「Copy Whisper Runtime」phase 需要它。
+      # 只要 bin、不要 574MB 模型。既有 Build CI 也會踩同一洞——此步專解 Release dry-run 阻塞。
+      - name: Fetch whisper-server binary (not in git)
+        run: WHISPER_FETCH_BIN_ONLY=1 ./whisper-runtime/fetch-runtime.sh
 
       - name: Xcode Debug test (includes golden suites)
         run: >

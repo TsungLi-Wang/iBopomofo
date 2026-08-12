@@ -41,6 +41,12 @@ codesign --force -s - "$BIN/whisper-cli"
 
 # === 3) 本機模型:與 app 首次下載同一顆(見 WhisperServerManager 的 URL/SHA256)===
 # 僅供本機開發測試;發佈版不打包。
+# CI / Release：設 WHISPER_FETCH_BIN_ONLY=1 跳過 ~574MB 模型（Copy Whisper Runtime 只要 bin/）。
+if [ "${WHISPER_FETCH_BIN_ONLY:-0}" = "1" ]; then
+  echo "[3/3] 跳過模型下載（WHISPER_FETCH_BIN_ONLY=1）—— bin/ 已就緒,可以 xcodebuild。"
+  exit 0
+fi
+
 echo "[3/3] 下載 Whisper 模型(large-v3-turbo-q5_0,~574MB)…"
 mkdir -p "$MODELS"
 MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin"
