@@ -101,6 +101,11 @@ EOF
 fail=0
 pass=0
 skip=0
+# fd 3 沒被外面接走就丟掉，讓 `printf … >&3` 永遠安全。
+# 呼叫端要拿逐句結果：./scripts/type-as-user.sh -f 檔 3>results.tsv
+if ! { true >&3; } 2>/dev/null; then
+    exec 3>/dev/null
+fi
 while IFS=$'\t' read -r tag sent keys; do
     [ -z "${tag:-}" ] && continue
     if [ "$tag" = "SKIP" ]; then
@@ -139,6 +144,10 @@ while IFS=$'\t' read -r tag sent keys; do
         sleep 3
         got=$(./scripts/e2e-typing-check.sh "${keys//_/ }" 8 2>/dev/null | tail -1 || true)
     fi
+    # 機器可讀輸出（給 ship-gate 做「對基準的淨傷害」比對用）。
+    # 走 fd 3，不污染人看的那份；沒有人接 fd 3 時自動丟掉。
+    printf 'SENT\t%s\t%s\n' "$sent" "$got" >&3 2>/dev/null || true
+
     if [ "$got" = "$sent" ]; then
         printf "  ✅ %s\n" "$sent"
         pass=$((pass + 1))

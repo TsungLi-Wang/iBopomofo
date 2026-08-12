@@ -126,6 +126,7 @@ open "$HOME/Library/Input Methods/iBopomofo.app"
 | 2.16.0–2.16.1 | 同音規則／頻率壓縮實驗（後以真實語料驗證為淨傷害） |
 | **2.16.2** | **退掉上述有害機制**；留下 的／得 規則 + **v2d（在／再）**；`ship-gate` 出貨關卡 |
 | **2.16.3** | **的／得警察 v1**（句法規則 + 強棄權，反例考卷誤殺 0）；MAIN 資料地基修復；`ship-gate` 補三個洞 |
+| **2.17.0** | **品牌統一 McBopomofo → iBopomofo**（bundle ID／安裝路徑／資料目錄／namespace）；引擎行為零變更 |
 
 完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：以 `git tag`／GitHub Releases 為準（本機錨：**v2.16.3**）。
 
