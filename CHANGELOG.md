@@ -24,6 +24,8 @@
   `scripts/extract-changelog-section.sh`。流程：tag==plist → doc-check → ctest →
   Xcode test → ship-gate **SUBSET** → `package-dmg.sh` → GitHub Release
   （`iBopomofo.dmg` + versioned 副本）。普通 push 不發版。
+- **doc-check CI**：在 `CI`／`GITHUB_ACTIONS` 下不因 `~/`／`$HOME` 本機路徑不存在而 fail
+  （語料、ai-handoff 等）；plist／CHANGELOG／repo 內路徑檢查不變。
 
 ## [2.17.0] — 2026-08-12
 

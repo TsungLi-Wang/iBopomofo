@@ -133,8 +133,25 @@ def check_no_versions_in_docs():
                      f"這樣就不會漂。\n      原文：{line.strip()[:90]}")
 
 
+def running_on_ci():
+    """GitHub Actions / 一般 CI 設 CI=true 或 GITHUB_ACTIONS=true。"""
+    def truthy(k):
+        return os.environ.get(k, "").strip().lower() in ("1", "true", "yes")
+    return truthy("CI") or truthy("GITHUB_ACTIONS")
+
+
+def is_maintainer_home_path(raw: str) -> bool:
+    """文件裡寫的維護者本機路徑（語料、ai-handoff、Library…）—— 不進 repo、不進 Actions。"""
+    if raw.startswith("~/") or raw == "~":
+        return True
+    if raw.startswith("$HOME/") or raw == "$HOME":
+        return True
+    return False
+
+
 def check_paths():
     docs = NO_VERSION_DOCS + PATH_ONLY_DOCS
+    on_ci = running_on_ci()
     for doc in docs:
         lines = read(doc)
         if lines is None:
@@ -151,9 +168,17 @@ def check_paths():
                     continue
                 if "{" in raw:
                     raw = raw.split("{")[0] + "h"
+                # 2026-08-12：CI runner 沒有維護者 ~/Documents、~/ai-handoff 等。
+                # 那些路徑是刻意本機的；在 CI 上「不存在」不得 fail。
+                # 本機（非 CI）仍檢查，避免文件寫錯路徑自己不知道。
+                # 版本裁判（plist / CHANGELOG / 兩份 plist）與 repo 內路徑不受影響。
+                if on_ci and is_maintainer_home_path(raw):
+                    continue
                 checked["路徑"] += 1
                 if raw.startswith("~"):
                     ok = os.path.exists(os.path.expanduser(raw))
+                elif raw.startswith("$HOME"):
+                    ok = os.path.exists(os.path.expandvars(raw))
                 elif "/" in raw:
                     ok = os.path.exists(os.path.join(ROOT, raw))
                 else:
@@ -161,7 +186,6 @@ def check_paths():
                     ok = os.path.basename(raw) in repo_file_index()
                 if not ok:
                     fail("路徑", f"{doc}:{i}", f"`{raw}` 不存在")
-
 
 def check_pbxproj_ids():
     pbx = os.path.join(ROOT, "iBopomofo.xcodeproj/project.pbxproj")

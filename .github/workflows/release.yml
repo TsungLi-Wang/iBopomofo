@@ -129,7 +129,21 @@ jobs:
             exit 1
           fi
 
+      # 歷史 tag（如 v2.17.0）的 tree 可能還沒有「CI 跳過 ~/ 本機路徑」的 doc_check。
+      # 版本裁判仍讀本 worktree 的 plist／CHANGELOG（來自 tag）；只更新檢查腳本本體。
+      - name: Use current doc-check policy from default branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          git fetch --depth=1 origin "$DEFAULT_BRANCH"
+          git show "origin/${DEFAULT_BRANCH}:scripts/doc_check.py" > scripts/doc_check.py
+          git show "origin/${DEFAULT_BRANCH}:scripts/doc-check.sh" > scripts/doc-check.sh
+          chmod +x scripts/doc-check.sh
+          echo "doc-check tools refreshed from origin/${DEFAULT_BRANCH}"
+
       - name: doc-check
+        # GITHUB_ACTIONS/CI 已由 runner 設定；doc_check 在 CI 上不因 ~/ 本機路徑缺失而 fail
         run: ./scripts/doc-check.sh
 
       - name: CHANGELOG must have this version section
