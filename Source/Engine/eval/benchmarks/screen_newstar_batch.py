@@ -25,8 +25,11 @@ import argparse
 import collections
 import re
 import sys
+from pathlib import Path
 
-DATA_TXT = "/Users/johnny.w_macmini/iBopomofo/Source/Data/data.txt"
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+DATA_TXT = __import__("os").environ.get(
+    "IBOPOMOFO_DATA_TXT", str(_REPO_ROOT / "Source" / "Data" / "data.txt"))
 GROUP = ["在", "再"]
 DIRTY = re.compile(r"[，。、！？：；「」『』（）〈〉…—\s0-9A-Za-z]")
 

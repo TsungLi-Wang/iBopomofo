@@ -5,7 +5,10 @@
 - **tw538 已作廢**（歷史句級尺）；本 harness 是難題／同音消歧尺。  
 - 出貨 gate 是 repo 根目錄 `scripts/ship-gate.sh`（**真實語料**不得淨傷害），**不是**本檔的 EX1166 總分。  
 - 預設 scorer 參數：`shipping`、λ=0.75、ν=0.75；**UOM 關閉**。  
-- 出貨權重請用 **`Source/Data/path-char-lstm.bin`（v2d int8）**；`eval/models/path-char-lstm-spoken-v2c.bin` 是舊 float 基準、`…-v2d.bin` 是 float 微調檔，**量「現役產品」時以 Data 下 int8 為準**。
+- 出貨權重請用 **`Source/Data/path-char-lstm.bin`（v2d int8）**；研究用 float 權重在
+  `$IBOPOMOFO_EVAL_MODELS`（預設 `~/laowang-data/eval-models/`；repo 內
+  `Source/Engine/eval/models/` 只留 `.sha256` / `.meta.txt` 索引），
+  **量「現役產品」時以 Data 下 int8 為準**。
 
 ## 與最終出題管線的對齊
 
@@ -48,23 +51,35 @@
 出貨配置：`path-char-lstm.bin` + `shipping 0.75 0.75` + `particle-rules.tsv`；UOM off。  
 EX1166 **只參考**；宣稱進步必須主尺 + 後續 `FLOOR_PASS`。
 
-## 一行跑法（可直接複製；絕對路徑）
+## 環境變數
+
+| 變數 | 預設 | 用途 |
+|------|------|------|
+| `IBOPOMOFO_EVAL_BIN` | `/tmp/newstar_homophone_eval` | 評分機執行檔 |
+| `IBOPOMOFO_CORPUS_DIR` | `$HOME/Documents/i注音-語料/EX1166-題庫` | 真實語料／EX1166 目錄 |
+| `IBOPOMOFO_EVAL_MODELS` | `$HOME/laowang-data/eval-models` | 研究用 `.bin` 權重（不在 git） |
+
+## 一行跑法（相對 repo root；可直接複製）
 
 ```bash
-# 若 /tmp/newstar_homophone_eval 不在，先建置（見下節）
+# 在 repo root；若評分機不在，先建置（見下節）
 # 現役出貨權重 = Source/Data/path-char-lstm.bin（v2d int8）
-/tmp/newstar_homophone_eval \
-  /Users/johnny.w_macmini/Documents/i注音-語料/EX1166-題庫/EX1166-全部.jsonl \
-  /Users/johnny.w_macmini/iBopomofo/Source/Data/data.txt \
-  /Users/johnny.w_macmini/iBopomofo/Source/Data/word-bigrams.tsv \
-  /Users/johnny.w_macmini/iBopomofo/Source/Data/path-char-lstm.bin \
+EVAL="${IBOPOMOFO_EVAL_BIN:-/tmp/newstar_homophone_eval}"
+CORPUS_DIR="${IBOPOMOFO_CORPUS_DIR:-$HOME/Documents/i注音-語料/EX1166-題庫}"
+R="$(pwd)"   # 或任意 repo root
+
+"$EVAL" \
+  "$CORPUS_DIR/EX1166-全部.jsonl" \
+  "$R/Source/Data/data.txt" \
+  "$R/Source/Data/word-bigrams.tsv" \
+  "$R/Source/Data/path-char-lstm.bin" \
   shipping 0.75 0.75
 ```
 
 換題庫只改第一個參數。日常體感另跑：
 
-- `…/自然驗證集-真實語料.jsonl`
-- `…/X驗證集-真實語料.jsonl`
+- `$CORPUS_DIR/自然驗證集-真實語料.jsonl`
+- `$CORPUS_DIR/X驗證集-真實語料.jsonl`
 
 ### 對照實驗（改引擎必跑）
 
@@ -72,16 +87,18 @@ EX1166 **只參考**；宣稱進步必須主尺 + 後續 `FLOOR_PASS`。
 第 9 個是 dump.tsv，第 10 個可選 `particle-rules.tsv`。
 
 ```bash
-EX=/Users/johnny.w_macmini/Documents/i注音-語料/EX1166-題庫/EX1166-全部.jsonl
-R=/Users/johnny.w_macmini/iBopomofo
+EVAL="${IBOPOMOFO_EVAL_BIN:-/tmp/newstar_homophone_eval}"
+CORPUS_DIR="${IBOPOMOFO_CORPUS_DIR:-$HOME/Documents/i注音-語料/EX1166-題庫}"
+EX="$CORPUS_DIR/EX1166-全部.jsonl"
+R="$(pwd)"   # repo root
 ARGS="$R/Source/Data/data.txt $R/Source/Data/word-bigrams.tsv \
       $R/Source/Data/path-char-lstm.bin shipping 0.75 0.75"
 
 # 對照組：機制關閉。**先確認這個數字跟你改程式之前一模一樣**，再往下走。
-/tmp/newstar_homophone_eval $EX $ARGS "" dump-off.tsv
+"$EVAL" $EX $ARGS "" dump-off.tsv
 
 # 實驗組（例：只開 particle 規則；alphas 目前應等同關閉）
-/tmp/newstar_homophone_eval $EX $ARGS \
+"$EVAL" $EX $ARGS \
   $R/Source/Data/confusion-alphas.tsv dump-on.tsv \
   $R/Source/Data/particle-rules.tsv
 ```
@@ -94,8 +111,10 @@ ARGS="$R/Source/Data/data.txt $R/Source/Data/word-bigrams.tsv \
 ## 建置（執行檔不見時）
 
 ```bash
-cd /Users/johnny.w_macmini/iBopomofo/Source/Engine/eval/benchmarks
+# 從 repo root：
+cd Source/Engine/eval/benchmarks
 ENGINE=../..
+EVAL_OUT="${IBOPOMOFO_EVAL_BIN:-/tmp/newstar_homophone_eval}"
 clang++ -std=c++17 -O2 \
   -I"$ENGINE" -I"$ENGINE/gramambular2" \
   newstar_homophone_eval.cpp \
@@ -106,17 +125,19 @@ clang++ -std=c++17 -O2 \
   "$ENGINE/ParselessPhraseDB.cpp" \
   "$ENGINE/MemoryMappedFile.cpp" \
   -framework Accelerate \
-  -o /tmp/newstar_homophone_eval
+  -o "$EVAL_OUT"
 ```
 
-內建 sample 自證：
+內建 sample 自證（repo root）：
 
 ```bash
-/tmp/newstar_homophone_eval \
-  /Users/johnny.w_macmini/iBopomofo/Source/Engine/eval/benchmarks/newstar_sample.jsonl \
-  /Users/johnny.w_macmini/iBopomofo/Source/Data/data.txt \
-  /Users/johnny.w_macmini/iBopomofo/Source/Data/word-bigrams.tsv \
-  /Users/johnny.w_macmini/iBopomofo/Source/Data/path-char-lstm.bin \
+EVAL="${IBOPOMOFO_EVAL_BIN:-/tmp/newstar_homophone_eval}"
+R="$(pwd)"
+"$EVAL" \
+  "$R/Source/Engine/eval/benchmarks/newstar_sample.jsonl" \
+  "$R/Source/Data/data.txt" \
+  "$R/Source/Data/word-bigrams.tsv" \
+  "$R/Source/Data/path-char-lstm.bin" \
   shipping 0.75 0.75
 ```
 

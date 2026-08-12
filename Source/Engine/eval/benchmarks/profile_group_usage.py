@@ -48,9 +48,12 @@
 import argparse
 import collections
 import re
+from pathlib import Path
 
-CORPUS = ("/Users/johnny.w_macmini/laowang-data/batonD-final/traindata/"
-          "hard_mined_full.txt")
+# Default hard-mined corpus under ~/laowang-data; override with --corpus or IBOPOMOFO_HARD_CORPUS.
+CORPUS = __import__("os").environ.get(
+    "IBOPOMOFO_HARD_CORPUS",
+    str(Path.home() / "laowang-data" / "batonD-final" / "traindata" / "hard_mined_full.txt"))
 HAN = re.compile(r"[一-鿿]")
 
 

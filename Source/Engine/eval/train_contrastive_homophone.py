@@ -35,7 +35,7 @@
 
 用法：
     python3 train_contrastive_homophone.py \\
-        --model models/path-char-lstm-spoken-v2c.bin \\
+        --model ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2c.bin \\
         --data /tmp/rc-data -o /tmp/v2d.bin --epochs 2
 """
 

@@ -29,8 +29,11 @@
 """
 
 import os
+from pathlib import Path
 
-DATA_TXT = "/Users/johnny.w_macmini/iBopomofo/Source/Data/data.txt"
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+DATA_TXT = os.environ.get(
+    "IBOPOMOFO_DATA_TXT", str(_REPO_ROOT / "Source" / "Data" / "data.txt"))
 
 # 這些「X得」是固定詞，不是補語結構，排除掉避免誤判
 FIXED_HEADS = set("覺記懂值曉免樂難捨使省顯落認")

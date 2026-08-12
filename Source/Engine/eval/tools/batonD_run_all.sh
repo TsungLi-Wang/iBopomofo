@@ -2,10 +2,10 @@
 # Baton D orchestrator: after mining completes, train D0/D1/D2 short runs and eval.
 set -u
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PATH"
-PY=/Users/johnny.w_macmini/laowang-data/venv/bin/python
-REPO=/Users/johnny.w_macmini/iBopomofo
-OUT=/Users/johnny.w_macmini/laowang-data/batonD-final
-CORPUS=/Users/johnny.w_macmini/laowang-data/ptt_spoken_train_v2.txt
+PY="${IBOPOMOFO_PYTHON:-$HOME/laowang-data/venv/bin/python}"
+REPO="${IBOPOMOFO_REPO:-$HOME/iBopomofo}"
+OUT="${IBOPOMOFO_BATOND_OUT:-$HOME/laowang-data/batonD-final}"
+CORPUS="${IBOPOMOFO_PTT_CORPUS:-$HOME/laowang-data/ptt_spoken_train_v2.txt}"
 TRAIN=$REPO/Source/Engine/eval/train_char_lstm_lm.py
 EVAL=$REPO/Source/Engine/eval/tools/batonD_eval.py
 LOG=$OUT/logs/orchestrator.log

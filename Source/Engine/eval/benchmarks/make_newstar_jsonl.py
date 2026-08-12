@@ -19,6 +19,7 @@ import hashlib
 import json
 import re
 import sys
+from pathlib import Path
 
 # ── 換組改這三行就好 ────────────────────────────────────────────
 GROUP = ["在", "再"]          # 這組的候選字，順序不重要
@@ -30,7 +31,9 @@ WEIGHT = 1.0                  # 該對的頻率權重（進 headline 加權）
 TIER = "single"
 HELDOUT_RATIO = 0.2           # 切多少當 held-out（決定性切分，重跑結果一樣）
 
-DATA_TXT = "/Users/johnny.w_macmini/iBopomofo/Source/Data/data.txt"
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+DATA_TXT = __import__("os").environ.get(
+    "IBOPOMOFO_DATA_TXT", str(_REPO_ROOT / "Source" / "Data" / "data.txt"))
 BOPOMOFO = "".join(chr(c) for c in range(0x3105, 0x312A))  # ㄅ..ㄦ
 TONES = "ˊˇˋ˙"                                             # 二三四聲＋輕聲（一聲不標）
 INITIALS = set("ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙ")

@@ -70,3 +70,7 @@ dd-*/
 
 # ctest 產物（cmake -B 產生的暫時建置目錄）
 Source/Engine/build-*/
+
+# Research eval model weights live outside the repo (IBOPOMOFO_EVAL_MODELS).
+# .meta.txt / .sha256 stay tracked as an index; *.bin already ignored above.
+/Source/Engine/eval/models/*.bin

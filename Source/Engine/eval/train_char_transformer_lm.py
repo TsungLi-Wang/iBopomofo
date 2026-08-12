@@ -29,7 +29,7 @@ Binary export magic "LWTFMR1\\0":
 Usage:
   python3 train_char_transformer_lm.py \\
     --corpus /tmp/ptt-gossip-expand/ptt_spoken_train_v2_packed.txt \\
-    --out ../models/path-char-tf-spoken.bin \\
+    --out ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-tf-spoken.bin \\
     --epochs 4 --stream --device mps
 """
 

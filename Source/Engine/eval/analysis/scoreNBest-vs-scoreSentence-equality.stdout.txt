@@ -1,4 +1,4 @@
-Running main() from /Users/johnny.w_macmini/laowang-zhuyin/Source/Engine/build-test/_deps/googletest-src/googletest/src/gtest_main.cc
+Running main() from $REPO/Source/Engine/build-test/_deps/googletest-src/googletest/src/gtest_main.cc
 Note: Google Test filter = NeuralLMPathScorerEquality*
 [==========] Running 1 test from 1 test suite.
 [----------] Global test environment set-up.

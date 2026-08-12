@@ -3,10 +3,11 @@
 # Requires: /tmp/newstar_homophone_eval (see README-newstar.md)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
-EVAL="${EVAL:-/tmp/newstar_homophone_eval}"
+EVAL="${IBOPOMOFO_EVAL_BIN:-${EVAL:-/tmp/newstar_homophone_eval}}"
 OUT="${OUT:-$HOME/laowang-data/main-scale}"
 MAIN="${MAIN:-$OUT/MAIN_SCALE.jsonl}"
-EX="${EX:-$HOME/Documents/i注音-語料/EX1166-題庫/EX1166-全部.jsonl}"
+CORPUS_DIR="${IBOPOMOFO_CORPUS_DIR:-$HOME/Documents/i注音-語料/EX1166-題庫}"
+EX="${EX:-$CORPUS_DIR/EX1166-全部.jsonl}"
 BIN="$ROOT/Source/Data/path-char-lstm.bin"
 RULES="$ROOT/Source/Data/particle-rules.tsv"
 

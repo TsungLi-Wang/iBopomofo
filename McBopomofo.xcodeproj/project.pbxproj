@@ -92,6 +92,7 @@
 		FACE0073FACE0073FACE0073 /* WhisperVoiceInputManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0072FACE0072FACE0072 /* WhisperVoiceInputManager.swift */; };
 		FACE0105FACE0105FACE0105 /* WhisperServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0106FACE0106FACE0106 /* WhisperServerManager.swift */; };
 		FACE0129FACE0129FACE0129 /* ContextualWalkPunctuationRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */; };
+		FACE033DFACE033DFACE033D /* CommitContractGoldenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE033EFACE033EFACE033E /* CommitContractGoldenTests.swift */; };
 		FACE0041FACE0041FACE0041 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
 		FACE0042FACE0042FACE0042 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
 		D44FB74D2792189A003C80A6 /* PhraseReplacementMap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D44FB74B2792189A003C80A6 /* PhraseReplacementMap.cpp */; };
@@ -275,6 +276,7 @@
 		FACE0072FACE0072FACE0072 /* WhisperVoiceInputManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperVoiceInputManager.swift; sourceTree = "<group>"; };
 		FACE0106FACE0106FACE0106 /* WhisperServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperServerManager.swift; sourceTree = "<group>"; };
 		FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextualWalkPunctuationRegressionTests.swift; sourceTree = "<group>"; };
+		FACE033EFACE033EFACE033E /* CommitContractGoldenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitContractGoldenTests.swift; sourceTree = "<group>"; };
 		FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuarantineHelper.swift; sourceTree = "<group>"; };
 		D44FB74B2792189A003C80A6 /* PhraseReplacementMap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PhraseReplacementMap.cpp; sourceTree = "<group>"; };
 		D44FB74C2792189A003C80A6 /* PhraseReplacementMap.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PhraseReplacementMap.h; sourceTree = "<group>"; };
@@ -619,6 +621,7 @@
 			isa = PBXGroup;
 			children = (
 				FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */,
+				FACE033EFACE033EFACE033E /* CommitContractGoldenTests.swift */,
 				D436E23E2CD20B9E00C6155D /* AssociatedPhrasesTests.swift */,
 				D47D73A327A5D43900255A50 /* KeyHandlerBopomofoTests.swift */,
 				D4A8E43527A9E982002F7A07 /* KeyHandlerPlainBopomofoTests.swift */,
@@ -989,6 +992,7 @@
 			files = (
 				D4A8E43627A9E982002F7A07 /* KeyHandlerPlainBopomofoTests.swift in Sources */,
 				FACE0129FACE0129FACE0129 /* ContextualWalkPunctuationRegressionTests.swift in Sources */,
+				FACE033DFACE033DFACE033D /* CommitContractGoldenTests.swift in Sources */,
 				D436E23F2CD20BA700C6155D /* AssociatedPhrasesTests.swift in Sources */,
 				D449AD5F2B393C00000C5812 /* InputMacroTests.swift in Sources */,
 				D4C2A9872B4309D700113711 /* UTF8HelperTest.mm in Sources */,

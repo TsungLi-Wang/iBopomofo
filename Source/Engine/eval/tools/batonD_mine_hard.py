@@ -21,12 +21,18 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-ROOT = Path.home() / "iBopomofo"
+ROOT = Path(__file__).resolve().parents[3]
 DATA = Path.home() / "laowang-data"
 OUT = DATA / "batonD-final"
 TD = OUT / "traindata"
 CORPUS = DATA / "ptt_spoken_train_v2.txt"
-V2C_BIN = ROOT / "Source/Engine/eval/models/path-char-lstm-spoken-v2c.bin"
+# Research weights live outside the repo (IBOPOMOFO_EVAL_MODELS).
+EVAL_MODELS = Path(
+    __import__("os").environ.get(
+        "IBOPOMOFO_EVAL_MODELS", str(Path.home() / "laowang-data" / "eval-models")
+    )
+)
+V2C_BIN = EVAL_MODELS / "path-char-lstm-spoken-v2c.bin"
 TW538 = ROOT / "Source/Engine/eval/benchmarks/tw538-northstar.tsv"
 ERR_MAP = ROOT / "Source/Engine/eval/analysis/tw538-error-map.tsv"
 RES_ENT = ROOT / "Source/Engine/eval/analysis/tw538-residual-entropy.tsv"
@@ -378,6 +384,14 @@ def main():
     print(pair_stats, flush=True)
 
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    if not V2C_BIN.is_file():
+        raise SystemExit(
+            f"找不到研究模型 {V2C_BIN}\n"
+            f"請將 path-char-lstm-spoken-v2c.bin 放到 "
+            f"$IBOPOMOFO_EVAL_MODELS（預設 ~/laowang-data/eval-models/），"
+            f"或設定 IBOPOMOFO_EVAL_MODELS 指向存放處。\n"
+            f"索引與 SHA 見 Source/Engine/eval/models/*.sha256。"
+        )
     print(f"loading v2c on {device}...", flush=True)
     model, itos, stoi, arch = load_lwlstm1(V2C_BIN, device)
     print(f"v2c arch={arch}", flush=True)

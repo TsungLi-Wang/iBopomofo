@@ -20,8 +20,12 @@
 import argparse
 import collections
 import re
+from pathlib import Path
 
-DATA_TXT = "/Users/johnny.w_macmini/iBopomofo/Source/Data/data.txt"
+# Repo-relative data.txt (override with IBOPOMOFO_DATA_TXT if needed).
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+DATA_TXT = __import__("os").environ.get(
+    "IBOPOMOFO_DATA_TXT", str(_REPO_ROOT / "Source" / "Data" / "data.txt"))
 DIRTY = re.compile(r"[，。、！？：；「」『』（）〈〉…—\s0-9A-Za-z]")
 # 依 Johnny 定稿的 100 句實測分佈校準（2026-08-07，中位數 8 字、平均 8.8）。
 # 長句已由 Johnny 裁決刪除 —— 台灣人日常打字不打長句，硬生出來的長句不自然。

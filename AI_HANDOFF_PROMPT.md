@@ -61,7 +61,7 @@ gh issue list                               # 目前開著的工作
 
 ---
 
-## 目前狀態（2026-08-12 收工）
+## 目前狀態（2026-08-12 · 棒⑤ 後）
 
 1. **發版**：**v2.16.3**（見 `CHANGELOG.md`）。相對 2.16.2 多了**的／得警察 v1**。
 2. **公開**：https://github.com/TsungLi-Wang/iBopomofo
@@ -73,14 +73,21 @@ gh issue list                               # 目前開著的工作
 4. **出貨一律跑 `./scripts/ship-gate.sh`**，沒過不准發版。
    ⚠️ 加新規則表時，**`ship-gate.sh` 與 `KeyHandler.mm` 兩邊的載入清單都要改**，
    否則關卡是在驗一個跟出貨不同的配置（2026-08-12 踩過）。
+5. **棒⑤（可重現性 + 定案 golden）已落地**（行為零變更）：
+   * `ship-gate.sh` 三態 `FULL`/`SUBSET`/`FAIL`；環境變數
+     `IBOPOMOFO_CORPUS_DIR` / `IBOPOMOFO_EVAL_BIN` / `IBOPOMOFO_EVAL_MODELS`
+   * 研究 `.bin` 在 `~/laowang-data/eval-models/`（repo 只留 SHA 索引）
+   * 定案契約：`McBopomofoTests/CommitContractGoldenTests.swift`（24 案 + mutation）
+   * 回報：`~/ai-handoff/20260812-baton5-report.md`
 
-### ⚠️ 2.16.3 發版時沒能跑完的關卡（下一棒請補）
+### ⚠️ 2.16.3 發版時沒能跑完的關卡（仍待有權限環境補）
 
 - **關卡 1 的 PTT 那份跑不了**：`~/Documents/…/自然驗證集-真實語料.jsonl` 在
-  統治局的執行環境下是 `EPERM`（POSIX 權限正常 644，是 macOS TCC 擋的；
-  同目錄的 X 驗證集讀得到）。**X 驗證集實測 救 3、壞 0 通過**，PTT 那份未驗。
+  部分執行環境是 `EPERM`（POSIX 權限正常 644，是 macOS TCC 擋的；
+  同目錄的 X 驗證集讀得到）。棒⑤ 在此機器上 `ship-gate` 因此只能到
+  `SHIP_GATE_STATUS=SUBSET`（1/2 語料），**不是 FULL**。
 - **關卡 3（實機打字）被跳過**：當時 i注音不是當前輸入法。
-- 這兩項需要在有權限、且 i注音為現用輸入法的環境下補跑。
+- 這兩項需要在有權限、且 i注音為現用輸入法的環境下補跑才得 `FULL`。
 
 ### 驗證資產（這是這一棒最有價值的產出）
 

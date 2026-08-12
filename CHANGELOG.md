@@ -8,7 +8,20 @@
 
 ## [Unreleased]
 
-（本段暫無項目。）
+### 內部（棒⑤ · 2026-08-12 · 可重現性止血 ＋ 定案契約 golden）
+
+- **行為零變更**：未改規則表、模型、alpha、pipeline 預設、KeyHandler 出貨邏輯。
+- **A1 評測路徑參數化**：`IBOPOMOFO_CORPUS_DIR` / `IBOPOMOFO_EVAL_BIN`（及
+  `IBOPOMOFO_EVAL_MODELS`）；repo 內掃掉 `johnny.w_macmini` 絕對路徑。
+- **A2 `ship-gate.sh` 三態**：`FULL` / `SUBSET` / `FAIL`；最後一行
+  `SHIP_GATE_STATUS=…`。`SUBSET` 明確標「不足以作為出貨依據」。
+- **A3 研究模型搬出**：`Source/Engine/eval/models/*.bin` →
+  `~/laowang-data/eval-models/`（SHA256 逐檔一致）；repo 只留 `.sha256`/`.meta.txt`
+  索引。**未重寫 git 歷史**。
+- **B 定案契約 golden**：`McBopomofoTests/CommitContractGoldenTests.swift` 24 案
+  （定案≠送出、period/comma、1→1 reselect、手選壓過、caret 可讀/不可讀），
+  每案附 mutation check 會紅；產品碼已還原。
+- 回報：`~/ai-handoff/20260812-baton5-report.md`
 
 ## [2.16.3] — 2026-08-12
 

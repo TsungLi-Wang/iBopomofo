@@ -70,7 +70,7 @@ meta：`{"n_pairs": 203, "sent_patterns": {"single_char_swap": 87, "multi_char_s
 
 ```
 {
-  "corpus": "/Users/johnny.w_macmini/laowang-data/ptt_spoken_train_v2.txt",
+  "corpus": "~/laowang-data/ptt_spoken_train_v2.txt",
   "n_corpus_lines": 5271221,
   "pair_stats": {
     "top_n_pairs": 80,

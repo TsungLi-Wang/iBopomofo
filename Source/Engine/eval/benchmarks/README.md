@@ -52,7 +52,8 @@ Shipping app (v2.16.2+) uses **int8 v2d** under `Source/Data/path-char-lstm.bin`
 (v2c architecture + 在/再 contrastive micro-tune). Float checkpoints below are
 for lab reproduction only.
 
-Weights (persistent under `../models/`):
+Weights (research assets under `$IBOPOMOFO_EVAL_MODELS`, default `~/laowang-data/eval-models/`;
+index `.sha256`/`.meta.txt` remain under `Source/Engine/eval/models/`):
 
 | weight | arch | params | best on tw538 | mean_ms | SHA256 file |
 |--------|------|--------|---------------|---------|-------------|
@@ -80,16 +81,16 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
 # NEW BEST (v2c)
 /tmp/nbest_neural tw538-northstar.tsv ../../../Data/data.txt \
  ../../../Data/word-bigrams.tsv 0.75 \
- ../models/path-char-lstm-spoken-v2c.bin
+ ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2c.bin
 # expect: BEST_NU 0.75 correct 387/537 ; mean_ms≈730
 # walk OFF 296 / walk ON 333 (SLICE1_*)
 
 # v2b 374
-/tmp/nbest_neural ... ../models/path-char-lstm-spoken-v2b.bin
+/tmp/nbest_neural ... ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2b.bin
 # expect: BEST_NU 0.75 correct 374/537
 
 # v1 baseline 356
-/tmp/nbest_neural ... ../models/path-char-lstm-spoken.bin
+/tmp/nbest_neural ... ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken.bin
 # expect: BEST_NU 0.5 correct 356/537
 ```
 
@@ -111,7 +112,7 @@ python3 ../build_spoken_corpus.py \
 # (a) emb64/hid128 (b) emb128/hid256 (c) emb256/hid512
 python3 ../train_char_lstm_lm.py \
  --corpus /tmp/ptt_spoken_train_v2_packed.txt \
- --out ../models/path-char-lstm-spoken-v2c.bin \
+ --out ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2c.bin \
  --epochs 4 --emb 256 --hidden 512 --layers 2 \
  --batch 128 --seq-len 64 --stream --device mps
 ```
@@ -125,7 +126,7 @@ flat concat keeps those boundary tokens between segments (no bare cross-doc spli
 # train (~8.8M params: 6L d256 h4 ffn1024 ctx128)
 python3 ../train_char_transformer_lm.py \
  --corpus /tmp/ptt_spoken_train_v2_packed.txt \
- --out ../models/path-char-tf-spoken.bin \
+ --out ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-tf-spoken.bin \
  --epochs 4 --stream --device mps
 
 # eval (auto-detects LWTFMR1 magic)
@@ -133,7 +134,7 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
  nbest_path_rerank_any.cpp NeuralTFPathScorer.cpp ...same engine objs... \
  -o /tmp/nbest_any
 /tmp/nbest_any tw538-northstar.tsv ../../../Data/data.txt \
- ../../../Data/word-bigrams.tsv 0.75 ../models/path-char-tf-spoken.bin
+ ../../../Data/word-bigrams.tsv 0.75 ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-tf-spoken.bin
 # recorded: best positive ν 0.25 → 332/537 (worse than walk ON 333)
 ```
 
@@ -149,7 +150,7 @@ mix beats both.
 
 | weight | arch | params | best on tw538 | SHA256 |
 |---|---|---|---|---|
-| `../models/cond-converter-v2.bin` (~47MB) | emb256/hid512/L1 | 11,681,373 | cond-only 383 @ ν0.75; **mix 397** | `bbddad36f3cf03cfd497626bde5124360a22bfc961a0d3e76ef13ab7118880c3` |
+| `${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/cond-converter-v2.bin` (~47MB) | emb256/hid512/L1 | 11,681,373 | cond-only 383 @ ν0.75; **mix 397** | `bbddad36f3cf03cfd497626bde5124360a22bfc961a0d3e76ef13ab7118880c3` |
 
 ```bash
 # eval: cond-only ν scan + v2c control + 3-way mix + A-class dump
@@ -160,7 +161,7 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
  "$ENGINE/ParselessPhraseDB.cpp" "$ENGINE/MemoryMappedFile.cpp" -o /tmp/tw538_cond_rerank
 /tmp/tw538_cond_rerank tw538-northstar.tsv ../../../Data/data.txt \
  ../../../Data/word-bigrams.tsv 0.75 \
- ../models/cond-converter-v2.bin ../models/path-char-lstm-spoken-v2c.bin
+ ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/cond-converter-v2.bin ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2c.bin
 # expect: LSTM_ONLY NU 0.75 → 387 ; MIX nu_lstm=0.5 kappa_cond=0.25 → 397
 ```
 
@@ -186,7 +187,7 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
  "$ENGINE/ParselessPhraseDB.cpp" "$ENGINE/MemoryMappedFile.cpp" -o /tmp/zenzai_cond
 /tmp/zenzai_cond tw538-northstar.tsv ../../../Data/data.txt \
  ../../../Data/word-bigrams.tsv 0.75 \
- ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
+ ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2c.bin ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/cond-converter-v2.bin \
  5 8 0.5 0.25 0.5 -2.5
 # expect: BASE397_CONTROL 397 · ZENZAI_CORRECT 400 · B_CLASS_FIXED 4/67
 # READING_FIDELITY_FAIL 0/537 ; args = max_bad max_props nuV2c kCond margin logp_thr
@@ -219,7 +220,7 @@ clang++ -std=c++17 -O2 -I../.. -I../../gramambular2 \
  ../../ParselessPhraseDB.cpp ../../MemoryMappedFile.cpp \
  ../../gramambular2/reading_grid.cpp -framework Accelerate -o /tmp/rerank_opt
 /tmp/rerank_opt tw538-northstar.tsv ../../../Data/data.txt \
- ../../../Data/word-bigrams.tsv 0.75 ../models/path-char-lstm-spoken-v2c.bin 0.75 0
+ ../../../Data/word-bigrams.tsv 0.75 ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2c.bin 0.75 0
 # → CORRECT 387/537 · MEAN_MS_TOTAL ~44 ; int8=1 → 387 (lossless)
 ```
 
@@ -247,11 +248,11 @@ stop): `../analysis/cond-proposer-silence-diag-tw538.md` (+ per-sentence `.tsv`)
 # T1: writes bucket TSV; T2: last 3 args = beam_pos beam_k beam_width (0=off)
 /tmp/zenzai_diag tw538-northstar.tsv ../../../Data/data.txt \
  ../../../Data/word-bigrams.tsv 0.75 \
- ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
+ ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2c.bin ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/cond-converter-v2.bin \
  5 8 0.5 0.25 0.5 -2.5 ../analysis/cond-proposer-silence-diag-tw538.tsv
 /tmp/zenzai_mp tw538-northstar.tsv ../../../Data/data.txt \
  ../../../Data/word-bigrams.tsv 0.75 \
- ../models/path-char-lstm-spoken-v2c.bin ../models/cond-converter-v2.bin \
+ ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2c.bin ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/cond-converter-v2.bin \
  5 8 0.5 0.25 0.5 -2.5 8 3 8 # → BASE397 397 · reached 11 · twovote m=1 402
 ```
 
@@ -263,7 +264,7 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
  tw538_a_class_attr.cpp ... -o /tmp/tw538_a_class_attr
 /tmp/tw538_a_class_attr tw538-northstar.tsv ../../../Data/data.txt \
  ../../../Data/word-bigrams.tsv 0.75 \
- ../models/path-char-lstm-spoken.bin 0.5 10 \
+ ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken.bin 0.5 10 \
  ../analysis/tw538-a-attr.tsv
 # expect: FUSION_LOSS 28 / MODEL_LOSS 86
 
@@ -278,7 +279,7 @@ clang++ -std=c++17 -O2 -I"$ENGINE" -I"$ENGINE/gramambular2" \
  tw538_decision_map.cpp ...same sources as above... -o /tmp/tw538_decision_map
 /tmp/tw538_decision_map tw538-northstar.tsv ../../../Data/data.txt \
  ../../../Data/word-bigrams.tsv 0.75 \
- ../models/path-char-lstm-spoken.bin 0.5 10 \
+ ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken.bin 0.5 10 \
  ../analysis/tw538-error-map.tsv
 
 python3 ../analysis/classify_tw538_errors.py \
