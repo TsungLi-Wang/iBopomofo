@@ -8,7 +8,19 @@ iBopomofo (i注音) is a macOS Traditional Chinese Bopomofo input method forked 
 
 Internal identifiers were unified to `iBopomofo` on 2026-08-12 (baton 6), taken while the project still had exactly one (developer) user, so the migration cost was near zero. Deliberately kept as-is: upstream copyright attribution, the dictionary on-disk format magic string, and historical archives. **General rule:** if changing a string would also require changing its reader and regenerating data, KEEP it — that is a file-format change, not a rename.
 
-**Current line:** 現役版本不寫在這裡 —— 見 `CHANGELOG.md` 最上面的已發布段落，或 `Source/McBopomofo-Info.plist`。收工前跑 `./scripts/doc-check.sh` 驗一致性；**發版前**跑 `./scripts/ship-gate.sh`（真實語料不得淨傷害 + 引擎測試 + 實機打字抽驗）。  
+**Current line:** 現役版本不寫在這裡 —— 見 `CHANGELOG.md` 最上面的已發布段落，或 `Source/McBopomofo-Info.plist`。收工前跑 `./scripts/doc-check.sh` 驗一致性；**發版前**跑 `./scripts/ship-gate.sh`（**CORE＝離線語料＋單元測試**；預設**不**跑實機打字。實機要 `SHIP_GATE_E2E=1`，人在螢幕前自願跑。禁止為「選不到輸入法」重試多輪）。  
+
+### ⛔ 出貨關卡分類鐵則（2026-08-12 · 禁止再混）
+
+| 種類 | 是什麼 | 需要 GUI／輸入法？ | 誰該跑 |
+|------|--------|-------------------|--------|
+| **CORE**（關卡 1＋2） | 真實語料淨傷害＋引擎 ctest | **否**（純離線） | 每次發版／改選字必跑 |
+| **E2E**（關卡 3） | TextEdit 模擬打字 | **是** | 僅 `SHIP_GATE_E2E=1` 且 Johnny／人在場 |
+
+- `SHIP_GATE_STATUS=CORE`＝可出貨依據（語料齊且 1＋2 過）。  
+- `FULL`＝CORE＋E2E 都過。`FAIL`＝CORE 掛，或你強制 E2E 卻掛。  
+- **AI 禁止**：因 E2E 選不到 i注音而改腳本／重試／開 TextEdit 纏鬥。那是環境問題，不是選字 bug。  
+
 **Canonical product rule (v2.13.0+):** 定案 ≠ 送出; post-commit ↓ reselect 1→1; **v2.14.0** post-commit correction also feeds UOM soft personalization (one pick → soft active). **v2.15.0** 的/得 結果補語規則. **v2.16.2** 退掉 v2.16.0/1 的六組同音規則與頻率壓縮；留下 particle + v2d.  
 Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md` + GitHub Issues（`deadend`／開著的 issue）+ `~/Documents/i注音-傳承交接檔.md`（軍師視角；**產品現況以 CHANGELOG + plist 為準**）。
 
@@ -218,7 +230,7 @@ iBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detaile
 | `Source/Data/particle-rules.tsv` | 的/得 結果補語規則（**仍出貨**）；六組同音歸納規則已移至 `Source/Engine/eval/artifacts/homophone-rules-failed.tsv` |
 | `Source/Data/path-char-lstm.bin` | 出貨神經權重（**v2d int8**；架構 v2c） |
 | `Source/Data/confusion-alphas.tsv` | 頻率先驗壓縮表（機制仍在；**條目已清空**，2026-08-11 停用） |
-| `scripts/ship-gate.sh` | 出貨三關；沒過不准發版 |
+| `scripts/ship-gate.sh` | 出貨 CORE（語料＋ctest）；E2E 預設關。`SHIP_GATE_STATUS=CORE` 可出貨 |
 
 ## Development Guidelines
 
@@ -287,7 +299,7 @@ iBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detaile
 - Snapshot/restore `UserDefaults` in tests (see `PreferencesTests.swift`)
 - **⚠️ 舊北極星 tw538 已作廢（2026-08），不得再當 gate。** 舊參考值（walk ON 333/537、v2c 387/537）只當歷史。
 - **難題尺 EX1166**（`~/Documents/i注音-語料/EX1166-題庫/`，約 5,646 題）：字級同音消歧、pair 加權、train/heldout。工具：`newstar_homophone_eval` + `profile_group_usage.py` / `screen_newstar_batch.py` / `assemble_newstar_batch.py` / `make_newstar_jsonl.py` / `error_taxonomy.py` / `oracle_ceiling`。**分數只量難題能力，不是日常體感。**
-- **出貨驗收：** `./scripts/ship-gate.sh` —— 真實語料驗證集（PTT／X）不得淨傷害 + 引擎 ctest + 實機打字抽驗。改選字機制時**兩份都要跑**（EX1166 + 真實語料），且**驗證來源必須與機制來源不同**（已用 EX1166 自驗兩次翻車）。
+- **出貨驗收：** `./scripts/ship-gate.sh` —— **CORE**：真實語料（PTT／X）不得淨傷害 + 引擎 ctest。實機打字是可選 E2E（`SHIP_GATE_E2E=1`），與 CORE 無關。改選字機制時**兩份真實語料都要跑**，且**驗證來源必須與機制來源不同**（已用 EX1166 自驗兩次翻車）。
 - **Live end-to-end typing verification (no human needed):** after changing any
   typing-time behavior (L1 rerank, deferred neural rerank, disambiguator, key
   handling, contextual walk, personalization), run `./scripts/e2e-typing-check.sh "<US key sequence>"` — it types

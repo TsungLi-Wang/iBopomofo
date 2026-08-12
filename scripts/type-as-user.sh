@@ -144,6 +144,20 @@ while IFS=$'\t' read -r tag sent keys; do
         sleep 3
         got=$(./scripts/e2e-typing-check.sh "${keys//_/ }" 8 2>/dev/null | tail -1 || true)
     fi
+
+    # ── 立刻中止：出字像「注音鍵序被當英文打」（ao6g42k7…）──
+    # 這是 harness／輸入法環境問題，不是引擎選錯字。繼續打完整輪＝蠻幹＋浪費時間。
+    # 2026-08-12：曾因此卡整晚；鐵則：一出現就整輪 FAIL(harness)，不准重試選輸入法。
+    if [ -n "$got" ]; then
+        if printf '%s' "$got" | grep -qE '^[a-zA-Z0-9 /;,.=\[\]'\''\\_+-]{4,}$'; then
+            printf "  ⛔ harness 失敗：想打「%s」卻得到英文鍵序「%s」\n" "$sent" "$got" >&2
+            printf "     → TextEdit 當下不是 i注音（或送鍵沒進輸入法）。這不是選字 bug。\n" >&2
+            printf "     → 整輪中止，不重試、不換招數硬切輸入法。\n" >&2
+            echo "TYPE_AS_USER=FAIL(harness-latin-keys)"
+            exit 2
+        fi
+    fi
+
     # 機器可讀輸出（給 ship-gate 做「對基準的淨傷害」比對用）。
     # 走 fd 3，不污染人看的那份；沒有人接 fd 3 時自動丟掉。
     printf 'SENT\t%s\t%s\n' "$sent" "$got" >&3 2>/dev/null || true

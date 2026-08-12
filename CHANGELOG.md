@@ -10,10 +10,11 @@
 
 ### 內部（驗收腳本 · 2026-08-12）
 
-- **實機打字 harness**：新增 `scripts/select-ibopomofo-ime.swift`；
-  `type-as-user.sh`／`e2e-typing-check.sh` 改為在 TextEdit 前台時主動切到 i注音，
-  不再要求「跑腳本的終端機當前已是 i注音」（macOS「依 App 記輸入法」會誤判）。
-  **不改打字引擎行為。** 關卡 3 基準檔仍未建立（整輪仍可能中途掉成英文鍵）。
+- **出貨關卡強制拆開 CORE／E2E**（Johnny 明令：禁止再為「選不到輸入法」纏鬥）：
+  - `ship-gate.sh` 預設只跑離線關卡 1＋2 → `SHIP_GATE_STATUS=CORE` 即可作出貨依據。
+  - 實機打字（關卡 3）預設**不跑**；要跑才設 `SHIP_GATE_E2E=1`。
+  - `type-as-user.sh` 若打出英文鍵序（`ao6g42k7…`）→ 立刻 `FAIL(harness-latin-keys)` 整輪中止，不重試。
+- 另：`select-ibopomofo-ime.swift` 等 harness 輔助仍在，但**不得**當背景 session 的主線。
 
 ## [2.17.0] — 2026-08-12
 
