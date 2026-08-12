@@ -61,22 +61,84 @@ gh issue list                               # 目前開著的工作
 
 ---
 
-## ⚠️⚠️ 開場第一件事：棒⑥ 品牌改名 —— 新版已上線，活體層四項驗了三項
+## ⚠️⚠️ 開場第一件事：v2.17.0 已發布，但有兩件事沒收乾淨
 
-**2026-08-12 收工時的狀態。接手第一件事就是讀這節，不要先動別的。**
+**2026-08-12 收工狀態（棒⑥＋棒⑦）。接手第一件事就是讀這節。**
 
-棒⑥ 把內部識別符從 McBopomofo 改成 iBopomofo。**五階段程式碼完成並 push；
-新版已實際安裝、啟用、成為 Johnny 目前在用的輸入法。**
+棒⑥ 把內部識別符從 McBopomofo 改成 iBopomofo；棒⑦ 發布 **v2.17.0**
+（build 2324、tag `v2.17.0`、commit `d7a571ea`）。新版已安裝並是 Johnny 在用的輸入法。
 
-### 現在的活體狀態（2026-08-12 15:30）
+### 🔴 欠 Johnny 的兩件事（下一棒先處理這個，不要先寫新東西）
+
+**1. 輸入法清單被我弄髒了，我沒能清乾淨 —— Johnny 對這件事很不滿。**
+
+多出來的是這一棒造成的：`小麥注音（舊）`、`傳統注音（舊）`
+（為了新舊對照，把舊 app 的顯示名改標記並啟用過）。`Bopomofo (old)` 已關掉。
+Johnny 要的最終狀態是**只有 ABC ＋ 最新 i注音**（他也要求移除 Apple 的「注音」）。
+
+**已試過、不要再試**：`TISDisableInputSource` 從背景程序呼叫會回 `noErr`
+但系統一律還原（五次重試、每次驗證，全部失敗）。直接寫
+`com.apple.HIToolbox.plist` 也不可靠（on-disk 落後於 live 狀態）。 <!-- doc-check-ignore -->
+背景程序沒有權限持久化這份清單 —— 跟開場那個 `Cannot enable input source` 同源。
+
+**可行的兩條路**：
+- Johnny 自己在 系統設定 → 鍵盤 → 輸入法 → 編輯… 按減號移除（約 20 秒）。
+- 或開**螢幕錄製權限**給 Claude，用 computer-use 直接操作系統設定（我卡在這裡）。
+
+備份：`~/ai-handoff/20260812-HIToolbox-backup.plist`。
+另：`Squirrel - Simplified`（Rime，在 `/Library/Input Methods/`）不是我們放的。
+
+**2. `scripts/ship-gate-baseline.tsv` 還沒建。** <!-- doc-check-ignore -->
+
+關卡 3 的判定已改為「對基準的淨傷害」，但基準檔要一次**完整跑完**的實機打字才能建。
+2026-08-12 那個登入階段已經因為砍太多次輸入法而失效（見下）。
+**下一棒在剛登入的乾淨 session 第一件事跑 `./scripts/ship-gate.sh`**，
+關卡 3 會自動建基準並印「首次建立基準（本關不擋）」。之後才會真正擋迴歸。
+
+### v2.17.0 的 ship-gate 實際結果（誠實版）
+
+```
+── 模式：FULL（兩份真實語料齊全）──
+  ✅ 自然驗證集-真實語料：救 1、壞 0
+  ✅ X驗證集-真實語料：救 3、壞 0
+  ✅ 引擎單元測試 全過
+── 關卡 3／3：實機打字 ──
+  目前輸入法不是 i注音：com.apple.keylayout.ABC
+  ❌ 一句都沒真的打到 —— 這一關沒有跑到，不能當通過
+SHIP_GATE_STATUS=FAIL
+```
+
+**關卡 1、2 是 FULL 真跑真綠（私有語料讀得到，不是 TCC 問題）。
+關卡 3 沒跑到，是環境問題不是判定問題** —— 判定已改成淨傷害制，坐/做 不再擋。
+Johnny 在授權 SUBSET 的前提下拍板照發。
+
+關卡 3 在環境還健康時（同日稍早）跑過四輪，唯一穩定的非 harness 差異是
+`你先坐這裡等一下` → `你先做這裡等一下`，**且舊版 McBopomofo 輸出完全相同＝零淨傷害**。
+
+### 現在的活體狀態（2026-08-12）
 
 | | 新版 | 舊版（退路） |
 |---|---|---|
 | 路徑 | `~/Library/Input Methods/iBopomofo.app` | `~/Library/Input Methods/McBopomofo.app` |
 | Input source | `io.ibopomofo.inputmethod.iBopomofo.iBopomofo.Bopomofo` | `org.openvanilla.…McBopomofo.Bopomofo` |
-| 版本 | 2.16.3 / 2323 / **GitRevision f2b8eda0** | 2.16.3 / 2323 / GitRevision d1f0ee49 |
 | 選單顯示名 | **i注音** | **小麥注音（舊）** |
-| 狀態 | 已啟用、**目前選用中** | 已停用（檔案沒刪） |
+| 狀態 | 已啟用、目前選用中 | 主模式已停用；`傳統注音（舊）` 還在（見上面「欠 Johnny 的兩件事」） |
+
+⚠️ **已安裝的那份 app 是 2.16.3 / build 2323（GitRevision `f2b8eda0`），
+不是剛發布的 2.17.0。** 版號 bump 之後**沒有重新 build 安裝**——
+發版動的是 repo 與 tag，Johnny 機器上跑的仍是 bump 前那份二進位。
+兩者程式碼差異只有版號字串，但**如果要驗「使用者裝到的 2.17.0」，必須先重新 build 安裝**：
+
+```bash
+xcodebuild -project iBopomofo.xcodeproj -scheme iBopomofo \
+  -configuration Release -derivedDataPath build/dd-rel build
+killall iBopomofo 2>/dev/null || true
+ditto build/dd-rel/Build/Products/Release/iBopomofo.app \
+  "$HOME/Library/Input Methods/iBopomofo.app"
+```
+
+（勿 `rm -rf` 安裝路徑，會被踢出選單列。裝完用選單「顯示目前生效設定…」
+確認 version 2.17.0 / build 2324。）
 
 **兩個 app 的 zh-Hant 顯示名原本都是「i注音」**（品牌改名早於識別符改名），
 在系統設定的輸入法清單裡完全分不出誰是誰。已把**舊**版的 `InfoPlist.strings`
@@ -134,7 +196,7 @@ gh issue list                               # 目前開著的工作
   `KeyHandler.mm` 96 行抵銷後只剩 4 行 input mode ID 字串。根因是 `observe()`
   的 `breakingUp` 分支用**校正後**的 walk 組鍵，下次查不中 → **issue #10**。
 
-**棒⑥ 可以視為上線成功；但「全綠」還差 grok 對照那一項，別宣稱完成且已驗證。**
+**棒⑥ 已上線並隨 v2.17.0 發布。** 唯一沒有取得結論的是 ship-gate 關卡 3（見本節開頭）。
 
 ### 自動層已驗（FULL）
 
@@ -168,32 +230,25 @@ macOS 重開機會清 `/tmp`。棒⑥ 上線這天發現有三樣「重要東西
 
 `./scripts/doc-check.sh` 會抓文件裡不存在的路徑 —— 這三個就是它抓出來的。
 
-### 還沒做的一件：發版（等 Johnny 拍板）
+### 發版已完成（棒⑦ · 2026-08-12）
 
-**版號提案：2.16.3 → 2.17.0（minor bump），tag `v2.17.0`。**
-理由：bundle ID／安裝路徑／資料目錄都變了＝使用者可見的封裝與身分變更，
-照版本鐵則不能只 patch bump；沒有引擎或解碼行為變更，所以不是 major。
-**major/minor 由 Johnny 決定，執行者只提建議。** 目前 plist 仍是 2.16.3 / build 2323。
+**v2.17.0 / build 2324 / tag `v2.17.0` / commit `d7a571ea`，已 push。**
+兩份 plist、CHANGELOG、README 版本歷程表都已同步，`doc-check` 180 項全綠。
 
-發版前置（缺一不可）：
+發版當下的 ship-gate 結果與「為什麼在關卡 3 沒有結論就照發」，見本節最開頭。
 
-1. `./scripts/ship-gate.sh` 要 `SHIP_GATE_STATUS=FULL` 且全綠。
-   評分機不在時先跑 `./scripts/build-eval.sh`（約 20 秒）。
+下次發版照這四步（這次踩過的坑都寫在裡面）：
 
-   ⚠️ **關卡 3（實機打字）現在會擋著。** 2026-08-12 修掉它的假綠燈之後
-   （原本 grep `❌` 判定，`type-as-user.sh` 早退時一句沒打也印綠 —— 當天那次
-   `SHIP_GATE_STATUS=FULL` 的關卡 3 就是這樣來的，**沒有真的打任何字**），
-   `你先坐這裡等一下` → `你先做這裡等一下` 四輪全錯。
-   **已用舊版 McBopomofo 對照，輸出相同，不是棒⑥ 迴歸。**
-   要把它留在 `scripts/ship-gate-sentences.txt` 還是先修引擎 → 產品決策，
-   見 **issue #11**（含關卡 flakiness 根因）與 **#10**（同一個坐/做 的 UOM 問題）。
-
-   另：這一關密集重跑後會因為 macOS 的「單一登入階段砍輸入法次數上限」而失真
-   （輸入法會掉回 ABC）。**要拿它當發版依據，請在剛登入的乾淨 session 跑第一次。**
+1. **在剛登入的乾淨 session 跑第一次 `./scripts/ship-gate.sh`。**
+   評分機不在就先 `./scripts/build-eval.sh`（約 20 秒）。
+   關卡 3 密集重跑會因為 macOS 的「單一登入階段砍輸入法次數上限」而失真
+   （輸入法會掉回 ABC，然後每句都空），一旦失真這個 session 就救不回來，只能重登。
 2. 兩份 plist 一起 bump（`Source/McBopomofo-Info.plist` +
    `Source/Installer/Installer-Info.plist` —— 漏第二份是歷史上最常犯的）。
-3. `README.md` 版本歷程表加一列、`CHANGELOG.md` 段落改成正式發布並補 commit 範圍與 tag。
-4. `./scripts/doc-check.sh` 全綠 → annotated tag（訊息含 commit 範圍）→ push。
+3. `README.md` 版本歷程表加一列、`CHANGELOG.md` 段落改成正式發布並補日期、
+   build 號、tag 與 commit 範圍。
+4. `./scripts/doc-check.sh` 全綠 → annotated tag → `git push origin master --tags`。
+5. **重新 build 並就地安裝**，否則機器上跑的還是 bump 前那份（這次就是這樣，見上）。
 
 ### 棒⑥ 的 commit（已 push）
 
@@ -927,6 +982,39 @@ try_rules.py（幾秒，不編譯）→ 評分機對照實驗（真引擎）→ 
 | 偏好觸發點 | `Preferences.swift` / `PreferencesWindowController` 句子結束分頁 |
 
 ## 下一棒優先事項
+
+### 棒⑧ 預定：把 ship-gate 搬上 GitHub Actions CI
+
+Johnny 2026-08-12 指定的下一棒。動手前先想清楚一件事：
+
+**ship-gate 的三關裡，只有關卡 2（ctest）能無條件上 CI。**
+
+| 關卡 | 能不能上 CI | 卡在哪 |
+|---|---|---|
+| 1 真實語料 | ❌ 不行 | 語料在 `~/Documents/i注音-語料/`，**私有、不可上傳**（隱私紅線） |
+| 2 引擎單元測試 | ✅ 可以 | 純 C++／cmake，要先 `./scripts/build-eval.sh` 或跳過評分機 |
+| 3 實機打字 | ❌ 不行 | 需要**真的裝好輸入法的 GUI session**，還會 pkill 輸入法 |
+
+所以 CI 上跑的必然是 `SUBSET`。**別把 CI 綠燈當成可以發版** ——
+`ship-gate.sh` 的三態設計（FULL/SUBSET/FAIL）就是為了這件事，
+`SUBSET` 明確標「不足以作為出貨依據」。CI 的價值是「擋住明顯壞掉的 commit」，
+不是取代發版關卡。
+
+順帶：`doc-check.sh` 很適合上 CI（純靜態、無外部依賴、這一棒抓到 4 次錯）。
+
+### ⚠️ 工作方式（Johnny 2026-08-12 明確指正，不是建議）
+
+**該派給 grok／codex 的活不要自己扛。** 這一棒只派了一次（123 項對照，
+而且它抓到兩個 P0：安裝器 `kTargetBundle`、`Source/Data/Makefile`），
+其餘像「十幾個檔的文件掃名」「42→40 逐鍵核對」「UOM 語意調查」
+全部自己做，Johnny 對此提出了明確不滿。
+
+判準見 `~/.claude/CLAUDE.md` 的五級通行驗證。粗略地說：
+**會產出可逐項驗收的清單、而且不是改 code 本身 → 派出去。**
+派之前跑 `~/dotfiles/claude/scripts/dispatch-guard.sh <cwd>`。
+
+收回報時**逐項核對再採信** —— 上一票 grok 有數項把「刻意保留的真名」
+（`McBopomofoLM.cpp`、`McBopomofoTests/`、CMake `McBopomofoLMLib`）報成漏改。
 
 ### 先讀這三份，再動手
 
