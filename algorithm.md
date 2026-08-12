@@ -1,5 +1,20 @@
 # 小麥注音輸入法演算法說明
 
+> ## ⚠️ 本文件已過時（2026-08-12 標注）
+>
+> 這份只描述**最底層的 lattice walk 與詞庫**，而且仍寫著「目前僅使用 Unigram」。
+> 它**沒有涵蓋**現在實際生效的四層機制：
+>
+> | 沒寫到的 | 在哪裡看 |
+> |---|---|
+> | 情境 word-bigram + UOM（`CompositeContextModel`） | `CHANGELOG.md` v2.2.0 段 |
+> | 定案時 char-LSTM N-best 重排（v2d） | `AI_HANDOFF_PROMPT.md` 路線 C |
+> | 節點層的／得規則與警察 v1 | `CHANGELOG.md` v2.16.3 段 |
+> | 定案後 ↓ 重選（Shadow / 1→1 置換） | `AGENTS.md` 產品 UX 總表 |
+>
+> **要理解現在的解碼行為，請以 `CHANGELOG.md` 與 `AI_HANDOFF_PROMPT.md` 為準。**
+> 本檔重寫排在 Phase 4，尚未進行。
+
 本文件詳細說明小麥注音輸入法的核心演算法，包括注音符號到中文字詞的預測轉換機制、語言模型架構、以及字典資料的生成與使用方式。
 
 ## 建置與測試

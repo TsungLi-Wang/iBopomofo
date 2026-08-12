@@ -10,6 +10,14 @@ enum AICorrectionBackendName {
     static let whisper = "語音辨識"
 }
 
+/// ⚠️ 名稱是歷史遺留，**不要被它誤導**。
+///
+/// 「AI 校正」那條路（雲端 Claude 送整句回來改字）在 v2.7 已經整個移除，
+/// 現在**不存在任何雲端校正**。這個 enum 目前唯一的用途是
+/// `WhisperVoiceTranscriber` / `WhisperVoiceInputManager` 的**本機語音轉寫**錯誤。
+///
+/// 沒有改名是因為改了要動語音那條路的一串簽章，而它跟解碼行為無關；
+/// 真要改請排在品牌統一那一棒一起做，不要單獨動。
 enum AICorrectionError: Error {
     case timeout(backend: String)
     case network(backend: String)

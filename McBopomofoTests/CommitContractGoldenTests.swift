@@ -9,8 +9,14 @@
 //   underline: composing (有底線) / Empty (無底線)
 //   caret: readable document / unreadable (NSNotFound)
 //
-// Mutation checks (see scripts/mutation-commit-contract.sh) prove each
-// assertion turns RED when the corresponding product logic is broken.
+// Mutation checks prove each assertion turns RED when the corresponding
+// product logic is broken. 逐案破壞方式與紅/綠結果記在
+// ~/ai-handoff/20260812-baton5-report.md（棒⑤ §Mutation check）。
+// 目前沒有自動化的 mutation 腳本 —— 是手動逐案做的。要重跑就照報告那張表。
+//
+// 另一條相關契約「使用者手選 > 規則」不在本檔，而由 C++ 的
+// ParticleRuleDisambiguatorTest.RescoreWalkNeverOverridesUserChoice 守著
+// （2026-08-12 統治局實測：拿掉護欄該測試會紅）。
 
 import XCTest
 
