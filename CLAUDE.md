@@ -13,4 +13,6 @@
 3. **CHANGELOG.md** — 每一版實際改了什麼
 4. **Source/Data/AGENTS.md** — 只有要動 `Source/Data/` 詞庫時才需要
 
-不要更名 McBopomofo 的內部識別符（target／bundle id／input source id／C++ namespace／安裝路徑），除非附完整的使用者資料遷移方案。
+內部識別符已於 2026-08-12（棒⑥）統一為 iBopomofo：bundle id `io.ibopomofo.inputmethod.iBopomofo`、安裝路徑 `~/Library/Input Methods/iBopomofo.app`、C++ namespace `iBopomofo`、target／專案檔 `iBopomofo`。
+**刻意保留舊名的三類，改到反而是錯**：上游 Copyright 署名（The McBopomofo Authors）、詞庫 on-disk 格式魔術字串（`# format org.openvanilla.mcbopomofo.sorted`）、歷史檔（`AI_HANDOFF_ARCHIVE.md`、CHANGELOG 舊版條目）。
+**通則**：凡改一個字串要連帶「改讀取端＋重產資料」的，一律 KEEP —— 那不是改名，是改檔案格式。

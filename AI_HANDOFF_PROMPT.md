@@ -1,6 +1,6 @@
 # i注音後續 AI 接棒 Prompt
 
-你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌為 i注音；內部仍保留 McBopomofo target、bundle id、input source id、C++ namespace 與安裝路徑以維持 IMK 相容。不要更名這些內部識別符，除非另有完整使用者資料遷移方案。
+你是 **i注音（iBopomofo）** 的後續協作開發 AI。這是 macOS 原生繁體中文注音輸入法，repo 為 `TsungLi-Wang/iBopomofo`。對外品牌與內部識別符已於 2026-08-12（棒⑥）統一為 iBopomofo。保留舊名的只有三類：上游 Copyright 署名、詞庫 on-disk 格式魔術字串、歷史封存檔。
 
 > **現役版本不寫在這裡** —— 見 `CHANGELOG.md` 最上面的已發布段落。
 > 本檔只寫「現在的狀況」與「試過不行的路」；歷史交班日誌已搬到 `AI_HANDOFF_ARCHIVE.md`。
