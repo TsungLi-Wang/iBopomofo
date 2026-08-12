@@ -8,6 +8,34 @@
 
 ## [Unreleased]
 
+### 待發版（棒⑥ · 品牌統一 · 2026-08-12 · 尚未 bump 版號）
+
+- **內部識別符全面改名 McBopomofo → iBopomofo**。趁專案只有一位開發者使用、
+  遷移成本≈0 的窗口一次改乾淨；再有第二位使用者這扇門就關了。
+
+  | | 舊 | 新 |
+  |---|---|---|
+  | Bundle ID | `org.openvanilla.inputmethod.McBopomofo` | `io.ibopomofo.inputmethod.iBopomofo` |
+  | 安裝路徑 | `…/Input Methods/McBopomofo.app` | `…/iBopomofo.app` |
+  | 資料目錄 | `…/Application Support/McBopomofo/` | `…/iBopomofo/` |
+  | C++ namespace／target／專案檔 | McBopomofo | iBopomofo |
+
+  五階段 commit（`2ce9ecb9` namespace → `7ef06df2` 專案檔 → `185195f5` bundle ID →
+  `071c1693` 路徑與偏好 → `c448024d` 文件 → `7c243a6c` install.sh 補漏），每階段 build 綠。
+
+  **資料遷移一律 copy 不是 move，舊的全部保留**：548MB 資料目錄逐檔 SHA256 與行數核對一致；
+  偏好因 UserDefaults 以 bundle ID 為 domain 會整組孤兒化，40 鍵逐鍵搬移並驗值相等
+  （`PREFS_MIGRATION=PASS`）。
+
+  **KEEP（改到反而是錯）**：上游 Copyright 署名、詞庫 on-disk 格式魔術字串
+  `# format org.openvanilla.mcbopomofo.sorted`、歷史封存檔。由此立通則：
+  **凡改一個字串要連帶「改讀取端＋重產資料」的一律 KEEP —— 那是改檔案格式，不是改名。**
+
+  ⚠️ **活體層驗收未完成**，需 Johnny 先登出登入、系統設定移舊加新、重新授權輔助使用。
+  在那之前不得宣稱已驗證。詳見 `AI_HANDOFF_PROMPT.md` 開頭那節。
+
+  ⚠️ **版號未 bump**：使用者可見的封裝／身分變更照鐵則應 minor bump，**major/minor 由 Johnny 決定**。
+
 ### 內部（棒⑤ · 2026-08-12 · 可重現性止血 ＋ 定案契約 golden）
 
 - **行為零變更**：未改規則表、模型、alpha、pipeline 預設、KeyHandler 出貨邏輯。

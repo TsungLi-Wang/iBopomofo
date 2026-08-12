@@ -61,6 +61,80 @@ gh issue list                               # 目前開著的工作
 
 ---
 
+## ⚠️⚠️ 開場第一件事：棒⑥ 品牌改名「程式碼已完成、活體驗收未做」
+
+**2026-08-12 收工時的狀態。接手第一件事就是讀這節，不要先動別的。**
+
+棒⑥ 把內部識別符從 McBopomofo 改成 iBopomofo，**五階段程式碼全部完成並 push**，
+但**活體層驗收還沒做**，因為它需要 Johnny 本人在系統設定操作。
+
+### Johnny 要做的四步（沒做完，活體層一律 PENDING）
+
+1. **登出再登入**（或重開機）—— 不能省。macOS 對新 bundle ID 的輸入法要重掃才認得。
+   已實測：直接呼叫註冊 API 會被拒（`Cannot enable input source`）。
+2. 系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯… → 「+」→ 中文（繁體）→ **i注音** → 加入
+3. **先確認新的能打字，再移除舊的**「小麥注音／McBopomofo」。反過來做會沒有中文可用。
+4. 系統設定 → 隱私權與安全性 → 輔助使用 → 加入 **iBopomofo**（新 ID ≠ 繼承舊授權）
+
+### 這四步做完之後，接手的 AI 要跑的活體層驗收
+
+| 項目 | 怎麼跑 |
+|---|---|
+| 偏好逐鍵活值 | `~/ai-handoff/verify-prefs-migration.sh`（要 `PREFS_MIGRATION=PASS`） |
+| 校正迴路 smoke | 照 `~/ai-handoff/correction-loop-smoke.md`：新路徑改一次字、同前文重打要記得 |
+| 實機打字 | `./scripts/type-as-user.sh -f scripts/ship-gate-sentences.txt` |
+| grok 第二階段對照 | grok 的 123 項清單（`~/ai-handoff/20260812-baton6-grok-inventory.md`）vs 實改，**要零落差** |
+
+**在活體層全綠之前，不准宣稱「棒⑥ 完成且已驗證」。**
+
+### 自動層已驗（FULL）
+
+五階段每階段 build 綠、`ctest` 154/154、golden 24/24、`doc-check` 140 項、
+資料複本三檔 SHA 與行數全一致（548MB 目錄樹遞迴比對零差異）、
+偏好逐鍵 40/40 值相等（`PREFS_MIGRATION=PASS`）。
+
+### 退路（一個都沒刪，要回退隨時可以）
+
+| 舊東西 | 位置 |
+|---|---|
+| 舊 app | `~/Library/Input Methods/McBopomofo.app` |
+| 舊資料（548MB，含 Whisper 模型與校正 log） | `~/Library/Application Support/McBopomofo/` |
+| 舊偏好 | `~/Library/Preferences/org.openvanilla.inputmethod.McBopomofo.plist` |
+| 偏好基準快照 | `~/ai-handoff/20260812-prefs-baseline.txt`（SHA256 `241aac2d…`） |
+| 2.16.2 app 備份 | `/tmp/McBopomofo-2.16.2-backup.app` |
+
+### 還沒做的兩件
+
+1. **版本 bump ＋ tag**：這是使用者可見的封裝／身分變更，照版本鐵則要 **minor bump**。
+   **major/minor 由 Johnny 決定**，執行者只提建議。目前 plist 仍是 2.16.3 / build 2323。
+2. **grok 第二階段對照**（見上表）。
+
+### 棒⑥ 的 commit（已 push）
+
+```
+2ce9ecb9  C1/5  C++ namespace（86 檔）
+7ef06df2  C2/5  Xcode 專案／target／scheme（22 檔）
+185195f5  C3/5  Bundle ID / Input Source ID（9 檔）
+071c1693  C4/5  安裝路徑／資料路徑／偏好網域（7 檔）
+c448024d  C5/5  文件與規則敘述改寫
+7c243a6c  fix   install.sh 兩處漏改
+```
+
+### 三個「build 綠但會壞」的洞（本棒實際踩到，寫下來給下一棒）
+
+1. **`TEST_HOST` 寫死舊執行檔名** —— `xcodebuild build` 完全成功，只有跑測試才炸。
+2. **XIB 的 `customModule="McBopomofo"`** —— 模組改名後執行時找不到類別，
+   build 綠、單元測試也抓不到，只有真的跳出那個視窗才炸。
+3. **四個資料路徑常數各自硬編碼**（`Preferences.swift:760`、`ManualCorrectionLog.swift:23`、
+   `RerankDiffLog.swift:24`、`WhisperServerManager.swift:84`），不共用 helper。
+   漏一個＝校正／個人化／語音路徑分裂，build 照樣綠。
+4. **`scripts/install.sh` 的舊名** —— shell 腳本，build 根本不會看。
+
+共通點：**只有真的執行到那條路徑才會現形。** 所以改名這類工作，
+「每階段 build 綠」不是充分條件，必須加上活體驗收。
+
+---
+
 ## 目前狀態（2026-08-12 · 棒⑤ 後）
 
 1. **發版**：**v2.16.3**（見 `CHANGELOG.md`）。相對 2.16.2 多了**的／得警察 v1**。
