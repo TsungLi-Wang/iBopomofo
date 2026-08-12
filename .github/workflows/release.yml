@@ -129,18 +129,22 @@ jobs:
             exit 1
           fi
 
-      # 歷史 tag（如 v2.17.0）的 tree 可能還沒有「CI 跳過 ~/ 本機路徑」的 doc_check。
-      # 版本裁判仍讀本 worktree 的 plist／CHANGELOG（來自 tag）；只更新檢查腳本本體。
-      - name: Use current doc-check policy from default branch
+      # 歷史 tag 的 tree 可能還沒有現行 Release 輔助腳本（CI 跳過 ~/、extract-changelog…）。
+      # 版本內容仍以 tag 的 plist／CHANGELOG 為準；只覆寫 scripts 下的工具檔。
+      - name: Refresh release helper scripts from default branch
         shell: bash
         run: |
           set -euo pipefail
           DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
           git fetch --depth=1 origin "$DEFAULT_BRANCH"
-          git show "origin/${DEFAULT_BRANCH}:scripts/doc_check.py" > scripts/doc_check.py
-          git show "origin/${DEFAULT_BRANCH}:scripts/doc-check.sh" > scripts/doc-check.sh
-          chmod +x scripts/doc-check.sh
-          echo "doc-check tools refreshed from origin/${DEFAULT_BRANCH}"
+          for f in scripts/doc_check.py scripts/doc-check.sh scripts/extract-changelog-section.sh scripts/build-eval.sh scripts/ship-gate.sh; do
+            if git cat-file -e "origin/${DEFAULT_BRANCH}:${f}" 2>/dev/null; then
+              mkdir -p "$(dirname "$f")"
+              git show "origin/${DEFAULT_BRANCH}:${f}" > "$f"
+              chmod +x "$f" 2>/dev/null || true
+              echo "refreshed $f"
+            fi
+          done
 
       - name: doc-check
         # GITHUB_ACTIONS/CI 已由 runner 設定；doc_check 在 CI 上不因 ~/ 本機路徑缺失而 fail
@@ -148,7 +152,6 @@ jobs:
 
       - name: CHANGELOG must have this version section
         run: ./scripts/extract-changelog-section.sh "${{ steps.meta.outputs.version }}" > /tmp/changelog-body.md
-
       - name: Engine unit tests (cmake / ctest)
         shell: bash
         run: |
