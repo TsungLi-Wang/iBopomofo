@@ -5,7 +5,7 @@ macOS 上的**繁體中文注音輸入法**。在成熟的開源注音引擎之�
 | | |
 |---|---|
 | **產品名** | i注音（英文／ASCII：**iBopomofo**） |
-| **目前版本** | 見 [CHANGELOG.md](CHANGELOG.md) 最上方已發布段落，或 `Source/McBopomofo-Info.plist`（本機現役為 **2.16.2**／build **2322**） |
+| **目前版本** | 見 [CHANGELOG.md](CHANGELOG.md) 最上方已發布段落，或 `Source/McBopomofo-Info.plist`（本機現役為 **2.16.3**／build **2323**） |
 | **授權** | MIT（衍生自 [McBopomofo](https://github.com/openvanilla/McBopomofo)；見 [LICENSE](LICENSE) 與 [NOTICE](NOTICE)） |
 | **平台** | macOS 10.15+（開發建議 14.7+ / Xcode 15.3+） |
 
@@ -126,8 +126,9 @@ open "$HOME/Library/Input Methods/McBopomofo.app"
 | **2.15.0** | 「的／得」結果補語自動修正 |
 | 2.16.0–2.16.1 | 同音規則／頻率壓縮實驗（後以真實語料驗證為淨傷害） |
 | **2.16.2** | **退掉上述有害機制**；留下 的／得 規則 + **v2d（在／再）**；`ship-gate` 出貨關卡 |
+| **2.16.3** | **的／得警察 v1**（句法規則 + 強棄權，反例考卷誤殺 0）；MAIN 資料地基修復；`ship-gate` 補三個洞 |
 
-完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：以 `git tag`／GitHub Releases 為準（本機錨：**v2.16.2**）。
+完整條目見 [CHANGELOG.md](CHANGELOG.md)。Latest tag：以 `git tag`／GitHub Releases 為準（本機錨：**v2.16.3**）。
 
 ## 已知取捨（開源後）
 

@@ -25,15 +25,37 @@ CORPUS_DIR="$HOME/Documents/i注音-語料/EX1166-題庫"
 [ -x "$EVAL" ] || { echo "先建置評分機（見 eval/benchmarks/README-newstar.md）"; exit 1; }
 
 fail=0
+# ⚠️ 下面「出貨側」載入的規則表清單，必須跟 KeyHandler.mm 實際載入的那幾份一致
+#（目前是 particle-rules.tsv + police-de-v1.tsv）。2026-08-12 發 2.16.3 前抓到：
+# 這裡只掛了 particle-rules.tsv，等於用「沒有警察」的配置去驗「有警察」的版本，
+# 關卡會綠燈但什麼都沒驗到。加新規則表時**兩邊都要改**。
 echo "── 關卡 1／3：真實語料不得淨傷害 ──"
 for name in 自然驗證集-真實語料 X驗證集-真實語料; do
     items="$CORPUS_DIR/$name.jsonl"
-    [ -f "$items" ] || { echo "  ⚠️  找不到 $items，跳過"; continue; }
-    "$EVAL" "$items" Source/Data/data.txt Source/Data/word-bigrams.tsv \
-        Source/Data/path-char-lstm.bin shipping 0.75 0.75 "" /tmp/gate-base.tsv "" >/dev/null 2>&1
-    "$EVAL" "$items" Source/Data/data.txt Source/Data/word-bigrams.tsv \
+    # 讀不到就是 FAIL，不是跳過。
+    # 2026-08-12：發 2.16.3 前，~/Documents 因 TCC 權限讀不到，這裡原本會印
+    # 「⚠️ 跳過」然後讓整支腳本印綠燈 —— 一個「找不到考卷就自動及格」的出貨關卡
+    # 比沒有關卡更危險（它會給你一個假的安心）。缺料一律擋下。
+    if [ ! -r "$items" ]; then
+        # ${items} 一定要加大括號：後面接全形括號時，bash 會把多位元組字的
+        # 第一個 byte 吃進變數名，變成 unbound variable。
+        echo "  ❌ 讀不到 ${items}（不存在或無權限）—— 出貨關卡不得在缺料時放行"
+        fail=1; continue
+    fi
+    # 每次都先刪暫存檔，並檢查評分機真的成功。
+    # 否則評分機失敗時，下面的 python 會安靜地讀到「上一次跑的」dump，
+    # 算出一個看起來很正常、但跟這次無關的數字。
+    rm -f /tmp/gate-base.tsv /tmp/gate-ship.tsv
+    if ! "$EVAL" "$items" Source/Data/data.txt Source/Data/word-bigrams.tsv \
+        Source/Data/path-char-lstm.bin shipping 0.75 0.75 "" /tmp/gate-base.tsv "" >/dev/null 2>&1 \
+       || ! "$EVAL" "$items" Source/Data/data.txt Source/Data/word-bigrams.tsv \
         Source/Data/path-char-lstm.bin shipping 0.75 0.75 \
-        Source/Data/confusion-alphas.tsv /tmp/gate-ship.tsv Source/Data/particle-rules.tsv >/dev/null 2>&1
+        Source/Data/confusion-alphas.tsv /tmp/gate-ship.tsv \
+        Source/Data/particle-rules.tsv Source/Data/police-de-v1.tsv >/dev/null 2>&1 \
+       || [ ! -s /tmp/gate-base.tsv ] || [ ! -s /tmp/gate-ship.tsv ]; then
+        echo "  ❌ ${name}：評分機執行失敗，不採信任何數字"
+        fail=1; continue
+    fi
     read -r g w <<<"$(python3 - <<'PY'
 def load(p):
     d={}
