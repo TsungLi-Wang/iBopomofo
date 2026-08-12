@@ -12,12 +12,10 @@ set -euo pipefail
 KEYS="${1:?用法: $0 <美式鍵序,如 ql32k7cp3dj94>}"
 WAIT="${2:-4}"  # 打完到 commit 的等待秒數(延遲重審需 debounce 0.6s + 打分 1-2s)
 
-# 確認輸入法
-CURRENT=$(swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }' 2>/dev/null)
-if [[ "$CURRENT" != *"iBopomofo"* ]]; then
-    echo "目前輸入法不是i注音: $CURRENT" >&2
-    echo "請先切換輸入法再跑。" >&2
-    exit 1
+# 主動切到 i注音（不要求「跑腳本的 App」當前已是 i注音 —— 依 App 記輸入法時會誤判）。
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -f "$ROOT/scripts/select-ibopomofo-ime.swift" ]; then
+    swift "$ROOT/scripts/select-ibopomofo-ime.swift" >/dev/null 2>&1 || true
 fi
 
 # 美式鍵 → ANSI 虛擬鍵碼
@@ -37,6 +35,10 @@ except KeyError as e:
 EOF
 )
 
+# 整段放在同一個 osascript：TextEdit 前台 → do shell script 切 i注音 → 立刻送鍵。
+# （「依 App 記輸入法」時，在終端機 process 裡 TISSelect 只影響終端機，
+#  2026-08-12 實測會打出 su3cl3 這種「當英文鍵」的結果。）
+SELECT_SWIFT="$ROOT/scripts/select-ibopomofo-ime.swift"
 osascript <<EOF
 tell application "TextEdit"
     activate
@@ -48,7 +50,14 @@ tell application "TextEdit"
     end repeat
     make new document
 end tell
-delay 1.5
+delay 0.6
+-- TextEdit 仍是前台時切輸入法（do shell script 通常不搶焦點）
+try
+    do shell script "swift " & quoted form of "$SELECT_SWIFT"
+end try
+delay 0.4
+tell application "TextEdit" to activate
+delay 0.2
 tell application "System Events"
     key code {$CODES}
 end tell

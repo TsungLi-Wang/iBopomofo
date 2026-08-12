@@ -14,15 +14,22 @@
 #   ./scripts/type-as-user.sh "今天下午要開會討論那個提案"
 #   ./scripts/type-as-user.sh -f sentences.txt     # 一行一句，批次打
 #
-# 需求：目前輸入法 = i注音；終端機有輔助使用權限。
+# 需求：i注音已安裝並在系統輸入法清單中；終端機有輔助使用權限。
+# （macOS 可「依 App 記住輸入法」—— 終端機當前是 ABC 不代表 TextEdit 不能打中文。
+#  所以這裡改成主動切到 i注音，不再要求「跑腳本的那個 App 已經是 i注音」。）
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-CURRENT=$(swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }' 2>/dev/null)
-if [[ "$CURRENT" != *"iBopomofo"* ]]; then
-    echo "目前輸入法不是 i注音：$CURRENT" >&2
-    exit 1
-fi
+select_ime() {
+    # 盡力切到 i注音；失敗只警告，讓後面送鍵結果決定成敗。
+    if ! swift scripts/select-ibopomofo-ime.swift 2>/dev/null; then
+        echo "⚠️  無法用 API 切到 i注音（可能被系統擋）。若後面出字是空的，請在選單列手動切到 i注音再跑。" >&2
+        return 1
+    fi
+    return 0
+}
+
+select_ime || true
 
 # ⚠️ 先重啟輸入法。
 #
@@ -43,6 +50,8 @@ for _ in $(seq 1 30); do
     sleep 1
 done
 sleep 2   # 起來之後再給它一點時間完成 IMK 連線
+# 重啟後系統常把焦點 App 掉回 ABC —— 再切一次。
+select_ime || true
 
 if [ "${1:-}" = "-f" ]; then
     SENTS=$(cat "$2")
@@ -117,20 +126,11 @@ while IFS=$'\t' read -r tag sent keys; do
     # repo 沒有、文件沒提，重開機就被系統清掉。加上 2>/dev/null 把
     # 「command not found」吞掉，於是整輪跑完一行都不印，看起來像沒事。
     # 改成呼叫 repo 內的 e2e-typing-check.sh，別再依賴 /tmp。
-    # 每一句都重新確認輸入法還在 i注音。
-    # 2026-08-12：原本只在腳本最開頭檢查一次 —— 而檢查完的下一件事就是 pkill 輸入法。
-    # 重啟後系統可能把當前輸入法掉回 ABC（實測會），腳本毫不知情繼續送鍵，
-    # 於是後面每一句都回空字串，看起來像引擎壞了。這是今天最會騙人的一個。
-    cur=$(swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }' 2>/dev/null || true)
-    if [[ "$cur" != *"iBopomofo"* ]]; then
-        echo ""
-        echo "  ⛔ 中途輸入法掉了：$cur"
-        echo "     已完成 $((pass + fail)) 句，後面沒有跑。請把輸入法切回 i注音再重跑。"
-        echo "     （macOS 對「一個登入階段內能砍幾次輸入法」有上限；今天砍太多次就會這樣，"
-        echo "       登出再登入可復原。）"
-        echo "TYPE_AS_USER=FAIL(input source lost mid-run)"
-        exit 1
-    fi
+    # 每一句送鍵前再切一次 i注音。
+    # 2026-08-12：重啟後系統可能把當前輸入法掉回 ABC；且「依 App 記住輸入法」
+    # 時，終端機讀到的 current 不一定等於 TextEdit 的 current —— 所以改成
+    # 主動 select，不再用「讀到 ABC」當中止條件（空出字才算送鍵失敗）。
+    select_ime >/dev/null 2>&1 || true
 
     # `|| true`：單句的送鍵失敗不該讓整輪中斷（set -e + pipefail 會殺掉迴圈，
     # 於是後面的句子連跑都沒跑到，卻只看到前面幾行輸出）。失敗會在下面被算成 ❌。

@@ -8,6 +8,13 @@
 
 ## [Unreleased]
 
+### 內部（驗收腳本 · 2026-08-12）
+
+- **實機打字 harness**：新增 `scripts/select-ibopomofo-ime.swift`；
+  `type-as-user.sh`／`e2e-typing-check.sh` 改為在 TextEdit 前台時主動切到 i注音，
+  不再要求「跑腳本的終端機當前已是 i注音」（macOS「依 App 記輸入法」會誤判）。
+  **不改打字引擎行為。** 關卡 3 基準檔仍未建立（整輪仍可能中途掉成英文鍵）。
+
 ## [2.17.0] — 2026-08-12
 
 **build 2324 · tag `v2.17.0` · commit 範圍 `391a5a6c…v2.17.0`（棒⑥ C1 之前 → 本版）**

@@ -61,39 +61,37 @@ gh issue list                               # 目前開著的工作
 
 ---
 
-## ⚠️⚠️ 開場第一件事：v2.17.0 已發布，但有兩件事沒收乾淨
+## ⚠️⚠️ 開場第一件事：v2.17.0 本機已對齊；還欠實機基準
 
-**2026-08-12 收工狀態（棒⑥＋棒⑦）。接手第一件事就是讀這節。**
+**2026-08-12 晚間收工狀態（棒⑥＋棒⑦＋擦屁股）。接手先讀這節。**
 
 棒⑥ 把內部識別符從 McBopomofo 改成 iBopomofo；棒⑦ 發布 **v2.17.0**
-（build 2324、tag `v2.17.0`、commit `d7a571ea`）。新版已安裝並是 Johnny 在用的輸入法。
+（build 2324、tag `v2.17.0`、commit `d7a571ea`）。  
+**同日稍晚已重新 Release build 並 `ditto` 安裝**——本機 `~/Library/Input Methods/iBopomofo.app`
+現在是 **2.17.0 / build 2324**（不再是貼紙寫 2.17、機器跑 2.16.3 的狀態）。  
+DMG：`dist/iBopomofo.dmg`（內含同版）。GitHub Release 若尚未有 2.17.0 下載，下一棒補上傳即可。
 
-### 🔴 欠 Johnny 的兩件事（下一棒先處理這個，不要先寫新東西）
+### ✅ 已清掉的債
 
-**1. 輸入法清單被我弄髒了，我沒能清乾淨 —— Johnny 對這件事很不滿。**
+1. **輸入法清單** —— Johnny 已手動清成 **ABC ＋ i注音**（背景 API 清不掉；勿再試
+   `TISDisableInputSource` / 直接改 HIToolbox plist）。備份仍在
+   `~/ai-handoff/20260812-HIToolbox-backup.plist`。
+2. **本機二進位版號落後** —— 已重編安裝，與 plist / tag 一致。
 
-多出來的是這一棒造成的：`小麥注音（舊）`、`傳統注音（舊）`
-（為了新舊對照，把舊 app 的顯示名改標記並啟用過）。`Bopomofo (old)` 已關掉。
-Johnny 要的最終狀態是**只有 ABC ＋ 最新 i注音**（他也要求移除 Apple 的「注音」）。
+### 🔴 還欠一件（下一棒可做，不擋日常打字）
 
-**已試過、不要再試**：`TISDisableInputSource` 從背景程序呼叫會回 `noErr`
-但系統一律還原（五次重試、每次驗證，全部失敗）。直接寫
-`com.apple.HIToolbox.plist` 也不可靠（on-disk 落後於 live 狀態）。 <!-- doc-check-ignore -->
-背景程序沒有權限持久化這份清單 —— 跟開場那個 `Cannot enable input source` 同源。
+**`scripts/ship-gate-baseline.tsv` 還沒建。** <!-- doc-check-ignore -->
 
-**可行的兩條路**：
-- Johnny 自己在 系統設定 → 鍵盤 → 輸入法 → 編輯… 按減號移除（約 20 秒）。
-- 或開**螢幕錄製權限**給 Claude，用 computer-use 直接操作系統設定（我卡在這裡）。
+關卡 3 的判定已改為「對基準的淨傷害」，但基準檔要一次**完整、穩定**的實機打字才能建。  
+2026-08-12 晚間嘗試：關卡 1／2 FULL 綠；關卡 3 在自動送鍵時仍常掉成「當英文鍵」
+（出字像 `ao6g42k7…`），結果不可信，**已中止、未寫入假基準**。
 
-備份：`~/ai-handoff/20260812-HIToolbox-backup.plist`。
-另：`Squirrel - Simplified`（Rime，在 `/Library/Input Methods/`）不是我們放的。
+**下一棒在剛登入的乾淨 session**（使用者確認選單列是 i注音、且終端機有輔助使用權限）
+跑 `./scripts/ship-gate.sh`；關卡 3 首次會建基準並印「首次建立基準（本關不擋）」。
 
-**2. `scripts/ship-gate-baseline.tsv` 還沒建。** <!-- doc-check-ignore -->
-
-關卡 3 的判定已改為「對基準的淨傷害」，但基準檔要一次**完整跑完**的實機打字才能建。
-2026-08-12 那個登入階段已經因為砍太多次輸入法而失效（見下）。
-**下一棒在剛登入的乾淨 session 第一件事跑 `./scripts/ship-gate.sh`**，
-關卡 3 會自動建基準並印「首次建立基準（本關不擋）」。之後才會真正擋迴歸。
+已補 harness：`scripts/select-ibopomofo-ime.swift` + `type-as-user.sh` /
+`e2e-typing-check.sh` 會在 TextEdit 前台時主動切 i注音（避開「依 App 記輸入法」
+時終端機讀到 ABC 就誤判）。仍不保證整輪穩定——中途掉成英文鍵就整輪作廢重跑。
 
 ### v2.17.0 的 ship-gate 實際結果（誠實版）
 
@@ -103,42 +101,26 @@ Johnny 要的最終狀態是**只有 ABC ＋ 最新 i注音**（他也要求移�
   ✅ X驗證集-真實語料：救 3、壞 0
   ✅ 引擎單元測試 全過
 ── 關卡 3／3：實機打字 ──
-  目前輸入法不是 i注音：com.apple.keylayout.ABC
-  ❌ 一句都沒真的打到 —— 這一關沒有跑到，不能當通過
-SHIP_GATE_STATUS=FAIL
+  （環境／harness 不穩：有時出中文、有時出英文鍵序；未建立 baseline）
+SHIP_GATE_STATUS=FAIL   # 僅關卡 3；1／2 為真綠
 ```
 
-**關卡 1、2 是 FULL 真跑真綠（私有語料讀得到，不是 TCC 問題）。
-關卡 3 沒跑到，是環境問題不是判定問題** —— 判定已改成淨傷害制，坐/做 不再擋。
-Johnny 在授權 SUBSET 的前提下拍板照發。
-
+**關卡 1、2 是 FULL 真跑真綠。** 關卡 3 未取得可信結論；不擋日常使用。  
 關卡 3 在環境還健康時（同日稍早）跑過四輪，唯一穩定的非 harness 差異是
 `你先坐這裡等一下` → `你先做這裡等一下`，**且舊版 McBopomofo 輸出完全相同＝零淨傷害**。
 
-### 現在的活體狀態（2026-08-12）
+### 現在的活體狀態（2026-08-12 晚）
 
-| | 新版 | 舊版（退路） |
+| | 新版 | 舊版（退路，磁碟上可能還在） |
 |---|---|---|
 | 路徑 | `~/Library/Input Methods/iBopomofo.app` | `~/Library/Input Methods/McBopomofo.app` |
 | Input source | `io.ibopomofo.inputmethod.iBopomofo.iBopomofo.Bopomofo` | `org.openvanilla.…McBopomofo.Bopomofo` |
-| 選單顯示名 | **i注音** | **小麥注音（舊）** |
-| 狀態 | 已啟用、目前選用中 | 主模式已停用；`傳統注音（舊）` 還在（見上面「欠 Johnny 的兩件事」） |
+| 選單顯示名 | **i注音** | **小麥注音（舊）**（若仍安裝） |
+| 版號 | **2.17.0 / build 2324**（已重編安裝） | 2.16.3 / 2323 左右 |
+| 狀態 | Johnny 清單：ABC ＋ i注音 | 可不在清單；退路用，勿刪資料目錄 |
 
-⚠️ **已安裝的那份 app 是 2.16.3 / build 2323（GitRevision `f2b8eda0`），
-不是剛發布的 2.17.0。** 版號 bump 之後**沒有重新 build 安裝**——
-發版動的是 repo 與 tag，Johnny 機器上跑的仍是 bump 前那份二進位。
-兩者程式碼差異只有版號字串，但**如果要驗「使用者裝到的 2.17.0」，必須先重新 build 安裝**：
-
-```bash
-xcodebuild -project iBopomofo.xcodeproj -scheme iBopomofo \
-  -configuration Release -derivedDataPath build/dd-rel build
-killall iBopomofo 2>/dev/null || true
-ditto build/dd-rel/Build/Products/Release/iBopomofo.app \
-  "$HOME/Library/Input Methods/iBopomofo.app"
-```
-
-（勿 `rm -rf` 安裝路徑，會被踢出選單列。裝完用選單「顯示目前生效設定…」
-確認 version 2.17.0 / build 2324。）
+確認版本：選單「顯示目前生效設定…」或  
+`/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$HOME/Library/Input Methods/iBopomofo.app/Contents/Info.plist"`
 
 **兩個 app 的 zh-Hant 顯示名原本都是「i注音」**（品牌改名早於識別符改名），
 在系統設定的輸入法清單裡完全分不出誰是誰。已把**舊**版的 `InfoPlist.strings`
