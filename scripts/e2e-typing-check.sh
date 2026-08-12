@@ -12,11 +12,8 @@ set -euo pipefail
 KEYS="${1:?用法: $0 <美式鍵序,如 ql32k7cp3dj94>}"
 WAIT="${2:-4}"  # 打完到 commit 的等待秒數(延遲重審需 debounce 0.6s + 打分 1-2s)
 
-# 主動切到 i注音（不要求「跑腳本的 App」當前已是 i注音 —— 依 App 記輸入法時會誤判）。
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-if [ -f "$ROOT/scripts/select-ibopomofo-ime.swift" ]; then
-    swift "$ROOT/scripts/select-ibopomofo-ime.swift" >/dev/null 2>&1 || true
-fi
+SELECT_SWIFT="$ROOT/scripts/select-ibopomofo-ime.swift"
 
 # 美式鍵 → ANSI 虛擬鍵碼
 CODES=$(python3 - "$KEYS" <<'EOF'
@@ -35,10 +32,14 @@ except KeyError as e:
 EOF
 )
 
-# 整段放在同一個 osascript：TextEdit 前台 → do shell script 切 i注音 → 立刻送鍵。
-# （「依 App 記輸入法」時，在終端機 process 裡 TISSelect 只影響終端機，
-#  2026-08-12 實測會打出 su3cl3 這種「當英文鍵」的結果。）
-SELECT_SWIFT="$ROOT/scripts/select-ibopomofo-ime.swift"
+# 2026-08-12 根因與修法（勿退回去）：
+#   TISEnableInputSource 在「已經啟用」時會把前台搶成「系統設定」，
+#   然後 TISSelect 選到系統設定上、TextEdit 仍是 ABC → 打出 su3cl3。
+#   select-ibopomofo-ime.swift 已改成「僅在未啟用時 Enable」。
+#   這裡仍：先關系統設定（若開著）→ TextEdit 前台 → 切 i注音 → 確認前台仍是
+#   TextEdit 才送鍵。
+osascript -e 'tell application "System Settings" to quit' >/dev/null 2>&1 || true
+
 osascript <<EOF
 tell application "TextEdit"
     activate
@@ -50,12 +51,33 @@ tell application "TextEdit"
     end repeat
     make new document
 end tell
-delay 0.6
--- TextEdit 仍是前台時切輸入法（do shell script 通常不搶焦點）
-try
-    do shell script "swift " & quoted form of "$SELECT_SWIFT"
-end try
-delay 0.4
+delay 0.5
+EOF
+
+# TextEdit 必須是前台時才切（TISSelect 作用在 focused app）
+osascript -e 'tell application "TextEdit" to activate' >/dev/null 2>&1 || true
+sleep 0.3
+if ! swift "$SELECT_SWIFT" >/tmp/e2e-select-ime.log 2>&1; then
+    echo "E2E: 無法切到 i注音（見 /tmp/e2e-select-ime.log）" >&2
+    cat /tmp/e2e-select-ime.log >&2 || true
+    exit 1
+fi
+
+# 若仍被搶焦點，立刻拉回 TextEdit（Enable 路徑已修，這是雙重保險）
+FRONT=$(osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true' 2>/dev/null || echo "")
+if [ "$FRONT" != "TextEdit" ] && [ "$FRONT" != "文字編輯" ]; then
+    osascript -e 'tell application "TextEdit" to activate' >/dev/null 2>&1 || true
+    sleep 0.3
+    # 拉回後再選一次（此時 Enable 不會再呼叫，只 Select）
+    swift "$SELECT_SWIFT" >/dev/null 2>&1 || true
+    FRONT=$(osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true' 2>/dev/null || echo "")
+    if [ "$FRONT" != "TextEdit" ] && [ "$FRONT" != "文字編輯" ]; then
+        echo "E2E: 前台不是文字編輯（是「${FRONT}」），送鍵會打錯地方 —— 中止" >&2
+        exit 1
+    fi
+fi
+
+osascript <<EOF
 tell application "TextEdit" to activate
 delay 0.2
 tell application "System Events"

@@ -1,8 +1,12 @@
 #!/usr/bin/env swift
-// Select the installed i注音 (iBopomofo) input mode.
-// Used by type-as-user / e2e-typing-check so harness does not depend on the
-// *terminal* being the app that currently has i注音 selected (macOS can keep
-// a different input source per app).
+// Select the installed i注音 (iBopomofo) input mode for the *currently focused* app.
+//
+// 2026-08-12 root cause (do not regress):
+//   TISEnableInputSource on an already-enabled source can steal frontmost focus
+//   to System Settings. Keys then land in TextEdit still on ABC → latin junk
+//   like "su3cl3". Fix: only Enable when disabled; prefer Select alone.
+//
+// Used by type-as-user / e2e-typing-check. Exit 0 on success.
 import Carbon
 import Foundation
 
@@ -14,6 +18,11 @@ let preferredIDs = [
 func sourceID(_ src: TISInputSource) -> String? {
     guard let p = TISGetInputSourceProperty(src, kTISPropertyInputSourceID) else { return nil }
     return Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue() as String
+}
+
+func isEnabled(_ src: TISInputSource) -> Bool {
+    guard let p = TISGetInputSourceProperty(src, kTISPropertyInputSourceIsEnabled) else { return false }
+    return CFBooleanGetValue(Unmanaged<CFBoolean>.fromOpaque(p).takeUnretainedValue())
 }
 
 func currentID() -> String {
@@ -38,7 +47,6 @@ for id in preferredIDs {
     }
 }
 if target == nil {
-    // Fallback: any enabled iBopomofo / McBopomofo non-Plain mode
     for (id, src) in byID {
         if id.contains("iBopomofo") && id.hasSuffix(".Bopomofo") && !id.contains("Plain") {
             target = src
@@ -54,20 +62,30 @@ guard let target else {
     exit(2)
 }
 
-_ = TISEnableInputSource(target)
+// Only Enable when disabled. Re-Enable on an already-on source → System Settings
+// steals frontmost (reproduced 2026-08-12); then TextEdit stays on ABC.
+if !isEnabled(target) {
+    let en = TISEnableInputSource(target)
+    if en != noErr {
+        fputs("SELECT_IME=FAIL enable=\(en) id=\(targetID)\n", stderr)
+        exit(1)
+    }
+}
+
 let err = TISSelectInputSource(target)
 let cur = currentID()
-if err == noErr && (cur.contains("iBopomofo") || cur.contains("McBopomofo")) {
+if err != noErr {
+    fputs("SELECT_IME=FAIL select=\(err) current=\(cur)\n", stderr)
+    exit(1)
+}
+
+if cur.contains("iBopomofo") || cur.contains("McBopomofo") {
     print("SELECT_IME=OK id=\(targetID) current=\(cur)")
     exit(0)
 }
-// Select may report success for the focused app even when this process still
-// sees another source under per-app input sources. Treat select==0 as OK if
-// the source is enabled; callers that type into a freshly activated TextEdit
-// re-select after activate.
-if err == noErr {
-    print("SELECT_IME=OK id=\(targetID) current=\(cur) (select ok; per-app source may differ)")
-    exit(0)
-}
-fputs("SELECT_IME=FAIL err=\(err) current=\(cur)\n", stderr)
-exit(1)
+
+// Per-app input sources: this process may still report ABC while the focused
+// app received the selection. Callers that type into a just-activated TextEdit
+// should re-check after activate; treat select==0 as soft OK.
+print("SELECT_IME=OK id=\(targetID) current=\(cur) (select ok; per-app may differ)")
+exit(0)

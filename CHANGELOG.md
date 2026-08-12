@@ -14,7 +14,10 @@
   - `ship-gate.sh` 預設只跑離線關卡 1＋2 → `SHIP_GATE_STATUS=CORE` 即可作出貨依據。
   - 實機打字（關卡 3）預設**不跑**；要跑才設 `SHIP_GATE_E2E=1`。
   - `type-as-user.sh` 若打出英文鍵序（`ao6g42k7…`）→ 立刻 `FAIL(harness-latin-keys)` 整輪中止，不重試。
-- 另：`select-ibopomofo-ime.swift` 等 harness 輔助仍在，但**不得**當背景 session 的主線。
+- **E2E 根因修復（2026-08-12 晚）**：`TISEnableInputSource` 對**已啟用**的來源會把前台搶成「系統設定」，
+  導致 TextEdit 仍用 ABC、打出 `su3cl3`。`select-ibopomofo-ime.swift` 改為**僅未啟用時才 Enable**，
+  否則只 `TISSelect`；`e2e-typing-check.sh` 送鍵前確認前台仍是文字編輯。
+  實測：`你好`→中文（選字可能為「妳好」）、`我的前女友`→✅；不再出英文鍵序。
 
 ## [2.17.0] — 2026-08-12
 
