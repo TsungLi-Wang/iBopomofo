@@ -133,6 +133,48 @@ c448024d  C5/5  文件與規則敘述改寫
 共通點：**只有真的執行到那條路徑才會現形。** 所以改名這類工作，
 「每階段 build 綠」不是充分條件，必須加上活體驗收。
 
+### 下一棒候選：release workflow（已分析、尚未實作）
+
+2026-08-12 討論過「把發版自動化成 GitHub Actions」。**分析完成、一行程式都還沒寫。**
+接手前先讀這節，裡面有三個會踩壞現有東西的地雷。
+
+**現況**：CI 已經比想像的成熟 —— `.github/workflows/` 有六支
+（build+test macos-15／macos-26 雙矩陣、CodeQL、Claude review ×3）。
+缺的只有 **release 那一段**，不是整套 CI/CD。
+
+**三個地雷（設計時務必守住）**：
+
+1. **DMG 檔名不能改成帶版本號的形式。**
+   `scripts/install.sh` 寫死抓 `releases/latest/download/iBopomofo.dmg`。
+   改檔名＝一鍵安裝指令當場壞掉，而且是對已經在用的人壞。
+   要帶版本號就**多傳一份**，固定名那份必須留。
+
+2. **版本號真源是 plist，不是 git tag。**
+   `doc-check.sh` 有 147 項檢查在強制 plist／CHANGELOG／README 一致。
+   若讓 tag 產生版本號，會出現兩套真源打架。
+   **正解：CI 當裁判不當產生器** —— tag 進來就比對 `vX.Y.Z` 是否等於 plist 的 `X.Y.Z`，
+   不一致就 fail。順便擋掉打錯 tag。
+
+3. **`ship-gate.sh` 在 CI 裡永遠只能跑 SUBSET。**
+   兩份真實語料在 `~/Documents/i注音-語料/`，TCC 保護，**連 grok 都讀不到**，
+   CI runner 更不可能。若不寫死這件事，會出現最糟的情況：
+   **CI 全綠 → 以為驗過了 → 發版** —— 那正是 v2.16.0／2.16.1 退版兩次的病根，
+   自動化之後只會更難察覺。
+   Release workflow 必須在 notes 標明「真實語料關卡未在 CI 執行」。
+
+**簽章**：目前 `CODE_SIGN_IDENTITY = "-"`（ad-hoc），無 Apple Developer 帳號、
+無法公證。`install.sh` 就是為了繞這個而存在（直接 `xattr -dr com.apple.quarantine`）。
+建議 workflow 留 secrets 掛載點但預設關閉，Release notes 標明 unsigned。
+
+**建議順序（Johnny 尚未拍板）**：**先不要做**。棒⑥ 活體驗收還沒跑，
+現在加 release workflow 會讓「改名有沒有壞」和「CI 有沒有寫對」混在一起。
+應該：切輸入法 → 活體驗收 → 收掉棒⑥（含版號 bump + tag）→
+**那個 tag 正好當第一次 release workflow 的實彈測試**。
+
+要改的檔案（屆時）：新增 `.github/workflows/release.yml`、
+`scripts/package-dmg.sh` 加帶版本號的輸出、README 補發布流程說明。
+`.gitignore` 已涵蓋 build artifact，不用動。
+
 ---
 
 ## 目前狀態（2026-08-12 · 棒⑤ 後）
