@@ -37,10 +37,10 @@ MOUNT="$(hdiutil attach "$DMG" -nobrowse | awk '/\/Volumes\// {print $3; exit}')
 INSTALLER_APP="$(find "$MOUNT" -maxdepth 1 -name '*.app' ! -name '.*' | head -1)"
 [ -n "$INSTALLER_APP" ] || { echo "錯誤: DMG 內找不到安裝程式"; exit 1; }
 
-SRC="$INSTALLER_APP/Contents/Resources/McBopomofo.app"
+SRC="$INSTALLER_APP/Contents/Resources/iBopomofo.app"
 [ -d "$SRC" ] || { echo "錯誤: 安裝套件不完整 ($SRC)"; exit 1; }
 
-killall McBopomofo 2>/dev/null || true
+killall iBopomofo 2>/dev/null || true
 rm -rf "$DEST"
 ditto "$SRC" "$DEST"
 xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
