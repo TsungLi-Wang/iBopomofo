@@ -145,11 +145,26 @@ run_sample_eval() {
 
 run_e2e_typing() {
     echo "── 關卡：實機打字（需要 i注音為當前輸入法）──"
-    if ./scripts/type-as-user.sh -f scripts/ship-gate-sentences.txt 2>/dev/null | grep -q "❌"; then
-        ./scripts/type-as-user.sh -f scripts/ship-gate-sentences.txt 2>/dev/null | grep -A1 "❌"
-        fail=1
+    # 2026-08-12：原本是「跑一次、grep 有沒有 ❌」來判定，而且 grep 不到就印
+    # 「✅ 抽驗句全過（或已跳過）」。
+    #
+    # 那等於：type-as-user.sh 整支早退（例如當下輸入法不是 i注音，它第一件事就 exit 1）
+    # → 輸出裡當然沒有 ❌ → **這一關印綠燈**。一句都沒打到跟全部打對，判定一樣。
+    # 而且有失敗時它會把整輪實機打字跑第二次，只為了 grep 出那幾行。
+    #
+    # 現在改成：跑一次、留下完整輸出、用 exit code 判定。
+    # type-as-user.sh 會印 TYPE_AS_USER=PASS / FAIL(n)，並在「一句都沒真的打到」時也算 FAIL。
+    local out rc
+    set +e
+    out="$(./scripts/type-as-user.sh -f scripts/ship-gate-sentences.txt 2>&1)"
+    rc=$?
+    set -e
+    printf '%s\n' "$out" | sed 's/^/  /'
+    if [ "$rc" -eq 0 ]; then
+        echo "  ✅ 抽驗句全過"
     else
-        echo "  ✅ 抽驗句全過（或已跳過）"
+        echo "  ❌ 實機打字沒過（exit $rc）—— 上面就是它印的全部內容"
+        fail=1
     fi
 }
 

@@ -112,14 +112,42 @@ while IFS=$'\t' read -r tag sent keys; do
     # repo 沒有、文件沒提，重開機就被系統清掉。加上 2>/dev/null 把
     # 「command not found」吞掉，於是整輪跑完一行都不印，看起來像沒事。
     # 改成呼叫 repo 內的 e2e-typing-check.sh，別再依賴 /tmp。
+    # 每一句都重新確認輸入法還在 i注音。
+    # 2026-08-12：原本只在腳本最開頭檢查一次 —— 而檢查完的下一件事就是 pkill 輸入法。
+    # 重啟後系統可能把當前輸入法掉回 ABC（實測會），腳本毫不知情繼續送鍵，
+    # 於是後面每一句都回空字串，看起來像引擎壞了。這是今天最會騙人的一個。
+    cur=$(swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }' 2>/dev/null || true)
+    if [[ "$cur" != *"iBopomofo"* ]]; then
+        echo ""
+        echo "  ⛔ 中途輸入法掉了：$cur"
+        echo "     已完成 $((pass + fail)) 句，後面沒有跑。請把輸入法切回 i注音再重跑。"
+        echo "     （macOS 對「一個登入階段內能砍幾次輸入法」有上限；今天砍太多次就會這樣，"
+        echo "       登出再登入可復原。）"
+        echo "TYPE_AS_USER=FAIL(input source lost mid-run)"
+        exit 1
+    fi
+
     # `|| true`：單句的送鍵失敗不該讓整輪中斷（set -e + pipefail 會殺掉迴圈，
     # 於是後面的句子連跑都沒跑到，卻只看到前面幾行輸出）。失敗會在下面被算成 ❌。
     got=$(./scripts/e2e-typing-check.sh "${keys//_/ }" 6 2>/dev/null | tail -1 || true)
+
+    # 空字串＝一個字都沒進去，那是 harness 沒送到鍵，不是引擎選錯字。
+    # 2026-08-12 實測三輪：空輸出出現的位置隨機（第一句、最後兩句都發生過），
+    # 而真正的出字錯誤（坐→做）三輪都在同一句。把兩者混為一談，這一關就會
+    # 隨機紅燈，然後沒有人相信它。空的重打一次；再空才算失敗，並標明是送鍵問題。
+    if [ -z "$got" ]; then
+        sleep 3
+        got=$(./scripts/e2e-typing-check.sh "${keys//_/ }" 8 2>/dev/null | tail -1 || true)
+    fi
     if [ "$got" = "$sent" ]; then
         printf "  ✅ %s\n" "$sent"
         pass=$((pass + 1))
     else
-        printf "  ❌ 想打：%s\n     實際：%s\n" "$sent" "${got:-（空，可能是送鍵或輸入法沒起來）}"
+        if [ -z "$got" ]; then
+            printf "  ❌ 想打：%s\n     實際：（重試後仍為空 —— 送鍵沒進去，不是引擎選錯字）\n" "$sent"
+        else
+            printf "  ❌ 想打：%s\n     實際：%s\n" "$sent" "$got"
+        fi
         fail=$((fail + 1))
     fi
 done <<< "$PLAN"
