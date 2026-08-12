@@ -40,6 +40,12 @@ EOF
 osascript <<EOF
 tell application "TextEdit"
     activate
+    -- 先關掉所有既有文件再開新的。
+    -- 2026-08-12：TextEdit 若已有開著的文件，下面讀 document 1 會把舊內容一起讀回來，
+    -- 於是「實際出字」憑空多出上一輪的句子，而且看起來像引擎在亂吐字。
+    repeat with i from (count documents) to 1 by -1
+        close document i saving no
+    end repeat
     make new document
 end tell
 delay 1.5

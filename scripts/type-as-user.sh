@@ -72,13 +72,15 @@ for sent in sys.argv[1].split("\n"):
             continue
         syl = best[ch][0]
         k = "".join(M.get(c, "") for c in syl)
-        if not any(t in syl for t in "ˊˇˋ˙"):
-            pass          # 一聲：由 shell 端補空白
-        keys.append(k + ("" if any(t in syl for t in "ˊˇˋ˙") else " "))
+        # 一聲沒有調號鍵，要補一個空白鍵當作「這個音節打完了」。
+        # 有調號的音節則以調號鍵作結，音節之間不能再插空白 ——
+        # 插了會被輸入法當成獨立的空白鍵（叫出候選窗），整句就歪掉。
+        # 空白先寫成 _ ，交給 shell 端還原，避免行尾空白在 read 時被吃掉。
+        keys.append(k + ("" if any(t in syl for t in "ˊˇˋ˙") else "_"))
     if miss:
         print(f"SKIP\t{sent}\t詞庫沒有：{''.join(miss)}")
     else:
-        print(f"TYPE\t{sent}\t{' '.join(k.strip() for k in keys)}")
+        print(f"TYPE\t{sent}\t{''.join(keys)}")
 EOF
 )
 
@@ -87,7 +89,11 @@ echo "$PLAN" | while IFS=$'\t' read -r tag sent keys; do
         printf "  ⚠️  %s（%s）\n" "$sent" "$keys"
         continue
     fi
-    got=$(/tmp/e2e_slow.sh "$keys" 2>/dev/null | tail -1)
+    # 2026-08-12：原本這裡叫 /tmp/e2e_slow.sh —— 一支只存在於 /tmp 的臨時檔，
+    # repo 沒有、文件沒提，重開機就被系統清掉。加上 2>/dev/null 把
+    # 「command not found」吞掉，於是整輪跑完一行都不印，看起來像沒事。
+    # 改成呼叫 repo 內的 e2e-typing-check.sh，別再依賴 /tmp。
+    got=$(./scripts/e2e-typing-check.sh "${keys//_/ }" 6 2>/dev/null | tail -1)
     if [ "$got" = "$sent" ]; then
         printf "  ✅ %s\n" "$sent"
     else
