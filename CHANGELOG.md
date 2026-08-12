@@ -18,6 +18,8 @@
   導致 TextEdit 仍用 ABC、打出 `su3cl3`。`select-ibopomofo-ime.swift` 改為**僅未啟用時才 Enable**，
   否則只 `TISSelect`；`e2e-typing-check.sh` 送鍵前確認前台仍是文字編輯。
   實測：`你好`→中文（選字可能為「妳好」）、`我的前女友`→✅；不再出英文鍵序。
+- **CI scheme 舊名**：`.github/workflows` 的 `McBopomofo`／`McBopomofoInstaller` →
+  `iBopomofo`／`iBopomofoInstaller`（棒⑥ 漏改導致 Build 自改名後一直紅）。
 
 ## [2.17.0] — 2026-08-12
 

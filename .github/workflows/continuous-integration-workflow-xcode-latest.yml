@@ -76,18 +76,20 @@ jobs:
       - name: Test RomanNumbers
         run: swift test --enable-code-coverage
         working-directory: Packages/RomanNumbers
-      - name: Clean McBopomofo for testing
-        run: xcodebuild -scheme McBopomofo -configuration Debug clean
-      - name: Test McBopomofo
-        run: xcodebuild -scheme McBopomofo -configuration Debug test
-      - name: Clean McBopomofo
-        run: xcodebuild -scheme McBopomofo -configuration Release clean
-      - name: Clean McBopomofoInstaller
-        run: xcodebuild -scheme McBopomofoInstaller -configuration Release clean
-      - name: Build McBopomofo
-        run: xcodebuild -scheme McBopomofo -configuration Release build
-      - name: Build McBopomofoInstaller
-        run: xcodebuild -scheme McBopomofoInstaller -configuration Release build
+      # 2026-08-12：棒⑥ 改名後 scheme 是 iBopomofo / iBopomofoInstaller。
+      # 仍寫 McBopomofo 會讓 CI 永遠紅（本機用新名所以看不出來）。
+      - name: Clean iBopomofo for testing
+        run: xcodebuild -scheme iBopomofo -configuration Debug clean
+      - name: Test iBopomofo
+        run: xcodebuild -scheme iBopomofo -configuration Debug test
+      - name: Clean iBopomofo
+        run: xcodebuild -scheme iBopomofo -configuration Release clean
+      - name: Clean iBopomofoInstaller
+        run: xcodebuild -scheme iBopomofoInstaller -configuration Release clean
+      - name: Build iBopomofo
+        run: xcodebuild -scheme iBopomofo -configuration Release build
+      - name: Build iBopomofoInstaller
+        run: xcodebuild -scheme iBopomofoInstaller -configuration Release build
       - name: Test data files
         run: make check
         working-directory: Source/Data

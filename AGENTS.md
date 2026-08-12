@@ -107,6 +107,29 @@ git status            # must show clean for product files
 
 Menu **「顯示目前生效設定…」** shows `version` + `build` + `GitRevision` from the running bundle.
 
+## 架構鐵則：誰做什麼（任何 AI 接手都一樣）
+
+```
+Johnny 說要改什麼
+    → AI（Codex / Grok / Claude…）：理解、改碼、本機必要檢查
+    → git commit + git push
+    → GitHub Actions（寫死、每次一樣）：Build / Test / CodeQL …
+    → （下一階才做）tag → Package DMG → GitHub Release
+```
+
+| 角色 | 該做 | 不准做 |
+|------|------|--------|
+| **AI** | 思考、改 code、本機最低驗證、commit、push、**查** CI 結果並照實回報 | 自己決定「今天要不要跑 CI」；把 push 成功說成 CI 通過；未受命就發版 |
+| **GitHub Actions** | push／PR 後**固定**跑 workflow 裡寫死的步驟 | 依賴 AI 當下心情 |
+| **本機 ship-gate** | 發版前／改選字時的產品尺（CORE） | 拿來替代 CI；E2E 預設不跑 |
+
+**寫死的對應（精神；Release 自動化見下一階）：**
+
+- `push`（改到程式）→ Actions **Build + Test**（+ 條件符合時 CodeQL）
+- `tag` →（**尚未接上**）Package + Release + `iBopomofo.dmg`
+
+任何新進 AI：**先讀本節 +「同步到 Git」**；流程不因換模型而變。
+
 ## 同步到 Git（sync）—— 標準流程
 
 **觸發語**：Johnny 說「幫我更新／同步到 Git」「推上去」＝ **commit → push → 查 CI**，三件一組。

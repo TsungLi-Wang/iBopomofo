@@ -280,15 +280,26 @@ C4 只掃了 app 內的路徑常數與 `install.sh`，**沒掃驗收與打包腳
 （build+test macos-15／macos-26 雙矩陣、CodeQL、Claude review ×3）。
 缺的只有 **release 那一段**，不是整套 CI/CD。
 
-> ⛔ **先修這個再談 release workflow（2026-08-12 發現）**：棒⑥ 改名後
-> **Build workflow 一直是紅的**，兩個矩陣都掛在同一句：
-> `xcodebuild: error: The project named "iBopomofo" does not contain a scheme named "McBopomofo"`
-> （run 31586081247）。`continuous-integration-workflow-xcode-latest.yml:79-90` 與
-> `codeql.yml:67` 仍寫舊 scheme 名 `McBopomofo` / `McBopomofoInstaller`，改名時漏掉。
-> 本機 build 綠是因為本機用新 scheme 名，**紅燈只在 CI 出現**。
-> 影響：現在任何「CI 通過」的說法都站不住；release workflow 若建在紅底上會更難除錯。
-> 修法是把那幾行 scheme 名換成 `iBopomofo` / `iBopomofoInstaller`（純字串，不動邏輯）——
-> 但那屬於改 workflow，**要 Johnny 點頭**，2026-08-12 這一棒刻意沒動。
+> ✅ **CI scheme 舊名已修（2026-08-12 晚，Johnny 點頭後）**：
+> `continuous-integration-workflow-xcode-latest.yml` 與 `codeql.yml` 的
+> `-scheme McBopomofo`／`McBopomofoInstaller` 已改成 `iBopomofo`／`iBopomofoInstaller`。
+> （`McBopomofoLMLibTest` 是 CMake target 真名，**不要改**。）
+> 修之前 Build 自棒⑥ 起一直紅；修之後才談得上「push → CI 固定驗證」。
+
+### 接 release／DMG 自動化之前要先成立的條件（排程前置，不是做不到）
+
+| # | 前置 | 狀態（2026-08-12） |
+|---|------|-------------------|
+| 1 | push → Build／Test CI **會綠**（scheme 名正確） | ✅ 已修 workflow；等本 commit 的 CI 跑完確認 |
+| 2 | 「同步到 Git」流程寫死在 AGENTS（任何 AI 同一套） | ✅ |
+| 3 | 本機 `package-dmg.sh` 用新 scheme、能打出 `dist/iBopomofo.dmg` | ✅ 已是 iBopomofo scheme；本機打過 2.17.0 DMG |
+| 4 | 版號真源 = 兩份 plist + CHANGELOG + tag 一致（doc-check） | ✅ 機制在；發版時照鐵則 bump |
+| 5 | 真實語料 ship-gate **不能**指望 CI 跑 FULL（TCC／私有路徑） | ⚠️ 設計約束：release 只能標「CI=SUBSET／CORE 離線」；FULL 語料在本機 |
+| 6 | Apple 公證／Developer ID | ❌ 目前 ad-hoc；`install.sh` 繞 Gatekeeper。release 自動化**做得到 unsigned DMG**，公證是帳號問題不是排程 |
+| 7 | 實機 E2E 基準檔（可選，不擋 CORE） | ⚠️ 可選；E2E 根因（TISEnable 搶前台）已修 |
+
+**結論給下一棒**：Package／Release 自動化是**排程下一階**，不是技術做不到。  
+接上的正確順序：本 commit CI 綠 → 再開 `release.yml`（tag 觸發）→ 守三地雷（下節）。
 
 **三個地雷（設計時務必守住）**：
 
@@ -314,13 +325,10 @@ C4 只掃了 app 內的路徑常數與 `install.sh`，**沒掃驗收與打包腳
 無法公證。`install.sh` 就是為了繞這個而存在（直接 `xattr -dr com.apple.quarantine`）。
 建議 workflow 留 secrets 掛載點但預設關閉，Release notes 標明 unsigned。
 
-**建議順序（Johnny 尚未拍板）**：**先不要做**。棒⑥ 活體驗收還沒跑，
-現在加 release workflow 會讓「改名有沒有壞」和「CI 有沒有寫對」混在一起。
-應該：切輸入法 → 活體驗收 → 收掉棒⑥（含版號 bump + tag）→
-**那個 tag 正好當第一次 release workflow 的實彈測試**。
-
-要改的檔案（屆時）：新增 `.github/workflows/release.yml`、
-`scripts/package-dmg.sh` 加帶版本號的輸出、README 補發布流程說明。
+**建議順序（2026-08-12 更新）**：改名活體已上、同步流程已寫死、CI scheme 已修。  
+**下一階可以排 release workflow**（仍須 Johnny 明示開工）。  
+第一次實彈：用下一次正式 tag（或重跑 v2.17.0 流程）驗證 `tag → build → DMG → GitHub Release`。  
+要改的檔案（屆時）：新增 `.github/workflows/release.yml`；DMG **固定名** `iBopomofo.dmg` 必留（可另存帶版號副本）；Release notes 標 unsigned + 語料未在 CI。  
 `.gitignore` 已涵蓋 build artifact，不用動。
 
 ---
