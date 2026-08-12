@@ -29,7 +29,7 @@
 #include "AssociatedPhrasesV2.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 constexpr char kSample[] = R"(
 # format org.openvanilla.mcbopomofo.sorted
@@ -232,4 +232,4 @@ TEST(AssociatedPhrasesV2Test, ReturnsDeduplicatedResults) {
             (std::vector<std::string>{"ㄨㄣˊ", "ㄕㄨ", "ㄔㄨˇ", "ㄌㄧˇ"}));
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

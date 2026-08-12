@@ -30,7 +30,7 @@
 #include <string_view>
 #include <vector>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 constexpr std::string_view SORTED_PRAGMA_HEADER =
     "# format org.openvanilla.mcbopomofo.sorted\n";
@@ -77,6 +77,6 @@ class ParselessPhraseDB {
   const char* end_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_PARSELESSPHRASEDB_H_

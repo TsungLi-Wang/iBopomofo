@@ -24,7 +24,7 @@
 #include "ByteBlockBackedDictionary.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 TEST(ByteBlockBackedDictionaryTest, EmptyCStringParseSuccessfully) {
   constexpr char data[] = "";
@@ -281,4 +281,4 @@ TEST(ByteBlockBackedDictionaryTest, ComplexEntriesValueThenKey) {
   ASSERT_EQ(dict.getValues("comment").at(0), "value1 \t key1  #");
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

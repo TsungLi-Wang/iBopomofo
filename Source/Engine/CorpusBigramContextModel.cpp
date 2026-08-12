@@ -30,7 +30,7 @@
 #include <functional>
 #include <string>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 namespace {
 
@@ -120,4 +120,4 @@ double CorpusBigramContextModel::score(const std::string& prevWord,
   return lambda_ * jt->second;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

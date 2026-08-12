@@ -30,7 +30,7 @@
 
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // A word-level bigram ContextModel for ReadingGrid::walk(). When set on a grid,
 // walk() runs its expanded per-unigram DP and adds this model's transition
@@ -80,6 +80,6 @@ class CorpusBigramContextModel
   size_t count_ = 0;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_CORPUSBIGRAMCONTEXTMODEL_H_

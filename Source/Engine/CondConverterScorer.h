@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class CondConverterScorer {
  public:
@@ -62,6 +62,6 @@ class CondConverterScorer {
                 float* hOut, float* cOut) const;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_CONDCONVERTERSCORER_H_

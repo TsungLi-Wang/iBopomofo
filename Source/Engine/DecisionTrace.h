@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // 記錄「這次選字，每一層各做了什麼決定」。
 //
@@ -125,6 +125,6 @@ class DecisionTrace {
   std::vector<Entry> entries_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_DECISIONTRACE_H_

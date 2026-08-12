@@ -32,7 +32,7 @@
 #include "MemoryMappedFile.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class TempFile {
  public:
@@ -217,4 +217,4 @@ TEST(MemoryMappedFileTest, OpenFailureOnDirectory) {
   EXPECT_FALSE(mf.isOpen());
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

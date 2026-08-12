@@ -19,9 +19,9 @@
 #include "../benchmark_gate.h"
 
 using Formosa::Gramambular2::ReadingGrid;
-using McBopomofo::CorpusBigramContextModel;
-using McBopomofo::NeuralLMPathScorer;
-using McBopomofo::ParselessLM;
+using iBopomofo::CorpusBigramContextModel;
+using iBopomofo::NeuralLMPathScorer;
+using iBopomofo::ParselessLM;
 
 namespace {
 
@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
   }
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
-  McBopomofoEval::AbortUnlessTw538(argv[1]);
+  iBopomofoEval::AbortUnlessTw538(argv[1]);
   auto cases = loadCases(argv[1]);
   ParselessLM lm;
   if (!lm.open(argv[2])) return 1;

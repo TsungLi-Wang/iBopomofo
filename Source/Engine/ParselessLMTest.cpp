@@ -30,7 +30,7 @@
 #include "ParselessLM.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 constexpr char kSample[] = R"(
 # format org.openvanilla.mcbopomofo.sorted
@@ -129,4 +129,4 @@ TEST(ParselessLMTest, SanityCheckTest) {
   lm.close();
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

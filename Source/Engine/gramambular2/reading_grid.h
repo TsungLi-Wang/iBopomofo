@@ -258,7 +258,7 @@ class ReadingGrid {
   // 傳 nullptr 或空表 → 完全不改變原行為。
   // 決策軌跡（可選）。給了就會記錄「重排／頻率壓縮各換掉了什麼」。
   // 預設 nullptr → 完全沒有額外成本，行為逐位相同。
-  void setDecisionTrace(McBopomofo::DecisionTrace* trace) {
+  void setDecisionTrace(iBopomofo::DecisionTrace* trace) {
     decisionTrace_ = trace;
   }
 
@@ -363,7 +363,7 @@ class ReadingGrid {
   double pathRerankNu_ = 0.0;
   const std::map<std::string, double>* confusionAlphas_ = nullptr;
   size_t pathRerankNBest_ = 10;
-  McBopomofo::DecisionTrace* decisionTrace_ = nullptr;
+  iBopomofo::DecisionTrace* decisionTrace_ = nullptr;
   // Per-state hypothesis beam for n-best (exact top-1 preserved as best hyp).
   static constexpr size_t kNBestHypK = 8;
 

@@ -29,7 +29,7 @@ static constexpr char kDelimiterChar = ' ';
 static constexpr char kSeparatorChar = '-';
 static constexpr const char* kUnannotatedReading = "na";
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 static std::string GetSecondColumn(std::string_view row) {
   auto it = row.cbegin();
@@ -185,4 +185,4 @@ void VariantAnnotator::closeMemoryMapFiles() {
   bpmfvsVariantsFile_.close();
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

@@ -35,7 +35,7 @@
 
 using StringViews = std::vector<std::string_view>;
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 static bool VectorsEqual(const std::vector<std::string_view>& a,
                          const std::vector<std::string>& b) {
@@ -227,4 +227,4 @@ TEST(ParselessPhraseDBTest, LookUpByValue) {
   ASSERT_TRUE(rows.empty());
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

@@ -61,7 +61,7 @@ void BM_ByteBlockBackedDictionaryParseTest(benchmark::State& state) {
   const std::string& testData = GetTestData();
 
   for (auto _ : state) {
-    McBopomofo::ByteBlockBackedDictionary dictionary;
+    iBopomofo::ByteBlockBackedDictionary dictionary;
     dictionary.parse(testData.c_str(), testData.size());
   }
 }
@@ -72,10 +72,10 @@ void BM_ByteBlockBackedDictionaryValueColumnFirstParseTest(
   const std::string& testData = GetTestData();
 
   for (auto _ : state) {
-    McBopomofo::ByteBlockBackedDictionary dictionary;
+    iBopomofo::ByteBlockBackedDictionary dictionary;
     dictionary.parse(
         testData.c_str(), testData.size(),
-        McBopomofo::ByteBlockBackedDictionary::ColumnOrder::VALUE_THEN_KEY);
+        iBopomofo::ByteBlockBackedDictionary::ColumnOrder::VALUE_THEN_KEY);
   }
 }
 BENCHMARK(BM_ByteBlockBackedDictionaryValueColumnFirstParseTest);

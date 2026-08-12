@@ -381,22 +381,22 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
       if (decisionTrace_ != nullptr && decisionTrace_->enabled()) {
         // 誰換掉了 rank 0？分三種情況記，之後做錯誤分層時就不必事後猜。
         if (bestNoAlphaIdx != 0) {
-          decisionTrace_->record(McBopomofo::DecisionTrace::kWholePath,
+          decisionTrace_->record(iBopomofo::DecisionTrace::kWholePath,
                                  Join(nbest[bestNoAlphaIdx].words),
-                                 McBopomofo::DecisionTrace::Layer::kPathRerank,
+                                 iBopomofo::DecisionTrace::Layer::kPathRerank,
                                  "rank0→rank" + std::to_string(bestNoAlphaIdx));
         }
         if (bestIdx != bestNoAlphaIdx) {
-          decisionTrace_->record(McBopomofo::DecisionTrace::kWholePath,
+          decisionTrace_->record(iBopomofo::DecisionTrace::kWholePath,
                                  Join(nbest[bestIdx].words),
-                                 McBopomofo::DecisionTrace::Layer::kConfusionAlpha,
+                                 iBopomofo::DecisionTrace::Layer::kConfusionAlpha,
                                  "rank" + std::to_string(bestNoAlphaIdx) + "→rank" +
                                      std::to_string(bestIdx));
         }
         if (bestIdx == 0 && bestNoAlphaIdx == 0) {
-          decisionTrace_->record(McBopomofo::DecisionTrace::kWholePath,
+          decisionTrace_->record(iBopomofo::DecisionTrace::kWholePath,
                                  Join(nbest[0].words),
-                                 McBopomofo::DecisionTrace::Layer::kContextModel, "rank0");
+                                 iBopomofo::DecisionTrace::Layer::kContextModel, "rank0");
         }
       }
       const RankedPath& picked = nbest[bestIdx];

@@ -30,9 +30,9 @@
 #include "gramambular2/reading_grid.h"
 
 using Formosa::Gramambular2::ReadingGrid;
-using McBopomofo::CorpusBigramContextModel;
-using McBopomofo::NeuralLMPathScorer;
-using McBopomofo::ParselessLM;
+using iBopomofo::CorpusBigramContextModel;
+using iBopomofo::NeuralLMPathScorer;
+using iBopomofo::ParselessLM;
 
 namespace {
 
@@ -485,7 +485,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  McBopomofo::ParticleRuleDisambiguator particleRule;
+  iBopomofo::ParticleRuleDisambiguator particleRule;
   for (const std::string& rulesPath : rulesPaths) {
     if (!particleRule.load(rulesPath)) {
       std::cerr << "FATAL: cannot load rules: " << rulesPath << "\n";

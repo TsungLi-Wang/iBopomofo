@@ -33,7 +33,7 @@
 
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 static constexpr std::string_view kMacroPrefix = "MACRO@";
 static constexpr double kMacroScore = -8.0;
@@ -360,4 +360,4 @@ void McBopomofoLM::loadPhraseReplacementMap(const char* data, size_t length) {
   phraseReplacement_.load(data, length);
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

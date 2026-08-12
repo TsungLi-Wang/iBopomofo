@@ -59,7 +59,7 @@ TEST(NeuralLMPathScorerEquality, ScoreNBestMatchesScoreSentenceOracle) {
   const std::string model = FindShippingModel();
   ASSERT_FALSE(model.empty()) << "path-char-lstm.bin not found; set MCBO_PATH_CHAR_LSTM";
 
-  McBopomofo::NeuralLMPathScorer scorer;
+  iBopomofo::NeuralLMPathScorer scorer;
   ASSERT_TRUE(scorer.load(model)) << "failed to load " << model;
   ASSERT_TRUE(scorer.isLoaded());
 

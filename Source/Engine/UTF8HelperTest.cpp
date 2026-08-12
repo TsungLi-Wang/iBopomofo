@@ -27,7 +27,7 @@
 #include "UTF8Helper.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 TEST(UTF8HelperTest, CountingAndClampingEmptyString) {
   std::string s;
@@ -105,4 +105,4 @@ TEST(UTF8HelperTest, Split) {
   ASSERT_EQ(output[6], "行");
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

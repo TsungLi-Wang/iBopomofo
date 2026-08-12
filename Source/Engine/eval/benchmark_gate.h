@@ -9,7 +9,7 @@
 #include <iostream>
 #include <string>
 
-namespace McBopomofoEval {
+namespace iBopomofoEval {
 
 inline size_t CountBenchmarkSentences(const std::string& path) {
   std::ifstream in(path);
@@ -52,4 +52,4 @@ inline void AbortUnlessTw538(const std::string& path) {
   }
 }
 
-}  // namespace McBopomofoEval
+}  // namespace iBopomofoEval

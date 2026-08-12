@@ -28,7 +28,7 @@
 #include <sstream>
 #include <utility>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 using Formosa::Gramambular2::ReadingGrid;
 
@@ -445,4 +445,4 @@ bool ParticleRuleDisambiguator::rescoreWalk(const ReadingGrid::WalkResult& walk)
   return changed;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

@@ -7,7 +7,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 namespace {
 constexpr char kSep = '\x1f';
@@ -130,4 +130,4 @@ double CharNGramPathScorer::scoreSentence(
   return s;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

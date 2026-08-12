@@ -32,7 +32,7 @@
 #include <string>
 #include <vector>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 bool UserPhrasesLM::open(const char* path) {
   if (!mmapedFile_.open(path)) {
@@ -77,4 +77,4 @@ std::vector<ByteBlockBackedDictionary::Issue> UserPhrasesLM::getParsingIssues()
   return dictionary_.issues();
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

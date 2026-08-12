@@ -32,7 +32,7 @@
 #include "ParselessPhraseDB.h"
 #include "gramambular2/language_model.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class ParselessLM : public Formosa::Gramambular2::LanguageModel {
  public:
@@ -66,6 +66,6 @@ class ParselessLM : public Formosa::Gramambular2::LanguageModel {
   std::unique_ptr<ParselessPhraseDB> db_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_PARSELESSLM_H_

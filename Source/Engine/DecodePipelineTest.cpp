@@ -6,7 +6,7 @@
 
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 namespace {
 
 TEST(DecodePipelineTest, PlainBopomofoTurnsEverythingOff) {
@@ -51,4 +51,4 @@ TEST(DecodePipelineTest, DefaultIsPlain) {
 }
 
 }  // namespace
-}  // namespace McBopomofo
+}  // namespace iBopomofo

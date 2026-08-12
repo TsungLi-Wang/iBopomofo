@@ -28,7 +28,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // A dictionary backed by a block of bytes, usually read or mapped from a file
 // containing plaintext key-value pairs. Lines beginning with "#" are ignored
@@ -102,6 +102,6 @@ class ByteBlockBackedDictionary {
   std::unordered_map<std::string_view, std::vector<std::string_view>> dict_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_BYTEBLOCKBACKEDDICTIONARY_H_

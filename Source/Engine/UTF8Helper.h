@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // Count the number of code points of a string encoded in UTF-8. If it
 // encounters an invalid UTF-8 sequence, the returned value is the number of
@@ -45,6 +45,6 @@ std::string GetCodePoint(const std::string& s, size_t cp);
 // Splits the string.
 std::vector<std::string> Split(const std::string& s);
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_UTF8HELPER_H_

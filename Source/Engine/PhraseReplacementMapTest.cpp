@@ -28,7 +28,7 @@
 #include "PhraseReplacementMap.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 TEST(PhraseReplacementMapTest, LenientReading) {
   constexpr char kTestData[] = "key value\nkey2\nkey3 value3";
@@ -43,4 +43,4 @@ TEST(PhraseReplacementMapTest, LenientReading) {
   ASSERT_EQ(map.valueForKey("key3"), "value3");
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

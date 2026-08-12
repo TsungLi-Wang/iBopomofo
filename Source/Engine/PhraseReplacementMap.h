@@ -30,7 +30,7 @@
 #include "ByteBlockBackedDictionary.h"
 #include "MemoryMappedFile.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class PhraseReplacementMap {
  public:
@@ -56,6 +56,6 @@ class PhraseReplacementMap {
   MemoryMappedFile mmapedFile_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_PHRASEREPLACEMENTMAP_H_

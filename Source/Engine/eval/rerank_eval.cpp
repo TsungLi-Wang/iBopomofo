@@ -20,8 +20,8 @@
 #include "gramambular2/reading_grid.h"
 
 using Formosa::Gramambular2::ReadingGrid;
-using McBopomofo::ConfusionPairDisambiguator;
-using McBopomofo::ParselessLM;
+using iBopomofo::ConfusionPairDisambiguator;
+using iBopomofo::ParselessLM;
 
 namespace {
 

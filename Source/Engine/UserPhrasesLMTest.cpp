@@ -29,7 +29,7 @@
 #include "UserPhrasesLM.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 TEST(UserPhrasesLMTest, LenientReading) {
   constexpr char kTestData[] = "value1 reading1\nvalue2 \nvalue3 reading2";
@@ -59,4 +59,4 @@ TEST(UserPhrasesLMTest, ValuesContainingSpaces) {
   EXPECT_EQ(results[0].score(), UserPhrasesLM::kUserUnigramScore);
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

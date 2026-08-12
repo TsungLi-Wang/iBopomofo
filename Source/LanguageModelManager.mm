@@ -35,10 +35,10 @@ static const int kUserOverrideModelCapacity = 500;
 // ephemeral hard-suggest memory. Soft DP personalization uses the same decay.
 static const double kObservedOverrideHalflife = 604800.0; // 7 days.
 
-static McBopomofo::McBopomofoLM gLanguageModelMcBopomofo;
-static McBopomofo::McBopomofoLM gLanguageModelPlainBopomofo;
-static McBopomofo::UserOverrideModel gUserOverrideModel(kUserOverrideModelCapacity, kObservedOverrideHalflife);
-static McBopomofo::VariantAnnotator gVariantAnnotator;
+static iBopomofo::McBopomofoLM gLanguageModelMcBopomofo;
+static iBopomofo::McBopomofoLM gLanguageModelPlainBopomofo;
+static iBopomofo::UserOverrideModel gUserOverrideModel(kUserOverrideModelCapacity, kObservedOverrideHalflife);
+static iBopomofo::VariantAnnotator gVariantAnnotator;
 
 static NSString *const kUserDataTemplateName = @"template-data";
 static NSString *const kUserDataPlainBopomofoTemplateName = @"template-data-plain-bpmf";
@@ -49,14 +49,14 @@ static NSString *const kTemplateExtension = @".txt";
 
 @implementation LanguageModelManager
 
-static void LTLoadLanguageModelFile(NSString *filenameWithoutExtension, McBopomofo::McBopomofoLM& lm)
+static void LTLoadLanguageModelFile(NSString *filenameWithoutExtension, iBopomofo::McBopomofoLM& lm)
 {
     Class cls = NSClassFromString(@"McBopomofoInputMethodController");
     NSString *dataPath = [[NSBundle bundleForClass:cls] pathForResource:filenameWithoutExtension ofType:@"txt"];
     lm.loadLanguageModel(dataPath.UTF8String);
 }
 
-static void LTLoadAssociatedPhrases(McBopomofo::McBopomofoLM& lm)
+static void LTLoadAssociatedPhrases(iBopomofo::McBopomofoLM& lm)
 {
     Class cls = NSClassFromString(@"McBopomofoInputMethodController");
     NSString *dataPath = [[NSBundle bundleForClass:cls] pathForResource:@"associated-phrases-v2" ofType:@"txt"];
@@ -494,22 +494,22 @@ static void LTLoadVariantAnnotatorData()
     return YES;
 }
 
-+ (McBopomofo::McBopomofoLM *)languageModelMcBopomofo
++ (iBopomofo::McBopomofoLM *)languageModelMcBopomofo
 {
     return &gLanguageModelMcBopomofo;
 }
 
-+ (McBopomofo::McBopomofoLM *)languageModelPlainBopomofo
++ (iBopomofo::McBopomofoLM *)languageModelPlainBopomofo
 {
     return &gLanguageModelPlainBopomofo;
 }
 
-+ (McBopomofo::UserOverrideModel *)userOverrideModel
++ (iBopomofo::UserOverrideModel *)userOverrideModel
 {
     return &gUserOverrideModel;
 }
 
-+ (McBopomofo::VariantAnnotator *)variantAnnotator
++ (iBopomofo::VariantAnnotator *)variantAnnotator
 {
     return &gVariantAnnotator;
 }
@@ -582,17 +582,17 @@ static void LTLoadVariantAnnotatorData()
 
 + (NSString *)annotateVariantForCharacters:(NSString *)inCharacters readings:(NSString *)inReadings
 {
-    McBopomofo::VariantAnnotator *annotator = LanguageModelManager.variantAnnotator;
+    iBopomofo::VariantAnnotator *annotator = LanguageModelManager.variantAnnotator;
     if (!annotator || !annotator->loaded()) {
         return inCharacters;
     }
 
     std::string value(inCharacters.UTF8String);
     std::string readingString(inReadings.UTF8String);
-    std::vector<std::string> characters = McBopomofo::Split(value);
-    std::vector<std::string> readings = McBopomofo::AssociatedPhrasesV2::SplitReadings(readingString);
+    std::vector<std::string> characters = iBopomofo::Split(value);
+    std::vector<std::string> readings = iBopomofo::AssociatedPhrasesV2::SplitReadings(readingString);
 
-    McBopomofo::VariantAnnotator::CombinedResult result = LanguageModelManager.variantAnnotator->annotate(characters,
+    iBopomofo::VariantAnnotator::CombinedResult result = LanguageModelManager.variantAnnotator->annotate(characters,
                                                                                                           readings);
     return [[NSString alloc] initWithUTF8String:result.annotatedString.c_str()];
 }

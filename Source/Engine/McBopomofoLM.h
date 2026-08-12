@@ -38,7 +38,7 @@
 #include "UserPhrasesLM.h"
 #include "gramambular2/language_model.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // McBopomofoLM manages the input method's language models and performs text
 // and macro conversions.
@@ -172,6 +172,6 @@ class McBopomofoLM : public Formosa::Gramambular2::LanguageModel {
   std::function<std::string(const std::string&)> macroConverter_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_MCBOPOMOFOLM_H_

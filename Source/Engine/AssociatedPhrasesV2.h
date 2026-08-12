@@ -32,7 +32,7 @@
 #include "MemoryMappedFile.h"
 #include "ParselessPhraseDB.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class AssociatedPhrasesV2 {
  public:
@@ -87,6 +87,6 @@ class AssociatedPhrasesV2 {
   std::unique_ptr<ParselessPhraseDB> db_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_ASSOCIATEDPHRASESV2_H_

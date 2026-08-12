@@ -29,7 +29,7 @@
 #include "McBopomofoLM.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 constexpr char kPrimaryLMData[] = R"(
 # format org.openvanilla.mcbopomofo.sorted
@@ -285,4 +285,4 @@ TEST(McBopomofoLMTest, MacroValueNotRecognizedByMacroConverterIsFiltered) {
   EXPECT_EQ(unigrams[1].value(), "6/10/21");
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

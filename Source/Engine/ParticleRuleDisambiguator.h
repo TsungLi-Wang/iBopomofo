@@ -34,7 +34,7 @@
 
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // 「的／得」文法規則消歧。
 //
@@ -176,6 +176,6 @@ class ParticleRuleDisambiguator {
       applied_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_PARTICLERULEDISAMBIGUATOR_H_

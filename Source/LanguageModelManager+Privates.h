@@ -29,10 +29,10 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @interface LanguageModelManager ()
-@property (class, readonly, nonatomic) McBopomofo::McBopomofoLM *languageModelMcBopomofo;
-@property (class, readonly, nonatomic) McBopomofo::McBopomofoLM *languageModelPlainBopomofo;
-@property (class, readonly, nonatomic) McBopomofo::UserOverrideModel *userOverrideModel;
-@property (class, readonly, nonatomic) McBopomofo::VariantAnnotator *variantAnnotator;
+@property (class, readonly, nonatomic) iBopomofo::McBopomofoLM *languageModelMcBopomofo;
+@property (class, readonly, nonatomic) iBopomofo::McBopomofoLM *languageModelPlainBopomofo;
+@property (class, readonly, nonatomic) iBopomofo::UserOverrideModel *userOverrideModel;
+@property (class, readonly, nonatomic) iBopomofo::VariantAnnotator *variantAnnotator;
 @end
 
 NS_ASSUME_NONNULL_END

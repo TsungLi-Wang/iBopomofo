@@ -30,7 +30,7 @@
 
 #include <utility>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 MemoryMappedFile::MemoryMappedFile(MemoryMappedFile&& other) noexcept
     : fd_(std::exchange(other.fd_, -1)),
@@ -91,4 +91,4 @@ void MemoryMappedFile::close() {
   data_ = nullptr;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

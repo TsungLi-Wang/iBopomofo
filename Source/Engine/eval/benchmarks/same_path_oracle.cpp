@@ -33,8 +33,8 @@
 
 using Formosa::Gramambular2::LanguageModel;
 using Formosa::Gramambular2::ReadingGrid;
-using McBopomofo::CorpusBigramContextModel;
-using McBopomofo::ParselessLM;
+using iBopomofo::CorpusBigramContextModel;
+using iBopomofo::ParselessLM;
 
 namespace {
 
@@ -208,7 +208,7 @@ OracleResult analyzeCase(ParselessLM* lm, const Case& c,
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc >= 2) McBopomofoEval::AbortUnlessTw538(argv[1]);
+  if (argc >= 2) iBopomofoEval::AbortUnlessTw538(argv[1]);
   if (argc < 5) {
     std::cerr << "Usage: same_path_oracle <sentences.tsv> <data.txt> "
                  "<bigram-pmi.tsv> <lambda>\n";

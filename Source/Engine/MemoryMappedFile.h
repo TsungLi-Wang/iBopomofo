@@ -26,7 +26,7 @@
 
 #include <cstddef>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // A wrapper for managing a memory-mapped file.
 //
@@ -63,6 +63,6 @@ class MemoryMappedFile {
   size_t length_ = 0;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_MEMORYMAPPEDFILE_H_

@@ -32,7 +32,7 @@
 #include "gramambular2/reading_grid.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 using Formosa::Gramambular2::LanguageModel;
 using Formosa::Gramambular2::ReadingGrid;
@@ -278,4 +278,4 @@ TEST(UserOverrideModelTest, ObservationKeyUsesChosenValueWithContextModel) {
       << underUnflipped.candidate << "'.";
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

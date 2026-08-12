@@ -43,7 +43,7 @@
 
 #include "ByteBlockBackedDictionary.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 namespace {
 
@@ -702,4 +702,4 @@ std::vector<std::string_view> ByteBlockBackedDictionary::getValues(
   return it->second;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

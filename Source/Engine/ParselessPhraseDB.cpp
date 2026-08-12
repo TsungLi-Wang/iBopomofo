@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 bool ParselessPhraseDB::ValidatePragma(const char* buf, size_t length) {
   if (length < SORTED_PRAGMA_HEADER.length()) {
@@ -218,4 +218,4 @@ std::vector<std::string> ParselessPhraseDB::reverseFindRows(
   return rows;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

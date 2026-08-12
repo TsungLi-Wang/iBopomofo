@@ -64,17 +64,17 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     Formosa::Mandarin::BopomofoReadingBuffer *_bpmfReadingBuffer;
 
     // language model
-    McBopomofo::McBopomofoLM *_languageModel;
+    iBopomofo::McBopomofoLM *_languageModel;
 
     // user override model
-    McBopomofo::UserOverrideModel *_userOverrideModel;
+    iBopomofo::UserOverrideModel *_userOverrideModel;
 
     Formosa::Gramambular2::ReadingGrid *_grid;
     Formosa::Gramambular2::ReadingGrid::WalkResult _latestWalk;
 
     // 「的／得」文法規則消歧。詞頻讓「的」領先「得」約 180 倍，統計層追不回來；
     // 這一層在走完路徑後、用文法把不合法的選項換掉。見 ParticleRuleDisambiguator.h。
-    McBopomofo::ParticleRuleDisambiguator *_particleRule;
+    iBopomofo::ParticleRuleDisambiguator *_particleRule;
 
     // 同音候選的頻率先驗壓縮係數（讀音 → alpha）。見 reading_grid.h
     // setConfusionAlphas 的說明與 Source/Data/confusion-alphas.tsv。
@@ -137,7 +137,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
                 start = dash + 1;
             }
         }
-        std::vector<std::string> chars = McBopomofo::Split(value);
+        std::vector<std::string> chars = iBopomofo::Split(value);
         if (chars.empty()) {
             continue;
         }
@@ -198,7 +198,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 - (void)setInputMode:(NSString *)value
 {
     NSString *newInputMode;
-    McBopomofo::McBopomofoLM *newLanguageModel;
+    iBopomofo::McBopomofoLM *newLanguageModel;
 
     if ([value isKindOfClass:[NSString class]] && [value isEqual:InputModePlainBopomofo]) {
         newInputMode = InputModePlainBopomofo;
@@ -259,7 +259,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         _grid->setReadingSeparator("-");
         _lastTabPinnedBuffer = nil;
 
-        _particleRule = new McBopomofo::ParticleRuleDisambiguator();
+        _particleRule = new iBopomofo::ParticleRuleDisambiguator();
         NSString *particlePath = [[NSBundle bundleForClass:[self class]]
             pathForResource:@"particle-rules"
                      ofType:@"tsv"];
@@ -420,7 +420,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // do the override, the nodes that represent A and D may not carry the same
     // values after the next walk, since the underlying reading is now a-bcef-d
     // and that does not necessary guarantee that A and D will be there.
-    std::vector<std::string> originalNodeValues = McBopomofo::Split((*nodeIter)->value());
+    std::vector<std::string> originalNodeValues = iBopomofo::Split((*nodeIter)->value());
     if (originalNodeValues.size() == (*nodeIter)->spanningLength()) {
         // Only performs this if the condition is satisfied.
         size_t overrideIndex = accumulatedCursor - (*nodeIter)->spanningLength();
@@ -452,11 +452,11 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     std::string associatedPhraseReading(phraseReading.UTF8String);
     std::string associatedPhraseValue(phraseValue.UTF8String);
-    std::vector<std::string> associatedPhraseValues = McBopomofo::Split(associatedPhraseValue);
+    std::vector<std::string> associatedPhraseValues = iBopomofo::Split(associatedPhraseValue);
 
     // Compute how many more reading do we have to insert.
     size_t nodeSpanningLength = (*nodeIter)->spanningLength();
-    std::vector<std::string> splitReadings = McBopomofo::AssociatedPhrasesV2::SplitReadings(associatedPhraseReading);
+    std::vector<std::string> splitReadings = iBopomofo::AssociatedPhrasesV2::SplitReadings(associatedPhraseReading);
     size_t splitReadingsSize = splitReadings.size();
     if (nodeSpanningLength >= splitReadingsSize) {
         // Shouldn't happen
@@ -795,7 +795,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         // competition vs unigram sum — soft alone is not enough). Same-span
         // single-char preferences rely on soft DP (§1.4 soft-primary).
         if (_inputMode != InputModePlainBopomofo) {
-            McBopomofo::UserOverrideModel::Suggestion suggestion = _userOverrideModel->suggest(_latestWalk, self.actualCandidateCursorIndex, [NSDate date].timeIntervalSince1970);
+            iBopomofo::UserOverrideModel::Suggestion suggestion = _userOverrideModel->suggest(_latestWalk, self.actualCandidateCursorIndex, [NSDate date].timeIntervalSince1970);
             if (!suggestion.empty() && suggestion.forceHighScoreOverride) {
                 Formosa::Gramambular2::ReadingGrid::Node::OverrideType type =
                     Formosa::Gramambular2::ReadingGrid::Node::OverrideType::kOverrideValueWithHighScore;
@@ -2692,8 +2692,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     // Validate that the value's codepoint count is the same as the number
     // of readings. This is a strict requirement for the associated phrases.
-    std::vector<std::string> codepoints = McBopomofo::Split((*nodePtrIt)->value());
-    std::vector<std::string> readings = McBopomofo::AssociatedPhrasesV2::SplitReadings((*nodePtrIt)->reading());
+    std::vector<std::string> codepoints = iBopomofo::Split((*nodePtrIt)->value());
+    std::vector<std::string> readings = iBopomofo::AssociatedPhrasesV2::SplitReadings((*nodePtrIt)->reading());
     if (codepoints.size() != readings.size()) {
         errorCallback();
         return YES;
@@ -2762,7 +2762,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
             value << cp;
         }
 
-        NSString *combinedReading = @(McBopomofo::AssociatedPhrasesV2::CombineReadings(rdSlice).c_str());
+        NSString *combinedReading = @(iBopomofo::AssociatedPhrasesV2::CombineReadings(rdSlice).c_str());
         NSString *actualValue = @(value.str().c_str());
         BuildAssociatedPhraseParams *params = [[BuildAssociatedPhraseParams alloc] init];
         params.previousState = state;
@@ -2816,18 +2816,18 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         size_t composedValueLength = value.length();
 
         bool nodeHasBopomofoAnnotation = false;
-        McBopomofo::VariantAnnotator::CombinedResult nodeAnnotationResult;
+        iBopomofo::VariantAnnotator::CombinedResult nodeAnnotationResult;
         if (!Preferences.bopomofoFontAnnotationSupportEnabled || _inputMode == InputModePlainBopomofo) {
             composed += value;
         } else if (!LanguageModelManager.variantAnnotator->loaded()) {
             composed += value;
         } else {
-            size_t cpLen = McBopomofo::CodePointCount(value);
+            size_t cpLen = iBopomofo::CodePointCount(value);
             if (cpLen != node->spanningLength()) {
                 composed += value;
             } else {
-                std::vector<std::string> characters = McBopomofo::Split(value);
-                std::vector<std::string> readings = McBopomofo::AssociatedPhrasesV2::SplitReadings(node->reading());
+                std::vector<std::string> characters = iBopomofo::Split(value);
+                std::vector<std::string> readings = iBopomofo::AssociatedPhrasesV2::SplitReadings(node->reading());
                 if (readings.size() != cpLen) {
                     composed += value;
                 } else {
@@ -2857,12 +2857,12 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
         // The builder cursor is in the middle of the node.
         size_t distance = builderCursor - runningCursor;
-        size_t valueCodePointCount = McBopomofo::CodePointCount(value);
+        size_t valueCodePointCount = iBopomofo::CodePointCount(value);
 
         // The actual partial value's code point length is the shorter of the
         // distance and the value's code point count.
         size_t cpLen = std::min(distance, valueCodePointCount);
-        std::string actualValue = McBopomofo::SubstringToCodePoints(value, cpLen);
+        std::string actualValue = iBopomofo::SubstringToCodePoints(value, cpLen);
 
         if (nodeHasBopomofoAnnotation) {
             composedCursor += nodeAnnotationResult.accumulatedStringLength[cpLen];
@@ -2926,13 +2926,13 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 // 這是刻意跟「套用」分開的：組態是純資料，可以印出來、可以在測試裡直接建構。
 // 原本這些判斷散在 _walk 的五個 if 裡，沒有任何地方能一眼看出這次用了哪些層 ——
 // 2026-08-11 那個 chosenValueAt bug 潛伏一整版，就是因為這個。
-- (McBopomofo::DecodePipeline)_currentPipeline
+- (iBopomofo::DecodePipeline)_currentPipeline
 {
     // 純注音模式：使用者選這個模式就是不要任何智慧介入。
     if (_inputMode == InputModePlainBopomofo) {
-        return McBopomofo::DecodePipeline::plainBopomofo();
+        return iBopomofo::DecodePipeline::plainBopomofo();
     }
-    McBopomofo::DecodePipeline p;
+    iBopomofo::DecodePipeline p;
     p.contextModel = Preferences.enableContextualWalk;
     p.userModel = (_userOverrideModel != nullptr);
     p.neuralRerank = Preferences.enableNeuralPathRerank && _rerankThisWalk;
@@ -2950,7 +2950,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
 - (void)_walk
 {
-    const McBopomofo::DecodePipeline pipeline = [self _currentPipeline];
+    const iBopomofo::DecodePipeline pipeline = [self _currentPipeline];
 
     // Context model attachment (global corpus bigram and/or user soft
     // personalization). v2.3.0: EnableContextualWalk defaults ON. Hard rule for
@@ -2960,13 +2960,13 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     //
     // Global table (~25 MB) is loaded lazily, once, and shared (read-only after
     // load). User soft scores come from UserOverrideModel (persisted separately).
-    McBopomofo::CorpusBigramContextModel *globalModel = nullptr;
+    iBopomofo::CorpusBigramContextModel *globalModel = nullptr;
     if (pipeline.contextModel
         && _inputMode != InputModePlainBopomofo) {
-        static McBopomofo::CorpusBigramContextModel *sharedContextModel = nullptr;
+        static iBopomofo::CorpusBigramContextModel *sharedContextModel = nullptr;
         static dispatch_once_t onceToken;
         dispatch_once(&onceToken, ^{
-            auto *model = new McBopomofo::CorpusBigramContextModel();
+            auto *model = new iBopomofo::CorpusBigramContextModel();
             // lambda 0.75 is the benchmark grid-search optimum (eval/benchmarks:
             // grid-search optimum on the north-star set (see eval/benchmarks);
             // it is not hand-tuned per case.
@@ -2982,7 +2982,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         }
     }
 
-    McBopomofo::UserOverrideModel *userModel = nullptr;
+    iBopomofo::UserOverrideModel *userModel = nullptr;
     const double now = [NSDate date].timeIntervalSince1970;
     if (pipeline.userModel &&
         _userOverrideModel->hasUsableSoftEvidence(now)) {
@@ -2990,13 +2990,13 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     }
 
     if (globalModel != nullptr || userModel != nullptr) {
-        static McBopomofo::CompositeContextModel *sharedComposite = nullptr;
+        static iBopomofo::CompositeContextModel *sharedComposite = nullptr;
         static dispatch_once_t compositeOnce;
         dispatch_once(&compositeOnce, ^{
-            sharedComposite = new McBopomofo::CompositeContextModel();
+            sharedComposite = new iBopomofo::CompositeContextModel();
         });
         sharedComposite->configure(globalModel, userModel,
-                                   McBopomofo::UserOverrideModel::kDefaultMuUser,
+                                   iBopomofo::UserOverrideModel::kDefaultMuUser,
                                    now);
         _grid->setContextModel(sharedComposite);
     } else {
@@ -3013,10 +3013,10 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     if (pipeline.neuralRerank &&
         _inputMode != InputModePlainBopomofo) {
-        static McBopomofo::NeuralLMPathScorer *sharedPathScorer = nullptr;
+        static iBopomofo::NeuralLMPathScorer *sharedPathScorer = nullptr;
         static dispatch_once_t pathOnce;
         dispatch_once(&pathOnce, ^{
-            auto *s = new McBopomofo::NeuralLMPathScorer();
+            auto *s = new iBopomofo::NeuralLMPathScorer();
             NSString *path = [[NSBundle bundleForClass:[self class]]
                 pathForResource:@"path-char-lstm"
                          ofType:@"bin"];
@@ -3145,9 +3145,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     }
 
     std::string cppValue(actualValue.UTF8String);
-    std::vector<std::string> readings = McBopomofo::AssociatedPhrasesV2::SplitReadings(std::string(reading.UTF8String));
+    std::vector<std::string> readings = iBopomofo::AssociatedPhrasesV2::SplitReadings(std::string(reading.UTF8String));
 
-    std::vector<McBopomofo::AssociatedPhrasesV2::Phrase> phrases = _languageModel->findAssociatedPhrasesV2(cppValue, readings);
+    std::vector<iBopomofo::AssociatedPhrasesV2::Phrase> phrases = _languageModel->findAssociatedPhrasesV2(cppValue, readings);
     if (!phrases.empty()) {
         NSMutableArray<InputStateCandidate *> *array = [NSMutableArray array];
         for (const auto& phrase : phrases) {
@@ -3164,7 +3164,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
                 }
             }
             std::vector<std::string> readingsWithoutPrefix { readingIter, phrase.readings.cend() };
-            std::string combinedReading = McBopomofo::AssociatedPhrasesV2::CombineReadings(readingsWithoutPrefix);
+            std::string combinedReading = iBopomofo::AssociatedPhrasesV2::CombineReadings(readingsWithoutPrefix);
 
             NSString *candidateReading = @(combinedReading.c_str());
             NSString *candidateValue = @(valueWithoutPrefix.c_str());
@@ -3181,14 +3181,14 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 {
     BOOL scToTc = Preferences.chineseConversionEnabled && Preferences.chineseConversionStyle == ChineseConversionStyleModel;
 
-    std::vector<std::string> splitReadings = McBopomofo::AssociatedPhrasesV2::SplitReadings(std::string(params.reading.UTF8String));
+    std::vector<std::string> splitReadings = iBopomofo::AssociatedPhrasesV2::SplitReadings(std::string(params.reading.UTF8String));
     NSString *actualValue = params.value;
     if (scToTc) {
         // The data is in Traditional Chinese, and so if ChineseConversionStyleModel is enabled, we need to convert the prefix back.
         actualValue = [[OpenCCBridge sharedInstance] convertToTraditional:actualValue];
     }
     std::string prefixValue(actualValue.UTF8String);
-    std::vector<McBopomofo::AssociatedPhrasesV2::Phrase> phrases = _languageModel->findAssociatedPhrasesV2(prefixValue, splitReadings);
+    std::vector<iBopomofo::AssociatedPhrasesV2::Phrase> phrases = _languageModel->findAssociatedPhrasesV2(prefixValue, splitReadings);
 
     if (phrases.empty()) {
         return nil;
@@ -3196,7 +3196,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     NSMutableArray<InputStateCandidate *> *array = [NSMutableArray array];
     for (const auto& phrase : phrases) {
-        std::string combinedReading = McBopomofo::AssociatedPhrasesV2::CombineReadings(phrase.readings);
+        std::string combinedReading = iBopomofo::AssociatedPhrasesV2::CombineReadings(phrase.readings);
         NSString *candidateReading = @(combinedReading.c_str());
         NSString *candidateValue = @(phrase.value.c_str());
 
@@ -3221,18 +3221,18 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 {
     NSMutableArray<NSString *> *array = [NSMutableArray array];
 
-    std::vector<McBopomofo::McBopomofoLM::UserFileIssue> issues = _languageModel->getUserFileIssues();
+    std::vector<iBopomofo::McBopomofoLM::UserFileIssue> issues = _languageModel->getUserFileIssues();
     for (const auto& issue : issues) {
         NSMutableString *msg = [NSMutableString string];
 
         switch (issue.fileType) {
-        case McBopomofo::McBopomofoLM::UserFileType::USER_PHRASES:
+        case iBopomofo::McBopomofoLM::UserFileType::USER_PHRASES:
             [msg appendString:NSLocalizedString(@"User phrase file", "")];
             break;
-        case McBopomofo::McBopomofoLM::UserFileType::EXCLUDED_PHRASES:
+        case iBopomofo::McBopomofoLM::UserFileType::EXCLUDED_PHRASES:
             [msg appendString:NSLocalizedString(@"Excluded phrase file", "")];
             break;
-        case McBopomofo::McBopomofoLM::UserFileType::PHRASE_REPLACEMENT_MAP:
+        case iBopomofo::McBopomofoLM::UserFileType::PHRASE_REPLACEMENT_MAP:
             [msg appendString:NSLocalizedString(@"Phrase replacement file", "")];
             break;
         default:
@@ -3245,13 +3245,13 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         [msg appendFormat:NSLocalizedString(@"line %lu: ", ""), issue.lineNumber];
 
         switch (issue.issueType) {
-        case McBopomofo::McBopomofoLM::IssueType::MISSING_SECOND_COLUMN:
+        case iBopomofo::McBopomofoLM::IssueType::MISSING_SECOND_COLUMN:
             [msg appendString:NSLocalizedString(@"Only one column was found.", "")];
             break;
-        case McBopomofo::McBopomofoLM::IssueType::NULL_CHARACTER_IN_TEXT:
+        case iBopomofo::McBopomofoLM::IssueType::NULL_CHARACTER_IN_TEXT:
             [msg appendString:NSLocalizedString(@"Illegal NULL character was found.", "")];
             break;
-        case McBopomofo::McBopomofoLM::IssueType::NO_ISSUE:
+        case iBopomofo::McBopomofoLM::IssueType::NO_ISSUE:
         default:
             // Shouldn't happen, and so the string is not localized.
             [msg appendString:@"Unknown issue."];

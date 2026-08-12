@@ -2,7 +2,7 @@
 
 #include "CondPathScorer.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 size_t CondPathScorer::utf8CharCount(const std::string& s) {
   size_t n = 0;
@@ -49,4 +49,4 @@ double CondPathScorer::scoreSentence(const std::vector<std::string>& words) {
   return sum;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

@@ -37,7 +37,7 @@
 
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 static constexpr char kEmptyNodeString[] = "()";
 static constexpr char kCacheMagic[] = "laowang-uom-cache-v1";
@@ -607,4 +607,4 @@ static std::string FormObservationKey(
   return anteriorStr + "-" + prevStr + "-" + headStr;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

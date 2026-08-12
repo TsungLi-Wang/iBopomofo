@@ -26,8 +26,8 @@
 #include "../benchmark_gate.h"
 
 using Formosa::Gramambular2::ReadingGrid;
-using McBopomofo::CorpusBigramContextModel;
-using McBopomofo::ParselessLM;
+using iBopomofo::CorpusBigramContextModel;
+using iBopomofo::ParselessLM;
 
 namespace {
 
@@ -108,7 +108,7 @@ int accuracy(ParselessLM* lm, const std::vector<Case>& cases,
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc >= 2) McBopomofoEval::AbortUnlessTw538(argv[1]);
+  if (argc >= 2) iBopomofoEval::AbortUnlessTw538(argv[1]);
   if (argc < 3) {
     std::cerr << "Usage: tw_benchmark <sentences.tsv> <data.txt> "
                  "[bigram-pmi.tsv] [single-lambda]\n";

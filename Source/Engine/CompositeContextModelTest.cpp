@@ -35,7 +35,7 @@
 #include "gramambular2/reading_grid.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 namespace {
 
 using Formosa::Gramambular2::LanguageModel;
@@ -309,4 +309,4 @@ TEST(CompositeContextModelTest, S7_ForceHighScoreFlagPreserved) {
 }
 
 }  // namespace
-}  // namespace McBopomofo
+}  // namespace iBopomofo

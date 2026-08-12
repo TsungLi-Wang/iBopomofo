@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-namespace McBopomofo {
+namespace iBopomofo {
 // NOLINTBEGIN(readability-magic-numbers)
 
 // Adapted from https://github.com/lua/lua/blob/master/lutf8lib.c
@@ -156,4 +156,4 @@ std::vector<std::string> Split(const std::string& s) {
 }
 
 // NOLINTEND(readability-magic-numbers)
-}  // namespace McBopomofo
+}  // namespace iBopomofo

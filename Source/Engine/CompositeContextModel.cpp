@@ -26,7 +26,7 @@
 #include <functional>
 #include <string>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 void CompositeContextModel::configure(CorpusBigramContextModel* global,
                                       UserOverrideModel* user, double muUser,
@@ -60,4 +60,4 @@ double CompositeContextModel::scoreWithReading(const std::string& prevWord,
   return total;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

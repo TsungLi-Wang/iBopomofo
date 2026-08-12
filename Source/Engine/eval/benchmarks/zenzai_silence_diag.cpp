@@ -35,10 +35,10 @@
 #include "gramambular2/reading_grid.h"
 
 using Formosa::Gramambular2::ReadingGrid;
-using McBopomofo::CondConverterScorer;
-using McBopomofo::CorpusBigramContextModel;
-using McBopomofo::NeuralLMPathScorer;
-using McBopomofo::ParselessLM;
+using iBopomofo::CondConverterScorer;
+using iBopomofo::CorpusBigramContextModel;
+using iBopomofo::NeuralLMPathScorer;
+using iBopomofo::ParselessLM;
 
 namespace {
 

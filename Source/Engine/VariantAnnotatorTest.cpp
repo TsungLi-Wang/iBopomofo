@@ -24,7 +24,7 @@
 #include "VariantAnnotator.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 static const auto* kTestVariantsData =
     u8"# format org.openvanilla.mcbopomofo.sorted\n"
@@ -185,4 +185,4 @@ TEST(VariantAnnotatorTest, AnnotateCharactersWithVariant0ButNoPUA) {
   EXPECT_FALSE(result.hasPUACodePoints);
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

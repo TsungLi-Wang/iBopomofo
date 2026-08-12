@@ -26,7 +26,7 @@
 
 #include <string>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // 「這一次選字，實際上會經過哪幾層」的組態。
 //
@@ -109,6 +109,6 @@ struct DecodePipeline {
   }
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_DECODEPIPELINE_H_

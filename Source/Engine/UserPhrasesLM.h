@@ -32,7 +32,7 @@
 #include "MemoryMappedFile.h"
 #include "gramambular2/language_model.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class UserPhrasesLM : public Formosa::Gramambular2::LanguageModel {
  public:
@@ -62,6 +62,6 @@ class UserPhrasesLM : public Formosa::Gramambular2::LanguageModel {
   ByteBlockBackedDictionary dictionary_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_USERPHRASESLM_H_

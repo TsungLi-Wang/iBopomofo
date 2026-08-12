@@ -30,7 +30,7 @@
 
 namespace {
 
-using ParselessLM = McBopomofo::ParselessLM;
+using ParselessLM = iBopomofo::ParselessLM;
 
 static const char* kDataPath = "data.txt";
 static const char* kUnigramSearchKey = "ㄕˋ-ㄕˊ";

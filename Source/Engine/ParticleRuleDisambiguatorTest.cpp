@@ -33,7 +33,7 @@
 #include "gtest/gtest.h"
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 namespace {
 
 constexpr char kTable[] =
@@ -235,4 +235,4 @@ TEST(ParticleRuleDisambiguatorTest, EmptyTableLeavesWalkAlone) {
 }
 
 }  // namespace
-}  // namespace McBopomofo
+}  // namespace iBopomofo

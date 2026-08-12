@@ -13,7 +13,7 @@
 
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class NeuralTFPathScorer
     : public Formosa::Gramambular2::ReadingGrid::PathScorer {
@@ -72,6 +72,6 @@ class NeuralTFPathScorer
   void ffnBlock(const Layer& L, const float* x, int T, float* y) const;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_NEURALTFPATHSCORER_H_

@@ -7,7 +7,7 @@
 #include <cstring>
 #include <fstream>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 namespace {
 
@@ -362,4 +362,4 @@ double CondConverterScorer::scoreCandidate(const std::string& leftContext,
   return scored > 0 ? sumLog10 : 0.0;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

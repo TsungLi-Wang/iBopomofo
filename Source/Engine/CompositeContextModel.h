@@ -30,7 +30,7 @@
 #include "UserOverrideModel.h"
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // ContextModel that stacks optional global corpus bigram PMI with optional
 // per-user soft personalization:
@@ -64,6 +64,6 @@ class CompositeContextModel
   double timestamp_ = 0.0;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_COMPOSITECONTEXTMODEL_H_

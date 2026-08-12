@@ -32,7 +32,7 @@
 #include "gramambular2/reading_grid.h"
 #include "gtest/gtest.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 using Formosa::Gramambular2::LanguageModel;
 using Formosa::Gramambular2::ReadingGrid;
@@ -228,4 +228,4 @@ TEST_F(CorpusBigramContextModelTest, PostWalkSoftOverrideBeatsDpIndices) {
 }
 
 }  // namespace
-}  // namespace McBopomofo
+}  // namespace iBopomofo

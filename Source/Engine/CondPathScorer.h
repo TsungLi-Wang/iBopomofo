@@ -13,7 +13,7 @@
 #include "CondConverterScorer.h"
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class CondPathScorer
     : public Formosa::Gramambular2::ReadingGrid::PathScorer {
@@ -40,6 +40,6 @@ class CondPathScorer
                                  size_t begin, size_t end);
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_CONDPATHSCORER_H_

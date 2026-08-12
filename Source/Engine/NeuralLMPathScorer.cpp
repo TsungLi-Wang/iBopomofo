@@ -22,7 +22,7 @@ constexpr int kCblasRowMajor = 101;
 constexpr int kCblasNoTrans = 111;
 }  // namespace
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 namespace {
 
@@ -585,4 +585,4 @@ double NeuralLMPathScorer::scoreContinuation(
   return scored > 0 ? sumLog10 : 0.0;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

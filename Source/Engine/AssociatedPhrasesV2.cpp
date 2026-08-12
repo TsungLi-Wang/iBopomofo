@@ -35,7 +35,7 @@
 
 #include "UTF8Helper.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 static constexpr char kSeparatorChar = '-';
 static constexpr char kSpecialSymbolAffix = '_';
@@ -251,4 +251,4 @@ std::string AssociatedPhrasesV2::CombineReadings(
   return sst.str();
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

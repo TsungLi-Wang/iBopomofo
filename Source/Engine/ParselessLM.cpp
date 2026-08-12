@@ -34,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 bool ParselessLM::isLoaded() const { return db_ != nullptr; }
 
@@ -169,4 +169,4 @@ std::vector<ParselessLM::FoundReading> ParselessLM::getReadings(
   return results;
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

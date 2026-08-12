@@ -9,10 +9,10 @@
 #include "ParselessLM.h"
 #include "gramambular2/reading_grid.h"
 using Formosa::Gramambular2::ReadingGrid;
-using McBopomofo::CorpusBigramContextModel;
-using McBopomofo::NeuralLMPathScorer;
-using McBopomofo::NeuralTFPathScorer;
-using McBopomofo::ParselessLM;
+using iBopomofo::CorpusBigramContextModel;
+using iBopomofo::NeuralLMPathScorer;
+using iBopomofo::NeuralTFPathScorer;
+using iBopomofo::ParselessLM;
 namespace {
 std::vector<std::string> splitSyllables(const std::string& readings) {
   std::vector<std::string> result; size_t start=0;

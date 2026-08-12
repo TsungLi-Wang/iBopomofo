@@ -31,7 +31,7 @@
 #include "MemoryMappedFile.h"
 #include "ParselessPhraseDB.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class VariantAnnotator {
  public:
@@ -106,6 +106,6 @@ class VariantAnnotator {
   MemoryMappedFile bpmfvsPUAFile_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_VARIANTANNOTATOR_H_

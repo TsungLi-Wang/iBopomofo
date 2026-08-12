@@ -31,7 +31,7 @@
 #include <fstream>
 #include <string>
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 bool PhraseReplacementMap::open(const char* path) {
   if (!mmapedFile_.open(path)) {
@@ -67,4 +67,4 @@ PhraseReplacementMap::getParsingIssues() const {
   return dictionary_.issues();
 }
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo

@@ -32,7 +32,7 @@
 
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 // User override / personalization memory.
 //
@@ -167,6 +167,6 @@ class UserOverrideModel {
   std::unordered_map<std::string, SoftEntry> softL0_;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_USEROVERRIDEMODEL_H_

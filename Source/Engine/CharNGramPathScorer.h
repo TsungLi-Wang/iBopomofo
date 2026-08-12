@@ -13,7 +13,7 @@
 
 #include "gramambular2/reading_grid.h"
 
-namespace McBopomofo {
+namespace iBopomofo {
 
 class CharNGramPathScorer
     : public Formosa::Gramambular2::ReadingGrid::PathScorer {
@@ -42,6 +42,6 @@ class CharNGramPathScorer
               const std::string& c) const;
 };
 
-}  // namespace McBopomofo
+}  // namespace iBopomofo
 
 #endif  // SRC_ENGINE_CHARNGRAMPATHSCORER_H_
