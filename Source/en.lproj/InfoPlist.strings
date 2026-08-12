@@ -1,6 +1,6 @@
 CFBundleName = "iBopomofo";
 CFBundleDisplayName = "iBopomofo";
 NSHumanReadableCopyright = "Copyright © 2011-2026 Mengjuei Hsieh et al.\nAll Rights Reserved.";
-"org.openvanilla.inputmethod.McBopomofo.Bopomofo" = "Bopomofo";
-"org.openvanilla.inputmethod.McBopomofo.PlainBopomofo" = "Plain Bopomofo";
+"io.ibopomofo.inputmethod.iBopomofo.Bopomofo" = "Bopomofo";
+"io.ibopomofo.inputmethod.iBopomofo.PlainBopomofo" = "Plain Bopomofo";
 

@@ -47,7 +47,7 @@ pkill -f "Input Methods/McBopomofo.app"; sleep 4
 6. 跑之前確認目前輸入法是i注音：
    ```bash
    swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }'
-   # 應輸出 org.openvanilla.inputmethod.McBopomofo.McBopomofo.Bopomofo
+   # 應輸出 io.ibopomofo.inputmethod.iBopomofo.McBopomofo.Bopomofo
    ```
 7. 終端機（跑 osascript 的程序）需有「輔助使用」權限；本機已設定過。
 
@@ -101,12 +101,12 @@ return docText
 ## 診斷開關（看 commit 前的內部決策）
 
 ```bash
-defaults write org.openvanilla.inputmethod.McBopomofo NeuralDeferredDiagnostics -bool YES
+defaults write io.ibopomofo.inputmethod.iBopomofo NeuralDeferredDiagnostics -bool YES
 # 打字後看:
 tail -30 ~/Library/Logs/laowang-neural-deferred.log
 # 每個決策點都有:scheduled / perform / span gate / score(含各候選分數) / apply
 # 查完務必關掉並刪 log(內含使用者輸入內容):
-defaults delete org.openvanilla.inputmethod.McBopomofo NeuralDeferredDiagnostics
+defaults delete io.ibopomofo.inputmethod.iBopomofo NeuralDeferredDiagnostics
 rm ~/Library/Logs/laowang-neural-deferred.log
 ```
 

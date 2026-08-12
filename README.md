@@ -64,7 +64,7 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/iBopomofo/master/scrip
 3. **系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯**，加入「**i注音**」。
 
 > **技術備註**：內部 bundle id / 安裝路徑仍為上游繼承的  
-> `org.openvanilla.inputmethod.McBopomofo` 與  
+> `io.ibopomofo.inputmethod.iBopomofo` 與  
 > `~/Library/Input Methods/McBopomofo.app`，避免與舊安裝斷裂。  
 > **畫面上**顯示的是 i注音 / iBopomofo。
 
