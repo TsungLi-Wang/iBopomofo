@@ -101,9 +101,28 @@ gh issue list                               # 目前開著的工作
 | 項目 | 結果 |
 |---|---|
 | 偏好逐鍵活值 | ✅ **PASS** —— `~/ai-handoff/verify-prefs-migration.sh`，40/40 逐鍵相等 |
+| grok 123 項對照 | ✅ **已做**（2026-08-12）—— 判 `ZERO_GAP=NO`，兩處 P0 已補改，見下 |
 | 實機打字 | ✅ **9/10** —— `./scripts/type-as-user.sh -f scripts/ship-gate-sentences.txt`。唯一失敗句 `你先坐這裡等一下`→`你先做這裡等一下`，**已用舊版跑同一組鍵序對照，輸出完全相同**，是改名前就有的行為 |
 | 校正迴路 smoke | ⚠️ **(a)(c) PASS、(b) FAIL** —— 見下 |
-| grok 第二階段對照 | ❌ **還沒做**（`~/ai-handoff/20260812-baton6-grok-inventory.md` 123 項 vs 實改，要零落差） |
+（grok 對照的完整回報：`~/ai-handoff/20260812-baton6-stage2-kirii.md`；
+派遣票 `~/ai-handoff/20260812-baton6-stage2-dispatch.md`。
+它列的 P0 兩項都經人工核對屬實並已修；P2 有數項是誤報 ——
+`McBopomofoLM.cpp`／`McBopomofoTests/`／CMake `McBopomofoLMLib`／
+`McBopomofo-Bridging-Header.h`／`McBopomofo-Info.plist` **現在仍是真名**，
+文件照實描述沒錯，改了才會錯。收外部驗證方的回報要逐項核對，別照單全收。）
+
+### 「基準 42 鍵、驗證 40 鍵」的差額是什麼（2026-08-12 交代）
+
+**沒有鍵被漏掉。** 42 是 `defaults read` 輸出的**行數**，第 1 行 `{`、第 42 行 `}`
+不是偏好鍵。中間 40 行都是鍵（其中 1 個 key 被 `defaults` 加了引號：
+`"BopomofoFontAnnotationSupportMenuItemEnabledByInstalledFontsCheck_V1"`，
+`~/ai-handoff/verify-prefs-migration.sh` 的 parser 會去引號，照樣算一把）。
+
+證據：把基準檔第 2~41 行的鍵名排序，與驗證腳本實際檢查的 40 把鍵名排序，`diff` 為空。
+
+⚠️ 同時修正一處文件錯誤：交班檔原本把 `241aac2d…` 標成 `…-baseline.txt` 的雜湊，
+**那其實是同目錄 `.plist` 的**；`.txt` 是 `857783e0…`。
+`.txt` 的建立時間與修改時間相同（12:40:12），沒有被動過。
 
 校正迴路三命題（`~/ai-handoff/correction-loop-smoke.md`）：
 
@@ -130,7 +149,7 @@ gh issue list                               # 目前開著的工作
 | 舊 app | `~/Library/Input Methods/McBopomofo.app` |
 | 舊資料（548MB，含 Whisper 模型與校正 log） | `~/Library/Application Support/McBopomofo/` |
 | 舊偏好 | `~/Library/Preferences/org.openvanilla.inputmethod.McBopomofo.plist` |
-| 偏好基準快照 | `~/ai-handoff/20260812-prefs-baseline.txt`（SHA256 `241aac2d…`） |
+| 偏好基準快照 | `~/ai-handoff/20260812-prefs-baseline.txt`（`.txt` SHA256 `857783e0…`；同目錄 `.plist` 為 `241aac2d…`） |
 | 2.16.2 app | ~~`/tmp/McBopomofo-2.16.2-backup.app`~~ **已隨重開機蒸發**；改從 tag `v2.16.2` 重建 <!-- doc-check-ignore --> |
 
 ### ⚠️ 別把要留的東西放 `/tmp`（2026-08-12 一次踩到三個）
@@ -149,11 +168,21 @@ macOS 重開機會清 `/tmp`。棒⑥ 上線這天發現有三樣「重要東西
 
 `./scripts/doc-check.sh` 會抓文件裡不存在的路徑 —— 這三個就是它抓出來的。
 
-### 還沒做的兩件
+### 還沒做的一件：發版（等 Johnny 拍板）
 
-1. **版本 bump ＋ tag**：這是使用者可見的封裝／身分變更，照版本鐵則要 **minor bump**。
-   **major/minor 由 Johnny 決定**，執行者只提建議。目前 plist 仍是 2.16.3 / build 2323。
-2. **grok 第二階段對照**（見上表）。
+**版號提案：2.16.3 → 2.17.0（minor bump），tag `v2.17.0`。**
+理由：bundle ID／安裝路徑／資料目錄都變了＝使用者可見的封裝與身分變更，
+照版本鐵則不能只 patch bump；沒有引擎或解碼行為變更，所以不是 major。
+**major/minor 由 Johnny 決定，執行者只提建議。** 目前 plist 仍是 2.16.3 / build 2323。
+
+發版前置（缺一不可）：
+
+1. `./scripts/ship-gate.sh` 要 `SHIP_GATE_STATUS=FULL` 且全綠。
+   評分機不在時先跑 `./scripts/build-eval.sh`（約 20 秒）。
+2. 兩份 plist 一起 bump（`Source/McBopomofo-Info.plist` +
+   `Source/Installer/Installer-Info.plist` —— 漏第二份是歷史上最常犯的）。
+3. `README.md` 版本歷程表加一列、`CHANGELOG.md` 段落改成正式發布並補 commit 範圍與 tag。
+4. `./scripts/doc-check.sh` 全綠 → annotated tag（訊息含 commit 範圍）→ push。
 
 ### 棒⑥ 的 commit（已 push）
 

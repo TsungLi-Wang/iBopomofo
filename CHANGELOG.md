@@ -8,7 +8,19 @@
 
 ## [Unreleased]
 
-### 待發版（棒⑥ · 品牌統一 · 2026-08-12 · 尚未 bump 版號）
+### 待發版（棒⑥ · 品牌統一 · 2026-08-12）
+
+> **版號提案：2.16.3 → 2.17.0（minor bump），tag `v2.17.0`。**
+> 理由：bundle ID、安裝路徑、資料目錄都變了，屬於**使用者可見的封裝／身分變更**，
+> 照「版本可追溯鐵則」不能只 patch bump。沒有引擎或解碼行為變更，因此不是 major。
+> **major/minor 由 Johnny 拍板**，且須先跑出 `SHIP_GATE_STATUS=FULL` 綠燈才發。
+
+**人話**：這一版把輸入法的「內部身分」從上游繼承的 McBopomofo 換成自己的 iBopomofo。
+你會看到的差別只有一個 —— 輸入法選單裡的**「i注音」是新的那個**；
+舊的「小麥注音」可以移除。打字行為、選字、詞庫、個人化設定**完全沒動**，
+既有偏好與 548MB 個人資料（含語音模型、校正紀錄）都已原樣搬到新位置，舊的沒刪。
+
+
 
 - **內部識別符全面改名 McBopomofo → iBopomofo**。趁專案只有一位開發者使用、
   遷移成本≈0 的窗口一次改乾淨；再有第二位使用者這扇門就關了。
@@ -56,9 +68,31 @@
   `e2e_slow.sh`（重開機即失效，且錯誤被 `2>/dev/null` 吞掉 → 整輪不印任何東西仍 exit 0）、
   音節間多送空白鍵、TextEdit 既有文件內容混入「實際出字」。 <!-- doc-check-ignore -->
 
-  ⚠️ 同一批發現：`ship-gate.sh` 預設的評分機 `/tmp/newstar_homophone_eval` 也已隨
-  重開機消失，**出貨關卡目前跑不起來**，發版前須先照
-  `Source/Engine/eval/benchmarks/README-newstar.md` 重建。
+- **獨立驗證方（grok）第二階段對照**：拿改名前產出的 123 項盲測清單對照實改，
+  判定 `ZERO_GAP=NO`，補改兩處會**靜默壞**的東西 ——
+
+  1. 安裝器 `kTargetBundle` 還是 `McBopomofo.app`，但同檔其他常數已是新名 →
+     **DMG 安裝會把 app 裝成舊名**，然後用新名去檢查／kill／註冊，全部對不上。
+     build 綠、測試也抓不到。
+  2. `Source/Data/Makefile` 的詞庫部署仍指舊 app 路徑，且用已不存在的
+     `-scheme McBopomofo`。
+
+  另補一批「敘述與現況打架」的文件（README／AGENTS／交班檔／algorithm 圖／
+  runtime 說明／使用者可見診斷字串）。其中兩處還白紙黑字寫著「不更名內部識別符」。
+
+  grok 誤報而**維持不改**的：`McBopomofoLM.cpp`、`McBopomofoTests/`、
+  CMake `McBopomofoLMLib`、`McBopomofo-Bridging-Header.h`、`McBopomofo-Info.plist`
+  —— 這些名字現在仍是真的，文件照實描述，改了才會錯。
+
+- **三個住在 `/tmp` 的產物搬進 repo**（重開機會被系統清掉）：
+  新增 `scripts/build-eval.sh` 把 ship-gate 的評分機建到 `bin/`；
+  `ship-gate.sh` 與 README-newstar 預設路徑一併改。
+  README-newstar 的編譯指令原本漏了 `ParticleRuleDisambiguator.cpp`，照抄會失敗，一併補。
+  **不放 `build/`** —— `clean-build-dirs.sh` 會把整個 `build/` 刪掉，那只是換一種方式蒸發。
+
+- **兩個「安靜失敗」的驗收工具修好**：`type-as-user.sh` 的計數困在 pipeline subshell 裡，
+  全部打錯與全部打對的 exit code 一樣是 0；`ship-gate.sh` 的 ctest 關卡在
+  PATH 沒有 cmake 時也印「有測試失敗」。兩者都改成能分辨「沒跑到」與「跑了沒過」。
 
 ### 內部（棒⑤ · 2026-08-12 · 可重現性止血 ＋ 定案契約 golden）
 
