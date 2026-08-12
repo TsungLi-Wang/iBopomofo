@@ -73,7 +73,7 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/iBopomofo/master/scrip
 ```bash
 git clone https://github.com/TsungLi-Wang/iBopomofo.git
 cd iBopomofo
-xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo \
+xcodebuild -project iBopomofo.xcodeproj -scheme McBopomofo \
   -configuration Release -derivedDataPath build/dd-rel build
 # 覆蓋安裝（會重啟輸入法進程；勿 rm -rf 安裝路徑）
 killall McBopomofo 2>/dev/null || true

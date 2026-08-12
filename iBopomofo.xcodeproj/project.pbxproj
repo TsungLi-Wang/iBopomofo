@@ -51,7 +51,7 @@
 		6ACA41FB15FC1D9000935EF6 /* License.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 6ACA41EC15FC1D9000935EF6 /* License.rtf */; };
 		6ACA41FC15FC1D9000935EF6 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 6ACA41EE15FC1D9000935EF6 /* Localizable.strings */; };
 		6ACA41FD15FC1D9000935EF6 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 6ACA41F015FC1D9000935EF6 /* MainMenu.xib */; };
-		6ACA420215FC1E5200935EF6 /* McBopomofo.app in Resources */ = {isa = PBXBuildFile; fileRef = 6A0D4EA215FC0D2D00ABF4B3 /* McBopomofo.app */; };
+		6ACA420215FC1E5200935EF6 /* iBopomofo.app in Resources */ = {isa = PBXBuildFile; fileRef = 6A0D4EA215FC0D2D00ABF4B3 /* iBopomofo.app */; };
 		6ACC3D442793701600F1B140 /* ParselessPhraseDB.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6ACC3D402793701600F1B140 /* ParselessPhraseDB.cpp */; };
 		6ACC3D452793701600F1B140 /* ParselessLM.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6ACC3D422793701600F1B140 /* ParselessLM.cpp */; };
 		6AD7CBC815FE555000691B5B /* data-plain-bpmf.txt in Resources */ = {isa = PBXBuildFile; fileRef = 6AD7CBC715FE555000691B5B /* data-plain-bpmf.txt */; };
@@ -143,14 +143,14 @@
 			containerPortal = 6A0D4E9415FC0CFA00ABF4B3 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 6A0D4EA115FC0D2D00ABF4B3;
-			remoteInfo = McBopomofo;
+			remoteInfo = iBopomofo;
 		};
 		D485D3BA2796A8A000657FF3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 6A0D4E9415FC0CFA00ABF4B3 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 6A0D4EA115FC0D2D00ABF4B3;
-			remoteInfo = McBopomofo;
+			remoteInfo = iBopomofo;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -162,7 +162,7 @@
 		FACE0312FACE0312FACE0312 /* PostCommitReselect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostCommitReselect.swift; sourceTree = "<group>"; };
 		FACE0314FACE0314FACE0314 /* InputMethodController+PostCommitReselect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+PostCommitReselect.swift"; sourceTree = "<group>"; };
 		FACE0020FACE0020FACE0020 /* AICorrectionError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AICorrectionError.swift; sourceTree = "<group>"; };
-		6A0D4EA215FC0D2D00ABF4B3 /* McBopomofo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = McBopomofo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6A0D4EA215FC0D2D00ABF4B3 /* iBopomofo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iBopomofo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6A0D4EEF15FC0DA600ABF4B3 /* Bopomofo.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = Bopomofo.tiff; sourceTree = "<group>"; };
 		6A0D4EF015FC0DA600ABF4B3 /* Bopomofo@2x.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = "Bopomofo@2x.tiff"; sourceTree = "<group>"; };
 		6A0D4EF515FC0DA600ABF4B3 /* McBopomofo-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "McBopomofo-Info.plist"; sourceTree = "<group>"; };
@@ -218,7 +218,7 @@
 		6A833E502F0A0FB30086AD0C /* VariantAnnotator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VariantAnnotator.h; sourceTree = "<group>"; };
 		6A833E512F0A0FB30086AD0C /* VariantAnnotator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VariantAnnotator.cpp; sourceTree = "<group>"; };
 		6A93050C279877FF00D370DA /* McBopomofoInstaller-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "McBopomofoInstaller-Bridging-Header.h"; sourceTree = "<group>"; };
-		6ACA41CB15FC1D7500935EF6 /* McBopomofoInstaller.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = McBopomofoInstaller.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6ACA41CB15FC1D7500935EF6 /* iBopomofoInstaller.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iBopomofoInstaller.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6ACA41EB15FC1D9000935EF6 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		6ACA41ED15FC1D9000935EF6 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/License.rtf; sourceTree = "<group>"; };
 		6ACA41EF15FC1D9000935EF6 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -291,7 +291,7 @@
 		D47F7DCF278C0897002F9DD7 /* NonModalAlertWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonModalAlertWindowController.swift; sourceTree = "<group>"; };
 		D47F7DD1278C1263002F9DD7 /* UserOverrideModel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UserOverrideModel.h; sourceTree = "<group>"; };
 		D47F7DD2278C1263002F9DD7 /* UserOverrideModel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = UserOverrideModel.cpp; sourceTree = "<group>"; };
-		D485D3B62796A8A000657FF3 /* McBopomofoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = McBopomofoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D485D3B62796A8A000657FF3 /* iBopomofoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = iBopomofoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D485D3B82796A8A000657FF3 /* PreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesTests.swift; sourceTree = "<group>"; };
 		D485D3BF2796CE3200657FF3 /* VersionUpdateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionUpdateTests.swift; sourceTree = "<group>"; };
 		D48F853C2EACCDE900C2FDAB /* RomanNumbers */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = RomanNumbers; path = Packages/RomanNumbers; sourceTree = "<group>"; };
@@ -368,7 +368,7 @@
 			children = (
 				D427F766278C9CBD004A2160 /* Packages */,
 				6A0D4EC215FC0D3C00ABF4B3 /* Source */,
-				D485D3B72796A8A000657FF3 /* McBopomofoTests */,
+				D485D3B72796A8A000657FF3 /* iBopomofoTests */,
 				6A0D4EA315FC0D2D00ABF4B3 /* Products */,
 				D47D73C127A7200500255A50 /* Frameworks */,
 			);
@@ -377,9 +377,9 @@
 		6A0D4EA315FC0D2D00ABF4B3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				6A0D4EA215FC0D2D00ABF4B3 /* McBopomofo.app */,
-				6ACA41CB15FC1D7500935EF6 /* McBopomofoInstaller.app */,
-				D485D3B62796A8A000657FF3 /* McBopomofoTests.xctest */,
+				6A0D4EA215FC0D2D00ABF4B3 /* iBopomofo.app */,
+				6ACA41CB15FC1D7500935EF6 /* iBopomofoInstaller.app */,
+				D485D3B62796A8A000657FF3 /* iBopomofoTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -617,7 +617,7 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		D485D3B72796A8A000657FF3 /* McBopomofoTests */ = {
+		D485D3B72796A8A000657FF3 /* iBopomofoTests */ = {
 			isa = PBXGroup;
 			children = (
 				FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */,
@@ -656,9 +656,9 @@
 /* End PBXLegacyTarget section */
 
 /* Begin PBXNativeTarget section */
-		6A0D4EA115FC0D2D00ABF4B3 /* McBopomofo */ = {
+		6A0D4EA115FC0D2D00ABF4B3 /* iBopomofo */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 6A0D4EC015FC0D2E00ABF4B3 /* Build configuration list for PBXNativeTarget "McBopomofo" */;
+			buildConfigurationList = 6A0D4EC015FC0D2E00ABF4B3 /* Build configuration list for PBXNativeTarget "iBopomofo" */;
 			buildPhases = (
 				6A0D4E9E15FC0D2D00ABF4B3 /* Sources */,
 				6A0D4E9F15FC0D2D00ABF4B3 /* Frameworks */,
@@ -671,7 +671,7 @@
 			dependencies = (
 				6A38BC2615FC131100A8A51F /* PBXTargetDependency */,
 			);
-			name = McBopomofo;
+			name = iBopomofo;
 			packageProductDependencies = (
 				D427F769278C9E29004A2160 /* CandidateUI */,
 				D427F7A827905E90004A2160 /* TooltipUI */,
@@ -688,13 +688,13 @@
 				FACE2005FACE2005FACE2005 /* OpenCC */,
 				FACE2006FACE2006FACE2006 /* SQLite */,
 			);
-			productName = McBopomofo;
-			productReference = 6A0D4EA215FC0D2D00ABF4B3 /* McBopomofo.app */;
+			productName = iBopomofo;
+			productReference = 6A0D4EA215FC0D2D00ABF4B3 /* iBopomofo.app */;
 			productType = "com.apple.product-type.application";
 		};
-		6ACA41CA15FC1D7500935EF6 /* McBopomofoInstaller */ = {
+		6ACA41CA15FC1D7500935EF6 /* iBopomofoInstaller */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 6ACA41E415FC1D7600935EF6 /* Build configuration list for PBXNativeTarget "McBopomofoInstaller" */;
+			buildConfigurationList = 6ACA41E415FC1D7600935EF6 /* Build configuration list for PBXNativeTarget "iBopomofoInstaller" */;
 			buildPhases = (
 				6ACA41C715FC1D7500935EF6 /* Sources */,
 				6ACA41C815FC1D7500935EF6 /* Frameworks */,
@@ -706,17 +706,17 @@
 			dependencies = (
 				6ACA420115FC1DCC00935EF6 /* PBXTargetDependency */,
 			);
-			name = McBopomofoInstaller;
+			name = iBopomofoInstaller;
 			packageProductDependencies = (
 				D427F7B5279086F6004A2160 /* InputSourceHelper */,
 			);
-			productName = McBopomofoInstaller;
-			productReference = 6ACA41CB15FC1D7500935EF6 /* McBopomofoInstaller.app */;
+			productName = iBopomofoInstaller;
+			productReference = 6ACA41CB15FC1D7500935EF6 /* iBopomofoInstaller.app */;
 			productType = "com.apple.product-type.application";
 		};
-		D485D3B52796A8A000657FF3 /* McBopomofoTests */ = {
+		D485D3B52796A8A000657FF3 /* iBopomofoTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D485D3BE2796A8A000657FF3 /* Build configuration list for PBXNativeTarget "McBopomofoTests" */;
+			buildConfigurationList = D485D3BE2796A8A000657FF3 /* Build configuration list for PBXNativeTarget "iBopomofoTests" */;
 			buildPhases = (
 				D485D3B22796A8A000657FF3 /* Sources */,
 				D485D3B32796A8A000657FF3 /* Frameworks */,
@@ -727,9 +727,9 @@
 			dependencies = (
 				D485D3BB2796A8A000657FF3 /* PBXTargetDependency */,
 			);
-			name = McBopomofoTests;
-			productName = McBopomofoTests;
-			productReference = D485D3B62796A8A000657FF3 /* McBopomofoTests.xctest */;
+			name = iBopomofoTests;
+			productName = iBopomofoTests;
+			productReference = D485D3B62796A8A000657FF3 /* iBopomofoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -755,7 +755,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 6A0D4E9715FC0CFA00ABF4B3 /* Build configuration list for PBXProject "McBopomofo" */;
+			buildConfigurationList = 6A0D4E9715FC0CFA00ABF4B3 /* Build configuration list for PBXProject "iBopomofo" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -785,10 +785,10 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				6A0D4EA115FC0D2D00ABF4B3 /* McBopomofo */,
-				6ACA41CA15FC1D7500935EF6 /* McBopomofoInstaller */,
+				6A0D4EA115FC0D2D00ABF4B3 /* iBopomofo */,
+				6ACA41CA15FC1D7500935EF6 /* iBopomofoInstaller */,
 				6A38BC2115FC12FD00A8A51F /* Data */,
-				D485D3B52796A8A000657FF3 /* McBopomofoTests */,
+				D485D3B52796A8A000657FF3 /* iBopomofoTests */,
 			);
 		};
 /* End PBXProject section */
@@ -835,7 +835,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6ACA420215FC1E5200935EF6 /* McBopomofo.app in Resources */,
+				6ACA420215FC1E5200935EF6 /* iBopomofo.app in Resources */,
 				6A2E40F9253A6AA000D1AE1D /* Images.xcassets in Resources */,
 				6ACA41FA15FC1D9000935EF6 /* InfoPlist.strings in Resources */,
 				6A225A1F23679F2600F685C6 /* NotarizedArchives in Resources */,
@@ -1014,12 +1014,12 @@
 		};
 		6ACA420115FC1DCC00935EF6 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 6A0D4EA115FC0D2D00ABF4B3 /* McBopomofo */;
+			target = 6A0D4EA115FC0D2D00ABF4B3 /* iBopomofo */;
 			targetProxy = 6ACA420015FC1DCC00935EF6 /* PBXContainerItemProxy */;
 		};
 		D485D3BB2796A8A000657FF3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 6A0D4EA115FC0D2D00ABF4B3 /* McBopomofo */;
+			target = 6A0D4EA115FC0D2D00ABF4B3 /* iBopomofo */;
 			targetProxy = D485D3BA2796A8A000657FF3 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -1574,7 +1574,7 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "McBopomofoTests/McBopomofoTests-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/McBopomofo.app/Contents/MacOS/McBopomofo";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iBopomofo.app/Contents/MacOS/iBopomofo";
 			};
 			name = Debug;
 		};
@@ -1620,14 +1620,14 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "McBopomofoTests/McBopomofoTests-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/McBopomofo.app/Contents/MacOS/McBopomofo";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iBopomofo.app/Contents/MacOS/iBopomofo";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		6A0D4E9715FC0CFA00ABF4B3 /* Build configuration list for PBXProject "McBopomofo" */ = {
+		6A0D4E9715FC0CFA00ABF4B3 /* Build configuration list for PBXProject "iBopomofo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6A0D4E9915FC0CFA00ABF4B3 /* Debug */,
@@ -1636,7 +1636,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		6A0D4EC015FC0D2E00ABF4B3 /* Build configuration list for PBXNativeTarget "McBopomofo" */ = {
+		6A0D4EC015FC0D2E00ABF4B3 /* Build configuration list for PBXNativeTarget "iBopomofo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6A0D4EBE15FC0D2E00ABF4B3 /* Debug */,
@@ -1654,7 +1654,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		6ACA41E415FC1D7600935EF6 /* Build configuration list for PBXNativeTarget "McBopomofoInstaller" */ = {
+		6ACA41E415FC1D7600935EF6 /* Build configuration list for PBXNativeTarget "iBopomofoInstaller" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6ACA41E515FC1D7600935EF6 /* Debug */,
@@ -1663,7 +1663,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D485D3BE2796A8A000657FF3 /* Build configuration list for PBXNativeTarget "McBopomofoTests" */ = {
+		D485D3BE2796A8A000657FF3 /* Build configuration list for PBXNativeTarget "iBopomofoTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D485D3BC2796A8A000657FF3 /* Debug */,

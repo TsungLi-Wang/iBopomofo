@@ -164,7 +164,7 @@ def check_paths():
 
 
 def check_pbxproj_ids():
-    pbx = os.path.join(ROOT, "McBopomofo.xcodeproj/project.pbxproj")
+    pbx = os.path.join(ROOT, "iBopomofo.xcodeproj/project.pbxproj")
     try:
         with open(pbx, encoding="utf-8") as fh:
             ids = sorted(set(re.findall(r"FACE0(\d{3})", fh.read())))

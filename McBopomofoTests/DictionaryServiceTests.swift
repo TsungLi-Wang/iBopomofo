@@ -23,7 +23,7 @@
 
 import Testing
 
-@testable import McBopomofo
+@testable import iBopomofo
 
 @Suite("Dictionary Service Tests")
 final class DictionaryServiceTests {

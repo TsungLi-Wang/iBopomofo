@@ -118,7 +118,7 @@ The project contains these main **targets**:
 
 ### Primary Development Workflow
 
-1. Open `McBopomofo.xcodeproj` in Xcode
+1. Open `iBopomofo.xcodeproj` in Xcode
 2. Select the **"McBopomofoInstaller"** target
 3. Build (⌘+B) and run to install McBopomofo
 4. The installer automatically kills and restarts the input method process
@@ -129,15 +129,15 @@ The project contains these main **targets**:
 
 ```bash
 # Build the installer
-xcodebuild -project McBopomofo.xcodeproj -target McBopomofoInstaller -configuration Debug build
+xcodebuild -project iBopomofo.xcodeproj -target McBopomofoInstaller -configuration Debug build
 
 # Build the main input method. Prefer the shared scheme so SwiftPM nested
 # dependencies from local packages (OpenCCBridge/SystemCharacterInfo) resolve
 # correctly in command-line builds.
-xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
+xcodebuild -project iBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
 
 # Build dictionary data only
-xcodebuild -project McBopomofo.xcodeproj -target Data -configuration Debug build
+xcodebuild -project iBopomofo.xcodeproj -target Data -configuration Debug build
 ```
 
 ### Running Tests
@@ -246,7 +246,7 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 
 - Do **not** run concurrent `xcodebuild` / CMake builds against the **same** DerivedData directory (PCH races). Prefer isolated paths such as `dd-test/`, `dd-rel/`, `build/dd-rel/`.
 - Do **not** pipe `xcodebuild test` to `| tail` (hides the real exit / `** TEST SUCCEEDED **` line).
-- New `project.pbxproj` file IDs for this fork: **下一個可用是 FACE033A+**（已見最高 FACE0339）。加新檔前先 `grep -o "FACE0[0-9A-F]\{3\}" McBopomofo.xcodeproj/project.pbxproj | sort -u | tail -1` 確認，撞號會讓專案檔開不起來。
+- New `project.pbxproj` file IDs for this fork: **下一個可用是 FACE033A+**（已見最高 FACE0339）。加新檔前先 `grep -o "FACE0[0-9A-F]\{3\}" iBopomofo.xcodeproj/project.pbxproj | sort -u | tail -1` 確認，撞號會讓專案檔開不起來。
 ### Swift & AppKit
 
 - Use `Preferences` static properties and property wrappers instead of direct `UserDefaults` access

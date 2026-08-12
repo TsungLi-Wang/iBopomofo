@@ -61,7 +61,7 @@ make tidy sort check all
 ### Building via Xcode
 
 ```bash
-xcodebuild -project ../McBopomofo.xcodeproj -target Data -configuration Debug build
+xcodebuild -project ../iBopomofo.xcodeproj -target Data -configuration Debug build
 # Or select "Data" scheme in Xcode and build (⌘+B)
 ```
 

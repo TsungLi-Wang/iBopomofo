@@ -23,7 +23,7 @@
 
 import Testing
 
-@testable import McBopomofo
+@testable import iBopomofo
 
 @Suite("Test macros")
 final class InputMacroTests {

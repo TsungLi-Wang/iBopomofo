@@ -32,7 +32,7 @@
 #import "KeyHandler.h"
 #import "LanguageModelManager+Privates.h"
 #import "Mandarin.h"
-#import "McBopomofo-Swift.h"
+#import "iBopomofo-Swift.h"
 #import "McBopomofoLM.h"
 #import "UTF8Helper.h"
 #import "UserOverrideModel.h"

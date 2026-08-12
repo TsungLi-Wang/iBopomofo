@@ -8,7 +8,7 @@
 
 import XCTest
 
-@testable import McBopomofo
+@testable import iBopomofo
 
 final class ContextualWalkPunctuationRegressionTests: XCTestCase {
 

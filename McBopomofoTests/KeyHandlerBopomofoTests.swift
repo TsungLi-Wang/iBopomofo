@@ -24,7 +24,7 @@
 import CandidateUI
 import XCTest
 
-@testable import McBopomofo
+@testable import iBopomofo
 
 func charCode(_ string: String) -> UInt16 {
     let scalars = string.unicodeScalars

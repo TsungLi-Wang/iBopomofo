@@ -22,7 +22,7 @@ DD="${DERIVED_DATA:-/tmp/ibopo-dd}"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
-xcodebuild -project McBopomofo.xcodeproj -scheme McBopomofoInstaller \
+xcodebuild -project iBopomofo.xcodeproj -scheme iBopomofoInstaller \
   -configuration Release -derivedDataPath "$DD" build >/dev/null
 
 APP="$DD/Build/Products/Release/McBopomofoInstaller.app"

@@ -20,7 +20,7 @@
 
 import XCTest
 
-@testable import McBopomofo
+@testable import iBopomofo
 
 final class CommitContractGoldenTests: XCTestCase {
 

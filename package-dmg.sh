@@ -34,8 +34,8 @@ if [ $# -gt 0 ]; then
   if [ ! -d "$INSTALLER" ]; then
     echo "[0/3] 編譯安裝程式 …"
     xcodebuild -quiet \
-      -project "$ROOT/McBopomofo.xcodeproj" \
-      -scheme McBopomofoInstaller \
+      -project "$ROOT/iBopomofo.xcodeproj" \
+      -scheme iBopomofoInstaller \
       -configuration Release \
       -derivedDataPath "$DD" \
       build
@@ -43,14 +43,14 @@ if [ $# -gt 0 ]; then
 else
   echo "[0/3] Release 編譯（輸入法 + 安裝程式）…"
   xcodebuild -quiet \
-    -project "$ROOT/McBopomofo.xcodeproj" \
+    -project "$ROOT/iBopomofo.xcodeproj" \
     -scheme McBopomofo \
     -configuration Release \
     -derivedDataPath "$DD" \
     build
   xcodebuild -quiet \
-    -project "$ROOT/McBopomofo.xcodeproj" \
-    -scheme McBopomofoInstaller \
+    -project "$ROOT/iBopomofo.xcodeproj" \
+    -scheme iBopomofoInstaller \
     -configuration Release \
     -derivedDataPath "$DD" \
     build

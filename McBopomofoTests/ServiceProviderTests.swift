@@ -24,7 +24,7 @@
 import AppKit
 import Testing
 
-@testable import McBopomofo
+@testable import iBopomofo
 
 @Suite("Test the service provider", .serialized)
 final class ServiceProviderTests {
