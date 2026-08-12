@@ -31,10 +31,34 @@
   `# format org.openvanilla.mcbopomofo.sorted`、歷史封存檔。由此立通則：
   **凡改一個字串要連帶「改讀取端＋重產資料」的一律 KEEP —— 那是改檔案格式，不是改名。**
 
-  ⚠️ **活體層驗收未完成**，需 Johnny 先登出登入、系統設定移舊加新、重新授權輔助使用。
-  在那之前不得宣稱已驗證。詳見 `AI_HANDOFF_PROMPT.md` 開頭那節。
-
   ⚠️ **版號未 bump**：使用者可見的封裝／身分變更照鐵則應 minor bump，**major/minor 由 Johnny 決定**。
+
+- **上線（2026-08-12 下午）**：新版已安裝、啟用，成為目前使用中的輸入法
+  （`io.ibopomofo.inputmethod.iBopomofo.iBopomofo.Bopomofo`，GitRevision `f2b8eda0`）。
+  舊 `McBopomofo.app` 保留但停用。
+
+  **兩個 app 的 zh-Hant 顯示名原本都是「i注音」**（品牌名早於識別符改名），
+  在系統設定裡分不出誰是誰。已把舊版顯示名改為「小麥注音（舊）」（僅改本機安裝的
+  bundle，非 repo 內容；改後需重新 ad-hoc 簽名）。
+
+  活體層驗收：偏好逐鍵 40/40 **PASS**；實機打字 **9/10**（唯一失敗句已用舊版
+  跑同一組鍵序對照、輸出相同，確認非本次迴歸）；校正迴路 (a) 新路徑有寫入、
+  (c) 舊路徑零變動皆 **PASS**，**(b) 同前文重打記不住 FAIL** ——
+  已查明 `UserOverrideModel` 邏輯此次一字未動（diff 只有 namespace 兩行），
+  根因是 `observe()` 的 `breakingUp` 分支用校正後的 walk 組鍵 → **issue #10**。
+  尚缺 grok 123 項清單對照。
+
+- **改名漏改補丁**（`7cedea3f`、`72ce840b`）：C4 沒掃到驗收與打包腳本 ——
+  `e2e-typing-check.sh` / `type-as-user.sh` 的輸入法檢查與 `pkill` 目標、
+  `package-dmg.sh` 的 scheme 與產物路徑。**驗收工具壞掉時不會報錯，只會安靜地不驗。**
+
+  順帶修好 `type-as-user.sh` 本身既有的三個問題：依賴只存在於 `/tmp` 的
+  `e2e_slow.sh`（重開機即失效，且錯誤被 `2>/dev/null` 吞掉 → 整輪不印任何東西仍 exit 0）、
+  音節間多送空白鍵、TextEdit 既有文件內容混入「實際出字」。 <!-- doc-check-ignore -->
+
+  ⚠️ 同一批發現：`ship-gate.sh` 預設的評分機 `/tmp/newstar_homophone_eval` 也已隨
+  重開機消失，**出貨關卡目前跑不起來**，發版前須先照
+  `Source/Engine/eval/benchmarks/README-newstar.md` 重建。
 
 ### 內部（棒⑤ · 2026-08-12 · 可重現性止血 ＋ 定案契約 golden）
 

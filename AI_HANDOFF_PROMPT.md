@@ -61,31 +61,61 @@ gh issue list                               # 目前開著的工作
 
 ---
 
-## ⚠️⚠️ 開場第一件事：棒⑥ 品牌改名「程式碼已完成、活體驗收未做」
+## ⚠️⚠️ 開場第一件事：棒⑥ 品牌改名 —— 新版已上線，活體層四項驗了三項
 
 **2026-08-12 收工時的狀態。接手第一件事就是讀這節，不要先動別的。**
 
-棒⑥ 把內部識別符從 McBopomofo 改成 iBopomofo，**五階段程式碼全部完成並 push**，
-但**活體層驗收還沒做**，因為它需要 Johnny 本人在系統設定操作。
+棒⑥ 把內部識別符從 McBopomofo 改成 iBopomofo。**五階段程式碼完成並 push；
+新版已實際安裝、啟用、成為 Johnny 目前在用的輸入法。**
 
-### Johnny 要做的四步（沒做完，活體層一律 PENDING）
+### 現在的活體狀態（2026-08-12 15:30）
 
-1. **登出再登入**（或重開機）—— 不能省。macOS 對新 bundle ID 的輸入法要重掃才認得。
-   已實測：直接呼叫註冊 API 會被拒（`Cannot enable input source`）。
-2. 系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯… → 「+」→ 中文（繁體）→ **i注音** → 加入
-3. **先確認新的能打字，再移除舊的**「小麥注音／McBopomofo」。反過來做會沒有中文可用。
-4. 系統設定 → 隱私權與安全性 → 輔助使用 → 加入 **iBopomofo**（新 ID ≠ 繼承舊授權）
+| | 新版 | 舊版（退路） |
+|---|---|---|
+| 路徑 | `~/Library/Input Methods/iBopomofo.app` | `~/Library/Input Methods/McBopomofo.app` |
+| Input source | `io.ibopomofo.inputmethod.iBopomofo.iBopomofo.Bopomofo` | `org.openvanilla.…McBopomofo.Bopomofo` |
+| 版本 | 2.16.3 / 2323 / **GitRevision f2b8eda0** | 2.16.3 / 2323 / GitRevision d1f0ee49 |
+| 選單顯示名 | **i注音** | **小麥注音（舊）** |
+| 狀態 | 已啟用、**目前選用中** | 已停用（檔案沒刪） |
 
-### 這四步做完之後，接手的 AI 要跑的活體層驗收
+**兩個 app 的 zh-Hant 顯示名原本都是「i注音」**（品牌改名早於識別符改名），
+在系統設定的輸入法清單裡完全分不出誰是誰。已把**舊**版的 `InfoPlist.strings`
+三份（Base／en／zh-Hant）顯示值改成「小麥注音（舊）」並重新 ad-hoc 簽名；
+原檔備份在 `~/ai-handoff/20260812-mcbopomofo-strings-backup/`。
+改名後要重新簽名，否則 ad-hoc 簽章失效。
+（`.strings` 若寫成 UTF-8 **必須加 BOM**，否則解析器會吃掉第一個位元組 ——
+實測 `CFBundleName` 變成 `FBundleName`。）
 
-| 項目 | 怎麼跑 |
+### 已經不用再做的事
+
+- ~~登出再登入~~ —— Johnny 2026-08-12 已重啟過，系統早已掃到新 bundle。
+  **註冊 API 被拒（`Cannot enable input source`）只發生在 lsregister 之前**；
+  跑過 `lsregister -f -R` 之後就正常了。別再叫使用者重開機。
+- ~~在系統設定加入 i注音~~ —— 已加入並選用。
+
+**背景程序不能自己啟用／切換輸入法**：`TISEnableInputSource` 對「已從清單移除」
+的來源會回 `-50`，一定要人在系統設定按。已啟用的來源之間切換則可以（`TISSelectInputSource` 回 0）。
+
+### 活體層驗收結果
+
+| 項目 | 結果 |
 |---|---|
-| 偏好逐鍵活值 | `~/ai-handoff/verify-prefs-migration.sh`（要 `PREFS_MIGRATION=PASS`） |
-| 校正迴路 smoke | 照 `~/ai-handoff/correction-loop-smoke.md`：新路徑改一次字、同前文重打要記得 |
-| 實機打字 | `./scripts/type-as-user.sh -f scripts/ship-gate-sentences.txt` |
-| grok 第二階段對照 | grok 的 123 項清單（`~/ai-handoff/20260812-baton6-grok-inventory.md`）vs 實改，**要零落差** |
+| 偏好逐鍵活值 | ✅ **PASS** —— `~/ai-handoff/verify-prefs-migration.sh`，40/40 逐鍵相等 |
+| 實機打字 | ✅ **9/10** —— `./scripts/type-as-user.sh -f scripts/ship-gate-sentences.txt`。唯一失敗句 `你先坐這裡等一下`→`你先做這裡等一下`，**已用舊版跑同一組鍵序對照，輸出完全相同**，是改名前就有的行為 |
+| 校正迴路 smoke | ⚠️ **(a)(c) PASS、(b) FAIL** —— 見下 |
+| grok 第二階段對照 | ❌ **還沒做**（`~/ai-handoff/20260812-baton6-grok-inventory.md` 123 項 vs 實改，要零落差） |
 
-**在活體層全綠之前，不准宣稱「棒⑥ 完成且已驗證」。**
+校正迴路三命題（`~/ai-handoff/correction-loop-smoke.md`）：
+
+- **(a) 新路徑會寫入** ✅ `manual-correction.log` 19537→19581，最後一行就是該次校正；
+  `user-override-cache.dat` 同步更新。
+- **(c) 舊路徑不再被寫** ✅ 舊三檔 size 與 mtime 全程零變化。
+- **(b) 同前文重打要記得** ❌ 記不住。**已查明不是改名造成的** ——
+  `UserOverrideModel.{h,cpp}` 從棒⑥ 前到 HEAD 的 diff 只有 namespace 兩行，
+  `KeyHandler.mm` 96 行抵銷後只剩 4 行 input mode ID 字串。根因是 `observe()`
+  的 `breakingUp` 分支用**校正後**的 walk 組鍵，下次查不中 → **issue #10**。
+
+**棒⑥ 可以視為上線成功；但「全綠」還差 grok 對照那一項，別宣稱完成且已驗證。**
 
 ### 自動層已驗（FULL）
 
@@ -101,7 +131,23 @@ gh issue list                               # 目前開著的工作
 | 舊資料（548MB，含 Whisper 模型與校正 log） | `~/Library/Application Support/McBopomofo/` |
 | 舊偏好 | `~/Library/Preferences/org.openvanilla.inputmethod.McBopomofo.plist` |
 | 偏好基準快照 | `~/ai-handoff/20260812-prefs-baseline.txt`（SHA256 `241aac2d…`） |
-| 2.16.2 app 備份 | `/tmp/McBopomofo-2.16.2-backup.app` |
+| 2.16.2 app | ~~`/tmp/McBopomofo-2.16.2-backup.app`~~ **已隨重開機蒸發**；改從 tag `v2.16.2` 重建 <!-- doc-check-ignore --> |
+
+### ⚠️ 別把要留的東西放 `/tmp`（2026-08-12 一次踩到三個）
+
+macOS 重開機會清 `/tmp`。棒⑥ 上線這天發現有三樣「重要東西」住在那裡，全沒了：
+
+| 東西 | 用途 | 現況 |
+|---|---|---|
+| `e2e_slow.sh` | 實機打字驗收的送鍵器 | 已補回 repo（`72ce840b`），不再依賴 `/tmp` <!-- doc-check-ignore --> |
+| `McBopomofo-2.16.2-backup.app` | 交班檔列為退版退路 | 沒了，但 tag `v2.16.2` 還在，可重建 <!-- doc-check-ignore --> |
+| `newstar_homophone_eval` | **`ship-gate.sh` 的評分機** | 沒了 → **出貨關卡目前跑不起來**（`SHIP_GATE_STATUS=FAIL`） |
+
+**下次要發版前**，先照 `Source/Engine/eval/benchmarks/README-newstar.md:118` 的
+`clang++` 指令把評分機編回來，或用 `IBOPOMOFO_EVAL_BIN` 指到別處。
+`ship-gate.sh` 沒過不准打包，所以這件事會擋住「版本 bump ＋ tag」。
+
+`./scripts/doc-check.sh` 會抓文件裡不存在的路徑 —— 這三個就是它抓出來的。
 
 ### 還沒做的兩件
 
@@ -118,7 +164,29 @@ gh issue list                               # 目前開著的工作
 071c1693  C4/5  安裝路徑／資料路徑／偏好網域（7 檔）
 c448024d  C5/5  文件與規則敘述改寫
 7c243a6c  fix   install.sh 兩處漏改
+7cedea3f  fix   四支腳本漏改（驗收＋打包，見下）
+72ce840b  fix   實機打字驗收工具本身是壞的（見下）
 ```
+
+### 上線時才引爆的兩批漏改（都已修並 push）
+
+C4 只掃了 app 內的路徑常數與 `install.sh`，**沒掃驗收與打包腳本**。
+真正啟用新版才發現：
+
+| 檔案 | 原本會怎麼壞 |
+|---|---|
+| `scripts/e2e-typing-check.sh` | 輸入法檢查寫死 `*"McBopomofo"*` → 新版一律判定「不是 i注音」exit 1 |
+| `scripts/type-as-user.sh` | 同上；外加 `pkill` 殺舊 app → 新 app 沒重啟、UOM 狀態沒清，**照跑照印但結果不可信** |
+| `package-dmg.sh`／`scripts/package-dmg.sh` | `-scheme McBopomofo` 已不存在（C2 改掉）→ 發版打包第一步就爆 |
+
+**教訓：改名的驗收範圍要含「驗收工具自己」。** 驗收工具壞掉時通常不會報錯，
+它只是安靜地不驗。
+
+而且 `type-as-user.sh` 修好後才發現它本來就有三個問題（`72ce840b`）：
+依賴一支只存在於 `/tmp` 的 `e2e_slow.sh`（重開機就沒了， <!-- doc-check-ignore -->
+且 `2>/dev/null` 把 command not found 吞掉 → 整輪不印任何東西、exit 0）、
+音節之間多送空白鍵、TextEdit 既有文件內容會混進「實際出字」。
+**這支在此之前多久沒真的驗過東西，無從得知。**
 
 ### 三個「build 綠但會壞」的洞（本棒實際踩到，寫下來給下一棒）
 
