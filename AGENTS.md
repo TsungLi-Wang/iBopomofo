@@ -87,6 +87,10 @@ For a **clean** stamp (no trailing `+`), matching tag `vX.Y.Z`:
 git checkout vX.Y.Z   # or clean master at the release commit
 git status            # must show clean for product files
 # build Release with a dedicated -derivedDataPath
+#
+# ⚠️ 用完請跑 ./scripts/clean-build-dirs.sh --yes
+# 每個 derivedDataPath 約 1.2GB。2026-08-12 因為沒人清，build/ 底下累積了
+# 43 個 dd-* 目錄共 50GB，把 228GB 的碟吃到只剩 6.6GB 跳出系統警告。
 ```
 
 Menu **「顯示目前生效設定…」** shows `version` + `build` + `GitRevision` from the running bundle.
