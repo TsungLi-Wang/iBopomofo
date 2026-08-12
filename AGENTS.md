@@ -14,7 +14,7 @@ Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md` + GitHub Issues（`deadend`／�
 
 **Brand vs technical IDs:** User-visible name is **i注音 / iBopomofo**. Internal Xcode target, bundle id `io.ibopomofo.inputmethod.iBopomofo`, install path `~/Library/Input Methods/iBopomofo.app`. Renamed in baton 6; see CHANGELOG.
 
-**Privacy (local-only plaintext):** `~/Library/Application Support/McBopomofo/rerank-diff.log` (walk→rerank flips) and `manual-correction.log` (user re-picks). Never commit, upload, or attach to crash reports. Toggle/clear via input menu.
+**Privacy (local-only plaintext):** `~/Library/Application Support/iBopomofo/rerank-diff.log` (walk→rerank flips) and `manual-correction.log` (user re-picks). Never commit, upload, or attach to crash reports. Toggle/clear via input menu.
 
 ## Product UX (canonical — do not reintroduce soft-finalize-as-定案)
 
@@ -107,20 +107,20 @@ Menu **「顯示目前生效設定…」** shows `version` + `build` + `GitRevis
 ### Xcode Project Structure
 
 The project contains these main **targets**:
-- `McBopomofo`: Main input method bundle
-- `McBopomofoInstaller`: Installer app (recommended for development)
+- `iBopomofo`: Main input method bundle
+- `iBopomofoInstaller`: Installer app (recommended for development)
 - `Data`: Dictionary data generation
-- `McBopomofoTests`: Swift test suite
+- `iBopomofoTests`: Swift test suite（原始檔仍在 `McBopomofoTests/` 目錄，目錄名刻意未改）
 
 **Build configurations:** Debug, Release (default when building from command line)
 
-**Available schemes:** McBopomofo, McBopomofoInstaller, Data, plus individual schemes for local packages (BopomofoBraille, CandidateUI, ChineseNumbers, FSEventStreamHelper, InputSourceHelper, NotifierUI, NSStringUtils, OpenCCBridge, SystemCharacterInfo, TooltipUI)
+**Available schemes:** iBopomofo, iBopomofoInstaller, Data, plus individual schemes for local packages (BopomofoBraille, CandidateUI, ChineseNumbers, FSEventStreamHelper, InputSourceHelper, NotifierUI, NSStringUtils, OpenCCBridge, SystemCharacterInfo, TooltipUI)
 
 ### Primary Development Workflow
 
 1. Open `iBopomofo.xcodeproj` in Xcode
-2. Select the **"McBopomofoInstaller"** target
-3. Build (⌘+B) and run to install McBopomofo
+2. Select the **"iBopomofoInstaller"** target
+3. Build (⌘+B) and run to install iBopomofo
 4. The installer automatically kills and restarts the input method process
 
 **Important:** macOS limits how many times an input method process can be killed in a single login session. If installation stops working after multiple installs, log out and log back in.
@@ -129,12 +129,12 @@ The project contains these main **targets**:
 
 ```bash
 # Build the installer
-xcodebuild -project iBopomofo.xcodeproj -target McBopomofoInstaller -configuration Debug build
+xcodebuild -project iBopomofo.xcodeproj -target iBopomofoInstaller -configuration Debug build
 
 # Build the main input method. Prefer the shared scheme so SwiftPM nested
 # dependencies from local packages (OpenCCBridge/SystemCharacterInfo) resolve
 # correctly in command-line builds.
-xcodebuild -project iBopomofo.xcodeproj -scheme McBopomofo -configuration Debug build
+xcodebuild -project iBopomofo.xcodeproj -scheme iBopomofo -configuration Debug build
 
 # Build dictionary data only
 xcodebuild -project iBopomofo.xcodeproj -target Data -configuration Debug build
@@ -143,7 +143,7 @@ xcodebuild -project iBopomofo.xcodeproj -target Data -configuration Debug build
 ### Running Tests
 
 #### Swift Tests
-- Target: `McBopomofoTests` in Xcode
+- Target: `iBopomofoTests` in Xcode（目錄仍為 `McBopomofoTests/`）
 - Framework: XCTest with Swift `Testing` module
 - Run in Xcode with ⌘+U or test navigator
 
@@ -189,7 +189,7 @@ For GitHub Copilot-specific configuration, see:
 
 ## Architecture Overview
 
-McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detailed architecture and algorithm documentation, see:
+iBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detailed architecture and algorithm documentation, see:
 - `algorithm.md`: Comprehensive technical documentation (Chinese)
 - [Wiki: 程式架構](https://github.com/openvanilla/McBopomofo/wiki/程式架構): Program architecture
 - [Wiki: Gramambular 演算法](https://github.com/openvanilla/McBopomofo/wiki/程式架構_Gramambular): Gramambular algorithm
@@ -273,7 +273,7 @@ McBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detail
 ### C++ Engine
 
 - Follow C++17 style with `std::vector`, `std::unordered_map`, `std::optional`, `std::string_view`
-- Place code in existing namespaces: `McBopomofo`, `Formosa::Gramambular2`, `Formosa::Mandarin`
+- Place code in existing namespaces: `iBopomofo`, `Formosa::Gramambular2`, `Formosa::Mandarin`
 - Reuse blob readers (`KeyValueBlobReader`, `ParselessPhraseDB`, `PhraseReplacementMap`)
 - Keep algorithms deterministic and side-effect free; logging stays in Objective-C++ layer
 - After a `ContextModel` walk, read path text only via `WalkResult::chosenValueAt(i)` (DP does not mutate nodes)

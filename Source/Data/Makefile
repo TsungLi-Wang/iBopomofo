@@ -38,11 +38,11 @@ clean:
 
 # FOR INTERNAL USE
 _install: tidy sort check all
-	@cp -a data.txt data-plain-bpmf.txt $(HOME)/Library/Input\ Methods/McBopomofo.app/Contents/Resources/
-	@pkill -HUP -f McBopomofo || echo McBopomofo is not running
+	@cp -a data.txt data-plain-bpmf.txt $(HOME)/Library/Input\ Methods/iBopomofo.app/Contents/Resources/
+	@pkill -HUP -f iBopomofo || echo iBopomofo is not running
 _deploy: _install
-	@rsync -avx data.txt data-plain-bpmf.txt $(RHOST):"Library/Input\ Methods/McBopomofo.app/Contents/Resources/"
-	@test "$(RHOST)" && ssh $(RHOST) "pkill -HUP -f McBopomofo || echo McBopomofo is not running" || true
+	@rsync -avx data.txt data-plain-bpmf.txt $(RHOST):"Library/Input\ Methods/iBopomofo.app/Contents/Resources/"
+	@test "$(RHOST)" && ssh $(RHOST) "pkill -HUP -f iBopomofo || echo iBopomofo is not running" || true
 
 sort: SHELL:=/bin/bash
 sort: export LC_ALL=C
@@ -87,14 +87,14 @@ _myclean:
 _myprodbuild:
 	cd ../.. && \
         xcodebuild \
-          -scheme McBopomofo \
+          -scheme iBopomofo \
           -configuration Release \
           -derivedDataPath build \
           build
 _mydebugbuild:
 	cd ../.. && \
         xcodebuild \
-          -scheme McBopomofo \
+          -scheme iBopomofo \
           -configuration Debug \
           -derivedDataPath build \
           build

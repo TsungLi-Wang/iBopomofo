@@ -15,7 +15,7 @@ final class ManualCorrectionLog: NSObject {
     /// Current line schema version written by append(...).
     @objc static let schemaVersion = "1"
 
-    /// ~/Library/Application Support/McBopomofo/manual-correction.log
+    /// ~/Library/Application Support/iBopomofo/manual-correction.log
     @objc static var logFilePath: String {
         let base = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask

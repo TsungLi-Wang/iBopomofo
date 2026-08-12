@@ -4,7 +4,7 @@
 #   - bin/    = 建置必需,「Copy Llama Runtime」build phase 會打包進 app。
 #   - models/ = 僅供本機開發測試;發佈版不打包模型,改由 app 首次使用時從 HF 下載
 #               (見 Source/LlamaServerManager.swift)。本機開發若想免於 app 端下載,
-#               可把這顆 cp 到 ~/Library/Application Support/McBopomofo/AIModel/model.gguf。
+#               可把這顆 cp 到 ~/Library/Application Support/iBopomofo/AIModel/model.gguf。
 #
 # 用法:  cd llama-runtime && ./fetch-runtime.sh
 set -euo pipefail

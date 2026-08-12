@@ -78,7 +78,7 @@ final class WhisperServerManager: NSObject {
     static let modelExpectedSHA256 =
         "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"
 
-    /// ~/Library/Application Support/McBopomofo/WhisperModel/
+    /// ~/Library/Application Support/iBopomofo/WhisperModel/
     private var modelDirectoryURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("iBopomofo", isDirectory: true)

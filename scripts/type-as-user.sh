@@ -32,7 +32,17 @@ fi
 #
 # 所以每次驗證前一律重啟，讓結果是確定性的。
 pkill -f "Input Methods/iBopomofo.app" 2>/dev/null || true
-sleep 4
+
+# 等它自己回來，不要固定 sleep。2026-08-12 實測：固定 sleep 4 之後第一句
+# 打出空字串（輸入法還沒接手），而空字串會被報成「出字不對」——
+# harness 沒準備好被誤判成引擎錯誤，正是這支腳本最該避免的事。
+for _ in $(seq 1 30); do
+    if pgrep -f "Input Methods/iBopomofo.app" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+sleep 2   # 起來之後再給它一點時間完成 IMK 連線
 
 if [ "${1:-}" = "-f" ]; then
     SENTS=$(cat "$2")
@@ -84,19 +94,47 @@ for sent in sys.argv[1].split("\n"):
 EOF
 )
 
-echo "$PLAN" | while IFS=$'\t' read -r tag sent keys; do
+# ⚠️ 不要寫成 `echo "$PLAN" | while …`。
+# 2026-08-12：原本就是那樣寫的 —— pipeline 的右邊在 subshell 裡跑，
+# 迴圈內累積的失敗數出不來，整支永遠 exit 0。「全部打錯」跟「全部打對」
+# 對 CI 或呼叫端來說一模一樣。改用 here-string，讓計數留在本 shell。
+fail=0
+pass=0
+skip=0
+while IFS=$'\t' read -r tag sent keys; do
+    [ -z "${tag:-}" ] && continue
     if [ "$tag" = "SKIP" ]; then
         printf "  ⚠️  %s（%s）\n" "$sent" "$keys"
+        skip=$((skip + 1))
         continue
     fi
     # 2026-08-12：原本這裡叫 /tmp/e2e_slow.sh —— 一支只存在於 /tmp 的臨時檔，
     # repo 沒有、文件沒提，重開機就被系統清掉。加上 2>/dev/null 把
     # 「command not found」吞掉，於是整輪跑完一行都不印，看起來像沒事。
     # 改成呼叫 repo 內的 e2e-typing-check.sh，別再依賴 /tmp。
-    got=$(./scripts/e2e-typing-check.sh "${keys//_/ }" 6 2>/dev/null | tail -1)
+    # `|| true`：單句的送鍵失敗不該讓整輪中斷（set -e + pipefail 會殺掉迴圈，
+    # 於是後面的句子連跑都沒跑到，卻只看到前面幾行輸出）。失敗會在下面被算成 ❌。
+    got=$(./scripts/e2e-typing-check.sh "${keys//_/ }" 6 2>/dev/null | tail -1 || true)
     if [ "$got" = "$sent" ]; then
         printf "  ✅ %s\n" "$sent"
+        pass=$((pass + 1))
     else
-        printf "  ❌ 想打：%s\n     實際：%s\n" "$sent" "$got"
+        printf "  ❌ 想打：%s\n     實際：%s\n" "$sent" "${got:-（空，可能是送鍵或輸入法沒起來）}"
+        fail=$((fail + 1))
     fi
-done
+done <<< "$PLAN"
+
+echo ""
+echo "=== 結果 ==="
+# ⚠️ 一定要 ${} 包起來：全形「／」會被 bash 3.2 吃進變數名（unbound variable）。
+echo "通過 ${pass}／失敗 ${fail}／跳過 ${skip}"
+if [ "$fail" -gt 0 ]; then
+    echo "TYPE_AS_USER=FAIL($fail)"
+    exit 1
+fi
+if [ "$pass" -eq 0 ]; then
+    # 一句都沒真的打到 —— 這是「安靜地什麼都沒驗」的那種壞法，不准當成功。
+    echo "TYPE_AS_USER=FAIL(no sentences actually typed)"
+    exit 1
+fi
+echo "TYPE_AS_USER=PASS"

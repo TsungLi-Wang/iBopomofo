@@ -14,7 +14,7 @@ final class RerankDiffLog: NSObject {
 
     private static let lock = NSLock()
 
-    /// ~/Library/Application Support/McBopomofo/rerank-diff.log
+    /// ~/Library/Application Support/iBopomofo/rerank-diff.log
     @objc static var logFilePath: String {
         logFileURL.path
     }

@@ -27,17 +27,18 @@
 #
 # 環境變數（可覆寫預設）：
 #   IBOPOMOFO_CORPUS_DIR  預設 $HOME/Documents/i注音-語料/EX1166-題庫
-#   IBOPOMOFO_EVAL_BIN    預設 /tmp/newstar_homophone_eval
+#   IBOPOMOFO_EVAL_BIN    預設 bin/newstar_homophone_eval（repo 內，重開機不會消失）
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-EVAL="${IBOPOMOFO_EVAL_BIN:-/tmp/newstar_homophone_eval}"
+EVAL="${IBOPOMOFO_EVAL_BIN:-bin/newstar_homophone_eval}"
 CORPUS_DIR="${IBOPOMOFO_CORPUS_DIR:-$HOME/Documents/i注音-語料/EX1166-題庫}"
 SAMPLE_JSONL="Source/Engine/eval/benchmarks/newstar_sample.jsonl"
 
 if [ ! -x "$EVAL" ]; then
     echo "先建置評分機：IBOPOMOFO_EVAL_BIN=$EVAL 不存在或不可執行"
-    echo "（見 Source/Engine/eval/benchmarks/README-newstar.md）"
+    echo "  → 跑 ./scripts/build-eval.sh 即可（約 20 秒）"
+    echo "（細節見 Source/Engine/eval/benchmarks/README-newstar.md）"
     echo "SHIP_GATE_STATUS=FAIL"
     exit 1
 fi
@@ -100,12 +101,28 @@ PY
 
 run_ctest() {
     echo "── 關卡：引擎單元測試 ──"
-    if (cd Source/Engine && cmake -S . -B /tmp/gate-build -DCMAKE_BUILD_TYPE=Release -DENABLE_TEST=ON >/dev/null 2>&1 \
-        && cmake --build /tmp/gate-build -j4 >/dev/null 2>&1 \
-        && cd /tmp/gate-build && ctest >/dev/null 2>&1); then
+    # 2026-08-12：原本三步（configure / build / ctest）串成一個 if，任一步失敗都印
+    # 「有測試失敗」。實際踩到：PATH 裡沒有 cmake（Homebrew 不在 PATH）→ 印出
+    # 「有測試失敗」，看起來像引擎壞了，其實一個測試都沒跑到。分開報。
+    if ! command -v cmake >/dev/null 2>&1; then
+        echo "  ❌ 找不到 cmake —— 這一關沒有真的跑到測試"
+        echo "     （PATH=$PATH）"
+        fail=1
+        return
+    fi
+    local gate_build="${GATE_BUILD_DIR:-$PWD/build/gate-build}"
+    if ! (cd Source/Engine && cmake -S . -B "$gate_build" -DCMAKE_BUILD_TYPE=Release -DENABLE_TEST=ON >/dev/null 2>&1 \
+          && cmake --build "$gate_build" -j4 >/dev/null 2>&1); then
+        echo "  ❌ 引擎測試「建置」失敗 —— 這一關沒有真的跑到測試"
+        echo "     重跑看錯誤：cd Source/Engine && cmake -S . -B \"$gate_build\" -DENABLE_TEST=ON && cmake --build \"$gate_build\""
+        fail=1
+        return
+    fi
+    if (cd "$gate_build" && ctest >/dev/null 2>&1); then
         echo "  ✅ 全過"
     else
-        echo "  ❌ 有測試失敗"
+        echo "  ❌ 有測試失敗（建置是成功的，是測試本身沒過）"
+        echo "     看細節：cd \"$gate_build\" && ctest --output-on-failure"
         fail=1
     fi
 }

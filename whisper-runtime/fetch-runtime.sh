@@ -4,7 +4,7 @@
 #   - bin/    = 建置必需,「Copy Whisper Runtime」build phase 會打包進 app。
 #   - models/ = 僅供本機開發測試;發佈版不打包模型,改由 app 首次使用語音輸入時從 HF 下載
 #               (見 Source/WhisperServerManager.swift)。本機開發若想免於 app 端下載,
-#               可把這顆 cp 到 ~/Library/Application Support/McBopomofo/WhisperModel/model.bin。
+#               可把這顆 cp 到 ~/Library/Application Support/iBopomofo/WhisperModel/model.bin。
 #
 # whisper.cpp 沒有官方 macOS 二進位 release,所以這裡從 git clone 固定 tag 後以 cmake
 # 靜態編譯 whisper-server(單一執行檔,只動態連結系統框架 Metal/Accelerate,免 dylib 搬運)。

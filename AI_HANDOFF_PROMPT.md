@@ -802,7 +802,7 @@ try_rules.py（幾秒，不編譯）→ 評分機對照實驗（真引擎）→ 
 | 出貨驗收 | **`./scripts/ship-gate.sh`**（真實語料不得淨傷害 + ctest + e2e 抽驗）|
 | 難題尺 | EX1166（`~/Documents/i注音-語料/EX1166-題庫/`）——**只參考，不當出貨依據** |
 | 舊尺 | tw538 **已作廢** |
-| 安裝路徑 | `~/Library/Input Methods/McBopomofo.app`（顯示名 i注音）|
+| 安裝路徑 | `~/Library/Input Methods/iBopomofo.app`（顯示名 i注音；2026-08-12 棒⑥ 起）|
 | 重裝方式 | **就地 `ditto` 覆蓋**，絕不 `rm -rf`（會被踢出選單列）|
 | Commit 作者 | `老王 LaoWang <laowang@users.noreply.github.com>` |
 
@@ -874,7 +874,7 @@ try_rules.py（幾秒，不編譯）→ 評分機對照實驗（真引擎）→ 
 
 - 不改 walk／神經權重／規則表除非 Johnny 明示或本棒任務明確要求；動了必跑 **EX1166 + 真實語料**，發版必過 **`ship-gate.sh`**。**禁止**再用 tw538≠387 當 FATAL。
 - 不共用 DerivedData；`xcodebuild test` 不要 `| tail`。
-- 不更名 McBopomofo 內部識別符。
+- 內部識別符已於 2026-08-12（棒⑥）統一為 `iBopomofo`。**保留舊名的四類**見 `CLAUDE.md`：上游 Copyright、詞庫格式魔術字串、歷史封存檔，以及「改了要連帶改讀取端或遷移使用者資料」的識別符（類別名、偏好鍵名、`McBopomofoLM.cpp` 等原始檔名、`McBopomofoTests/`、CMake `McBopomofoLMLib`）。
 
 ### 關鍵程式入口（重選／定案）
 

@@ -74,3 +74,6 @@ Source/Engine/build-*/
 # Research eval model weights live outside the repo (IBOPOMOFO_EVAL_MODELS).
 # .meta.txt / .sha256 stay tracked as an index; *.bin already ignored above.
 /Source/Engine/eval/models/*.bin
+
+# 本機建置的評分機等執行檔（見 scripts/build-eval.sh）
+/bin/

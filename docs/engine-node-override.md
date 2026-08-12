@@ -124,7 +124,7 @@ AI 決策是非同步的。結果回來時組字區可能已被後續按鍵改�
 - 不複用會 `observe` 的 `fixNodeWithReading` 當隱形修正路徑（R1）。
 - 不用 `setMarkedText` 塞自由文字（讀音驅動引擎的假修正，已驗證會被蓋回）。
 - 不改讀音、不生成新字——只在既有 unigram 候選裡改選（引擎級已保證，但決策層也不得繞過）。
-- 不動 McBopomofo 內部識別符（bundle id / input source id / module / 資料路徑）。
+- 內部識別符已於 2026-08-12（棒⑥）統一為 iBopomofo；本文件的結論不受影響。
 - 沒有 before/after 數字不算完成。
 
 ## 6. 一句話結論

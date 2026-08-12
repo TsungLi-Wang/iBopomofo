@@ -35,7 +35,7 @@ macOS 上的**繁體中文注音輸入法**。在成熟的開源注音引擎之�
 6. **可觀測與本機差異 log**  
    - 選單「顯示目前生效設定…」：版本、GitRevision、重排開關、ν、模型指紋等。  
    - 可選：定案且重排真的改字時，本機 append  
-     `~/Library/Application Support/McBopomofo/rerank-diff.log`（不上傳；可關可清）。
+     `~/Library/Application Support/iBopomofo/rerank-diff.log`（不上傳；可關可清）。
 
 7. **語音（可選）**  
    連按兩下右 Shift：本機 whisper.cpp 聽寫（首次需模型；與注音引擎路徑獨立）。
@@ -63,28 +63,27 @@ curl -fsSL https://raw.githubusercontent.com/TsungLi-Wang/iBopomofo/master/scrip
 
 3. **系統設定 → 鍵盤 → 文字輸入 → 輸入法 → 編輯**，加入「**i注音**」。
 
-> **技術備註**：內部 bundle id / 安裝路徑仍為上游繼承的  
-> `io.ibopomofo.inputmethod.iBopomofo` 與  
-> `~/Library/Input Methods/McBopomofo.app`，避免與舊安裝斷裂。  
-> **畫面上**顯示的是 i注音 / iBopomofo。
+> **技術備註**：bundle id 為 `io.ibopomofo.inputmethod.iBopomofo`，
+> 安裝路徑 `~/Library/Input Methods/iBopomofo.app`（2026-08-12 起；
+> 舊的 `org.openvanilla.inputmethod.McBopomofo` 與 `McBopomofo.app` 已不再使用）。
 
 ### 從原始碼 build
 
 ```bash
 git clone https://github.com/TsungLi-Wang/iBopomofo.git
 cd iBopomofo
-xcodebuild -project iBopomofo.xcodeproj -scheme McBopomofo \
+xcodebuild -project iBopomofo.xcodeproj -scheme iBopomofo \
   -configuration Release -derivedDataPath build/dd-rel build
 # 覆蓋安裝（會重啟輸入法進程；勿 rm -rf 安裝路徑）
-killall McBopomofo 2>/dev/null || true
-ditto build/dd-rel/Build/Products/Release/McBopomofo.app \
-  "$HOME/Library/Input Methods/McBopomofo.app"
-xattr -dr com.apple.quarantine "$HOME/Library/Input Methods/McBopomofo.app"
-"$HOME/Library/Input Methods/McBopomofo.app/Contents/MacOS/McBopomofo" install
-open "$HOME/Library/Input Methods/McBopomofo.app"
+killall iBopomofo 2>/dev/null || true
+ditto build/dd-rel/Build/Products/Release/iBopomofo.app \
+  "$HOME/Library/Input Methods/iBopomofo.app"
+xattr -dr com.apple.quarantine "$HOME/Library/Input Methods/iBopomofo.app"
+"$HOME/Library/Input Methods/iBopomofo.app/Contents/MacOS/iBopomofo" install
+open "$HOME/Library/Input Methods/iBopomofo.app"
 ```
 
-或建 `McBopomofoInstaller` scheme，用安裝器流程。
+或建 `iBopomofoInstaller` scheme，用安裝器流程。
 
 ## 給 AI 協作者
 
@@ -102,7 +101,7 @@ open "$HOME/Library/Input Methods/McBopomofo.app"
 ## 隱私
 
 - 注音主路徑與神經重排：**離線、進程內**。  
-- 個人化：`~/Library/Application Support/McBopomofo/`（不進安裝包、不上傳）。  
+- 個人化：`~/Library/Application Support/iBopomofo/`（不進安裝包、不上傳）。  
 - 重排差異 log／手動校正 log：可選、本機、可清除。  
 - 檢查更新可能連 GitHub Releases（僅版本資訊）。
 
@@ -133,4 +132,4 @@ open "$HOME/Library/Input Methods/McBopomofo.app"
 ## 已知取捨（開源後）
 
 - 舊句級集 **tw538** 已作廢、只當歷史；難題集 EX1166 與真實語料驗證集用途不同——**不得拿 EX1166 分數對使用者宣稱**。  
-- 內部 target / C++ namespace / bundle id 仍含歷史名 `McBopomofo`，以維持安裝與 IMK 相容；**品牌層**已統一為 i注音。
+- 內部識別符已於 2026-08-12 統一為 `iBopomofo`（bundle id、安裝路徑、資料目錄、C++ namespace、Xcode target／scheme）。**刻意保留舊名的四類**：上游 Copyright 署名、詞庫 on-disk 格式魔術字串 `# format org.openvanilla.mcbopomofo.sorted`、歷史封存檔，以及**改了要連帶改讀取端或遷移使用者資料**的識別符（Swift／ObjC 類別名如 `McBopomofoInputMethodController`、偏好鍵名如 `McBopomofoEmacsKey`、原始檔名 `Source/Engine/McBopomofoLM.cpp`、測試目錄 `McBopomofoTests/`、CMake 目標 `McBopomofoLMLib`）。

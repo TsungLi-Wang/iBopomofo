@@ -4,7 +4,7 @@ i注音的「本機 AI（內建・離線）」後端：把 llama.cpp 的 `llama-
 連同精簡 dylib 打包進 app，由 `LlamaServerManager` 自動啟動／關閉。
 **模型本身不打包進 app**——它太大（~2.9GB）會讓 dmg 爆過 GitHub Release 的 2GiB 上限，
 改成 app 首次使用本機 AI 時自動從 HuggingFace 下載到
-`~/Library/Application Support/McBopomofo/AIModel/`，下載一次後永久離線。
+`~/Library/Application Support/iBopomofo/AIModel/`，下載一次後永久離線。
 使用者裝 app 就能用，**不必自己裝 Ollama、不必開任何外部伺服器**。
 
 ## 內容（皆由腳本重建，不入 git）
@@ -22,7 +22,7 @@ cd llama-runtime
 ```
 
 Xcode 的「Copy Llama Runtime」build phase **只把 `bin/`** ditto 進
-`McBopomofo.app/Contents/Resources/llama/bin/`（並清掉 bundle 內可能殘留的 `models/`）。
+`iBopomofo.app/Contents/Resources/llama/bin/`（並清掉 bundle 內可能殘留的 `models/`）。
 模型路徑、首次下載邏輯見 `Source/LlamaServerManager.swift`。
 
 ## 模型選型脈絡
@@ -45,7 +45,7 @@ Phase 0 用 9 句注音校正測試集（同音字／平翹舌／鄰鍵手誤 + 
 改成讓人下載 `.dmg`，安裝時用一行指令解除 macOS 隔離。
 
 用 `../package-dmg.sh`（repo 根）產出 `dist/iBopomofo.dmg`（**~18MB**，因模型不打包），內含：
-- `McBopomofo.app`（含 llama-server runtime，但不含模型）
+- `iBopomofo.app`（含 llama-server runtime，但不含模型）
 - `安裝.command`（右鍵→打開即可一鍵安裝）
 - `安裝說明.txt`（手動 Terminal 指令，最可靠）
 
@@ -60,7 +60,7 @@ dmg 18MB 可直接當 GitHub Release 附件（見 repo 的 Releases，v1.0 起�
 
 （注意：被 quarantine 連坐的只有**執行檔** `llama-server`；模型是 app 自己下載到 Application Support 的，不帶 quarantine。）所以安裝步驟**必須**清 quarantine（`安裝.command` 與手動指令都會做）：
 ```bash
-xattr -dr com.apple.quarantine ~/Library/Input\ Methods/McBopomofo.app
+xattr -dr com.apple.quarantine ~/Library/Input\ Methods/iBopomofo.app
 ```
 
 ### 未來若要「免指令、雙擊即用」

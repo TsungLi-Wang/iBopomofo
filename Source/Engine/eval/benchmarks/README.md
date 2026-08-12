@@ -38,7 +38,7 @@ rebuild on this set.
 ### Real-world companion (not a harness judge)
 
 Shipping app may write **Enter-only** rerank flips to
-`~/Library/Application Support/McBopomofo/rerank-diff.log`
+`~/Library/Application Support/iBopomofo/rerank-diff.log`
 (ISO8601, walk, reranked; only when walk ≠ rerank). Tab preview never logs.
 This is Johnny-local plaintext for future rescue/regress tallies — **not** part
 of tw538, never uploaded, never in repo. Prefer `nbest_path_rerank` for lab

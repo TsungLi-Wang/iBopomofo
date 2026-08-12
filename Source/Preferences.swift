@@ -868,7 +868,7 @@ extension Preferences {
 extension Preferences {
     static func createReport() -> String {
         var lines: [String] = []
-        lines.append("- McBopomofo Settings")
+        lines.append("- iBopomofo Settings")
         lines.append("  - Keyboard Layout: \(Preferences.keyboardLayout.name)")
         lines.append("  - Basis Keyboard Layout: \(Preferences.basisKeyboardLayout)")
         lines.append("  - Function Keyboard Layout: \(Preferences.functionKeyboardLayout)")
@@ -902,7 +902,7 @@ extension Preferences {
             "  - Phrase Replacement: \(Preferences.phraseReplacementEnabled ? "Enabled" : "Disabled")"
         )
         lines.append(
-            "  - Associated Phrases (McBopomofo): \(Preferences.associatedPhrasesEnabled ? "Enabled" : "Disabled")"
+            "  - Associated Phrases (iBopomofo): \(Preferences.associatedPhrasesEnabled ? "Enabled" : "Disabled")"
         )
         lines.append(
             "  - Associated Phrases (Plain Bopomofo): \(Preferences.enableUserPhrasesInPlainBopomofo ? "Enabled" : "Disabled")"

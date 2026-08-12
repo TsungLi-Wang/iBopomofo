@@ -26,7 +26,7 @@ import InputSourceHelper
 
 private let kTargetBin = "iBopomofo"
 private let kTargetType = "app"
-private let kTargetBundle = "McBopomofo.app"
+private let kTargetBundle = "iBopomofo.app"
 private let kDestinationPartial = "~/Library/Input Methods/"
 private let kTargetPartialPath = "~/Library/Input Methods/iBopomofo.app"
 private let kTargetFullBinPartialPath = "~/Library/Input Methods/iBopomofo.app/Contents/MacOS/iBopomofo"

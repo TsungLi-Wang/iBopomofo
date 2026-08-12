@@ -667,7 +667,7 @@ flowchart TD
     derive((3.0<br/>derive_associated_<br/>phrases.py<br/>生成聯想詞))
     assoc[|borders:tb|associated-phrases-v2.txt]
 
-    McBopomofo[McBopomofo.app]
+    iBopomofo[iBopomofo.app]
 
     phrase_occ -->|詞彙頻率| buildFreq
     exclusion -->|排除規則| buildFreq
@@ -685,9 +685,9 @@ flowchart TD
     cook -->|主詞庫| data
 
     data -->|詞彙資料| derive
-    data -->|語言模型| McBopomofo
+    data -->|語言模型| iBopomofo
     derive -->|聯想詞| assoc
-    assoc -->|聯想詞資料| McBopomofo
+    assoc -->|聯想詞資料| iBopomofo
 
     style buildFreq fill:#e1f5ff,stroke:#333,stroke-width:2px
     style cook fill:#e1f5ff,stroke:#333,stroke-width:2px
@@ -696,13 +696,13 @@ flowchart TD
     style PhraseFreq fill:#fff,stroke:#333,stroke-width:1px
     style data fill:#fff,stroke:#333,stroke-width:1px
     style assoc fill:#fff,stroke:#333,stroke-width:1px
-    style McBopomofo fill:#ffe1e1,stroke:#333,stroke-width:2px
+    style iBopomofo fill:#ffe1e1,stroke:#333,stroke-width:2px
 ```
 
 **圖例（Yourdon & DeMarco 標準符號）：**
 - **圓形節點**：處理程序（Process）— buildFreq.py、cook.py、derive_associated_phrases.py
 - **平行線節點**：資料存儲（Data Store）— 所有 .txt 檔案與資料檔
-- **方形節點**：外部實體（External Entity）— McBopomofo.app
+- **方形節點**：外部實體（External Entity）— iBopomofo.app
 - **標籤箭頭**：資料流（Data Flow）
 
 > **📝 工具路徑更新 (2024年10月)**
@@ -950,4 +950,4 @@ LC_ALL=C sort -o phrase.occ phrase.occ
 
 **文件版本**：1.2
 **最後更新**：2025-10-12T13:12:00+08:00
-**適用版本**：McBopomofo 2.x 及以上
+**適用版本**：iBopomofo 2.x 及以上

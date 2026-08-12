@@ -55,7 +55,7 @@ EX1166 **只參考**；宣稱進步必須主尺 + 後續 `FLOOR_PASS`。
 
 | 變數 | 預設 | 用途 |
 |------|------|------|
-| `IBOPOMOFO_EVAL_BIN` | `/tmp/newstar_homophone_eval` | 評分機執行檔 |
+| `IBOPOMOFO_EVAL_BIN` | `bin/newstar_homophone_eval` | 評分機執行檔 |
 | `IBOPOMOFO_CORPUS_DIR` | `$HOME/Documents/i注音-語料/EX1166-題庫` | 真實語料／EX1166 目錄 |
 | `IBOPOMOFO_EVAL_MODELS` | `$HOME/laowang-data/eval-models` | 研究用 `.bin` 權重（不在 git） |
 
@@ -64,7 +64,7 @@ EX1166 **只參考**；宣稱進步必須主尺 + 後續 `FLOOR_PASS`。
 ```bash
 # 在 repo root；若評分機不在，先建置（見下節）
 # 現役出貨權重 = Source/Data/path-char-lstm.bin（v2d int8）
-EVAL="${IBOPOMOFO_EVAL_BIN:-/tmp/newstar_homophone_eval}"
+EVAL="${IBOPOMOFO_EVAL_BIN:-bin/newstar_homophone_eval}"
 CORPUS_DIR="${IBOPOMOFO_CORPUS_DIR:-$HOME/Documents/i注音-語料/EX1166-題庫}"
 R="$(pwd)"   # 或任意 repo root
 
@@ -87,7 +87,7 @@ R="$(pwd)"   # 或任意 repo root
 第 9 個是 dump.tsv，第 10 個可選 `particle-rules.tsv`。
 
 ```bash
-EVAL="${IBOPOMOFO_EVAL_BIN:-/tmp/newstar_homophone_eval}"
+EVAL="${IBOPOMOFO_EVAL_BIN:-bin/newstar_homophone_eval}"
 CORPUS_DIR="${IBOPOMOFO_CORPUS_DIR:-$HOME/Documents/i注音-語料/EX1166-題庫}"
 EX="$CORPUS_DIR/EX1166-全部.jsonl"
 R="$(pwd)"   # repo root
@@ -110,11 +110,15 @@ ARGS="$R/Source/Data/data.txt $R/Source/Data/word-bigrams.tsv \
 
 ## 建置（執行檔不見時）
 
+**直接跑 `./scripts/build-eval.sh`**（repo root）。下面是它在做的事：
+
 ```bash
 # 從 repo root：
+ROOT="$(pwd)"
+EVAL_OUT="${IBOPOMOFO_EVAL_BIN:-$ROOT/bin/newstar_homophone_eval}"
+mkdir -p "$(dirname "$EVAL_OUT")"
 cd Source/Engine/eval/benchmarks
 ENGINE=../..
-EVAL_OUT="${IBOPOMOFO_EVAL_BIN:-/tmp/newstar_homophone_eval}"
 clang++ -std=c++17 -O2 \
   -I"$ENGINE" -I"$ENGINE/gramambular2" \
   newstar_homophone_eval.cpp \
@@ -124,14 +128,21 @@ clang++ -std=c++17 -O2 \
   "$ENGINE/ParselessLM.cpp" \
   "$ENGINE/ParselessPhraseDB.cpp" \
   "$ENGINE/MemoryMappedFile.cpp" \
+  "$ENGINE/ParticleRuleDisambiguator.cpp" \
   -framework Accelerate \
   -o "$EVAL_OUT"
 ```
 
+> **2026-08-12 修**：這段原本漏了 `ParticleRuleDisambiguator.cpp`（v2.15.0 的/得 規則
+> 加進來的），照抄會 `Undefined symbols … ParticleRuleDisambiguator::rescoreWalk`。
+> 輸出路徑原本預設 `/tmp`，重開機就蒸發 —— 改為 repo 內 `bin/`。
+> **不要改回 `/tmp`，也不要放 `build/`**：`scripts/clean-build-dirs.sh` 會把整個
+> `build/` `rm -rf` 掉，等於換一種方式蒸發。 <!-- doc-check-ignore -->
+
 內建 sample 自證（repo root）：
 
 ```bash
-EVAL="${IBOPOMOFO_EVAL_BIN:-/tmp/newstar_homophone_eval}"
+EVAL="${IBOPOMOFO_EVAL_BIN:-bin/newstar_homophone_eval}"
 R="$(pwd)"
 "$EVAL" \
   "$R/Source/Engine/eval/benchmarks/newstar_sample.jsonl" \

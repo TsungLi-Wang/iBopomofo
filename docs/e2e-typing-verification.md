@@ -24,7 +24,7 @@ e2e 跑在一個**長壽命的有狀態程序**上。使用者覆寫模型（UOM
 **重啟就正確了，基礎引擎根本沒問題**。
 
 ```bash
-pkill -f "Input Methods/McBopomofo.app"; sleep 4
+pkill -f "Input Methods/iBopomofo.app"; sleep 4
 ```
 
 `scripts/type-as-user.sh` 已經內建這一步。手動跑 e2e 時也要記得。
@@ -47,7 +47,7 @@ pkill -f "Input Methods/McBopomofo.app"; sleep 4
 6. 跑之前確認目前輸入法是i注音：
    ```bash
    swift -e 'import Carbon; let s = TISCopyCurrentKeyboardInputSource().takeRetainedValue(); if let p = TISGetInputSourceProperty(s, kTISPropertyInputSourceID) { print(Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue()) }'
-   # 應輸出 io.ibopomofo.inputmethod.iBopomofo.McBopomofo.Bopomofo
+   # 應輸出 io.ibopomofo.inputmethod.iBopomofo.iBopomofo.Bopomofo
    ```
 7. 終端機（跑 osascript 的程序）需有「輔助使用」權限；本機已設定過。
 

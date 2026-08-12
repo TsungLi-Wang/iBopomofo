@@ -45,7 +45,7 @@
 - **完全不跳提示**：確認開關有打勾、模型有就緒（`llama-server` 在跑）、句子有達門檻且游標在句尾。
 - **提示跳了但 Tab 沒反應**：確認 Tab 沒被其他候選／關聯詞路徑先吃掉（`InputMethodController.swift:340` keyCode 48 的串接順序：候選視窗建議 → 候選建議 → 自動校正建議）。
 - **送出後文字被引擎蓋回原文**：這是讀音驅動引擎的假修正症狀——代表有人又用 `setMarkedText` 塞字。正解走 `docs/engine-node-override.md`。
-- **診斷本機執行期**：短期可加固定檔 log 定位，查完務必移除；**不要**用 `log stream` 撈 McBopomofo（噪音爆量）。
+- **診斷本機執行期**：短期可加固定檔 log 定位，查完務必移除；**不要**用 `log stream` 撈 iBopomofo（噪音爆量）。
 
 ## 回報格式
 
