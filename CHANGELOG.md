@@ -42,6 +42,12 @@
   （`iBopomofo.dmg` + versioned 副本）。普通 push 不發版。
 - **doc-check CI**：在 `CI`／`GITHUB_ACTIONS` 下不因 `~/`／`$HOME` 本機路徑不存在而 fail
   （語料、ai-handoff 等）；plist／CHANGELOG／repo 內路徑檢查不變。
+- **Build CI 補 whisper-server 取得步驟（2026-08-13）**：`whisper-runtime/bin/whisper-server`
+  不進 git，但 iBopomofo target 的「Copy Whisper Runtime」phase 需要它 →
+  Build workflow 每次 `xcodebuild test` 都 `cp: No such file or directory` → exit 65。
+  `release.yml` 已於 `7a05fd79` 補過同一步且註解預告「既有 Build CI 也會踩同一洞」，
+  當時未一併補。現加上 `WHISPER_FETCH_BIN_ONLY=1 ./whisper-runtime/fetch-runtime.sh`
+  （只取 bin，不下載 574MB 模型）。
 
 ## [2.17.0] — 2026-08-12
 

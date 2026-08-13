@@ -76,6 +76,13 @@ jobs:
       - name: Test RomanNumbers
         run: swift test --enable-code-coverage
         working-directory: Packages/RomanNumbers
+      # whisper-server 不進 git（whisper-runtime/bin/）；iBopomofo target 的
+      # 「Copy Whisper Runtime」build phase 需要它，缺了整個 build 就 exit 65。
+      # release.yml 已於 7a05fd79 補過同一步，Build CI 當時漏補（該 commit 註解
+      # 已預告「既有 Build CI 也會踩同一洞」）。只取 bin，不下載 574MB 模型。
+      - name: Fetch whisper-server binary (not in git)
+        run: WHISPER_FETCH_BIN_ONLY=1 ./whisper-runtime/fetch-runtime.sh
+
       # 2026-08-12：棒⑥ 改名後 scheme 是 iBopomofo / iBopomofoInstaller。
       # 仍寫 McBopomofo 會讓 CI 永遠紅（本機用新名所以看不出來）。
       - name: Clean iBopomofo for testing
