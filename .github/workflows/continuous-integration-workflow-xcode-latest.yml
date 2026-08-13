@@ -26,6 +26,12 @@ on:
 jobs:
   build:
     name: Build and Test with Xcode
+    # 「Create commit comment」（貼覆蓋率統計）需要 contents: write。
+    # 本 repo 的 workflow 權杖預設唯讀 → 該步 403「Resource not accessible by
+    # integration」，讓整條 Build 紅燈（編譯與測試其實全過）。
+    # 只在本 job 提權，範圍最小；fork 送來的 PR 由 GitHub 強制降為唯讀，不受影響。
+    permissions:
+      contents: write
     strategy:
       matrix:
         os: [macos-15, macos-26]
