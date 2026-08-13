@@ -34,16 +34,37 @@ gh issue list                               # 目前開著的工作
 2. **Build workflow（GitHub Actions）已恢復綠燈** —— 兩個根因都修了：
    `whisper-server` 不進 git 但 Build workflow 缺 fetch 步驟；`Create commit comment`
    需要 `contents: write` 權杖。
-3. **棒⑩ 已收**：#10 拆詞校正已修；#9 作做坐座淨傷害已還原；#11 假綠燈收斂。
-   Johnny 2026-08-13 續裁：句單**保留**「你先坐這裡等一下」（當以後模型變強的指標）；
-   吧八巴**先不做**，排進之後的優化。未發版、未 bump、未打 tag。
-   `doc-check` 字面版零豁免已否決（`docs/decisions/0006`），別再提。
+3. **棒⑪ 已收**（引擎零變更、未發版）：`docs/decisions/0007` 定了神經消歧專家的
+   接線位置（節點候選，不是 N-best；**只定位置不開做**）；`scripts/model-ab.sh`
+   補上「換權重」的判準（`--self` 在 sample 與兩份真實語料都 0／0）；
+   `scripts/correction-census.sh` 普查校正 log；
+   `Source/Engine/eval/analysis/real-corpus-error-layers.md` 是第一張**真實語料**
+   的錯誤分層地圖。
+   前情：棒⑩ #10 已修、#9 作做坐座淨傷害已還原、#11 假綠燈收斂；
+   Johnny 已裁句單保留「你先坐這裡等一下」、吧八巴先不做、
+   `doc-check` 字面版零豁免否決（`docs/decisions/0006`），這幾條別再重開。
 
 ## 下一刀
 
 **沒有阻塞項。** 動過詞庫／ranking／規則表／模型的棒，收工前仍必須本機跑
 `./scripts/ship-gate.sh` 到 `SHIP_GATE_STATUS=CORE`；換權重另做模型對模型逐題配對
 （`ship-gate` 比的是規則開／關，抓不到換模型，見 dead-ends）。
+
+**棒⑪ 量出來、下一棒該知道的三件事**（都寫在
+`Source/Engine/eval/analysis/real-corpus-error-layers.md`）：
+
+1. 真實語料上最大宗的錯仍是**整句解碼錯**（自然 47.8%、X 36.9%）——
+   節點層與路徑層機制**都修不到**那一半，別在那裡投資。
+2. **「的／得」在真實語料上不是瓶頸**（現況 96.4%／98.6%，錯誤只有 14／9 題）。
+   考卷把它放大了。不要再當主線。
+3. 真實語料上最弱的是**作做坐座**（84.9%／82.2%），而它 O1 93.5% vs O2 98.6%
+   —— 要出手該接**節點層**。棒⑩ 已實測**路徑層**對比訓練對這組是淨傷害。
+
+**校正迴路**：真正換了字的校正事件只有 **11 筆**（`./scripts/correction-census.sh`）。
+`docs/decisions/0003` 那條路**現在談群眾層太早**。
+`wrong_char` 空白**不是 bug**：組字中手選一律寫空（`KeyHandler.mm:379`），
+只有定案後 ↓ 重選才填（`InputMethodController+ShadowReselect.swift:222`）。
+所以那 11 筆就是「定案後重選」的全部次數 —— 訊號是對的，量太少。
 
 可選後備（不要自己開做）：
 - **#9 吧八巴**：先驗比作做坐座好；要做從 `~/laowang-data/eval-models/path-char-lstm-spoken-v2d.bin` 起訓，不是 v2c。
