@@ -77,3 +77,7 @@ Source/Engine/build-*/
 
 # 本機建置的評分機等執行檔（見 scripts/build-eval.sh）
 /bin/
+
+# AI 派工緩衝艙（本機用，永不入 git）
+# 放現役派遣票與外勤回報。收工歸檔或刪除，不留隔夜信。
+/.ai-handoff/
