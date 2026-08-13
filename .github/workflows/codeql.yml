@@ -61,6 +61,15 @@ jobs:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.language == 'python' && 'none' || 'manual' }}
 
+    # whisper-server 不進 git（whisper-runtime/bin/）；iBopomofo target 的
+    # 「Copy Whisper Runtime」build phase 需要它，缺了整個 build 就 exit 65，
+    # CodeQL 的安全分析根本跑不到 —— 也就是「假紅燈」。
+    # release.yml（7a05fd79）與 Build workflow（v2.17.1）都補過同一步，此處是第三個漏網的。
+    # 只取 bin，不下載 574MB 模型。
+    - name: Fetch whisper-server binary (not in git)
+      if: matrix.language == 'swift' || matrix.language == 'cpp'
+      run: WHISPER_FETCH_BIN_ONLY=1 ./whisper-runtime/fetch-runtime.sh
+
     - name: Build project
       if: matrix.language == 'swift' || matrix.language == 'cpp'
       run: |

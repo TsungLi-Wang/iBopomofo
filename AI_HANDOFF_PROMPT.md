@@ -50,12 +50,13 @@ gh issue list                               # 目前開著的工作
 要根治有三條路，都還沒實作：私有語料 repo／加密附檔／去識別子集。
 
 其他候選見 GitHub Issues（#9 把 v2d 做法套到其他同音組、#10 UOM 拆詞校正記不住、
-#11 實機打字關卡會給假綠燈、**#12 CodeQL 缺 whisper fetch 步驟固定紅燈**）。
+#11 實機打字關卡會給假綠燈）。
 
-⚠️ **#12 是現在唯一的紅燈，而且是假紅燈**：CodeQL 在 `Build project` 就掛（缺
-`whisper-server`），安全分析根本沒跑到。跟 Build CI 修過的是同一個洞，`codeql.yml`
-兩次都漏補。三行就能修，提案寫在 issue 裡 —— 但照 `AGENTS.md`「安全規則」，
-CI 紅燈只做分析＋提案，**改碼要 Johnny 點頭**。
+> **whisper-server fetch 這個洞已經補過三次**（`release.yml` `7a05fd79` →
+> Build workflow v2.17.1 → `codeql.yml` 2026-08-13 / issue #12）。
+> 新增任何會 build `iBopomofo` target 的 workflow，**第一件事就是加 fetch 步驟**：
+> `WHISPER_FETCH_BIN_ONLY=1 ./whisper-runtime/fetch-runtime.sh`。
+> 漏了會 exit 65，而且症狀看起來像「程式壞了」，不像「少一個檔」。
 
 ## 已排除的路
 
