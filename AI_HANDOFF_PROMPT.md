@@ -46,7 +46,7 @@ gh issue list                               # 目前開著的工作
 （`ship-gate` 比的是規則開／關，抓不到換模型，見 dead-ends）。
 
 可選後備（不要自己開做）：
-- **#9 吧八巴**：先驗比作做坐座好；要做從 `path-char-lstm-spoken-v2d.bin` 起訓，不是 v2c。
+- **#9 吧八巴**：先驗比作做坐座好；要做從 `~/laowang-data/eval-models/path-char-lstm-spoken-v2d.bin` 起訓，不是 v2c。
 - **真實語料進 CI**：只有「常常沒人跑本機 CORE 就當可發版」變成常態時才需要。
   現成 `ship-gate` 搬上 Actions 也守不住換模型。三條路都還沒做：私有語料 repo／加密附檔／去識別子集。
 
