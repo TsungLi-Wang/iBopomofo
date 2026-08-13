@@ -33,10 +33,14 @@
 ⚠️ **動手前先跑 `--steps 0`**，確認匯出的模型跟原檔逐位元組相同 ——
 沒有這個對照，之後量到的差異分不清是訓練還是 I/O 造成的。
 
+⚠️ **要加新的同音組時，從出貨的 v2d 起訓，不是 v2c。** 從 v2c 起訓會把前一組
+（在／再）的微調整個丟掉 —— 2026-08-13 棒⑩ 踩過，量到的「在再 救14壞17」
+就是這樣來的，看起來像訓練污染其他組，其實是基底選錯。每加一組都要疊在前一組上。
+
 用法：
     python3 train_contrastive_homophone.py \\
-        --model ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2c.bin \\
-        --data /tmp/rc-data -o /tmp/v2d.bin --epochs 2
+        --model ${IBOPOMOFO_EVAL_MODELS:-$HOME/laowang-data/eval-models}/path-char-lstm-spoken-v2d.bin \\
+        --data /tmp/rc-data -o /tmp/v2e.bin --epochs 2
 """
 
 import argparse

@@ -34,11 +34,11 @@ gh issue list                               # 目前開著的工作
 2. **Build workflow（GitHub Actions）已恢復綠燈** —— 兩個根因都修了：
    `whisper-server` 不進 git 但 Build workflow 缺 fetch 步驟；`Create commit comment`
    需要 `contents: write` 權杖。
-3. **棒⑨（本棒）只動文件與 repo 雜物，不動任何程式碼、不發版。**
-   軍師交接檔已拆解進 `docs/decisions/` 與 `docs/dead-ends.md` 並刪除；
-   舊的家目錄派工緩衝艙已清空，改為各專案的 `.ai-handoff/`（不入 git）。
-   **doc-check 的「字面版零家目錄豁免」已否決**（`docs/decisions/0006`）——
-   維持四項可列舉白名單，別再提。
+3. **棒⑩（本棒）**：#10 拆詞校正記不住**已修**（`observe()` 在 breakingUp 時
+   額外記一把拆開前的鍵；ctest 157/157）。#9 作做坐座 v2d 實測**淨傷害 → 已還原**，
+   出貨權重一位元組未變。#11 收斂完畢、標了 `needs-johnny`。
+   `doc-check` 的「字面版零家目錄豁免」已否決（`docs/decisions/0006`），別再提。
+   **未發版、未 bump plist、未打 tag。**
 
 ## 下一刀
 
@@ -51,8 +51,18 @@ gh issue list                               # 目前開著的工作
 
 要根治有三條路，都還沒實作：私有語料 repo／加密附檔／去識別子集。
 
-其他候選見 GitHub Issues（#9 把 v2d 做法套到其他同音組、#10 UOM 拆詞校正記不住、
-#11 實機打字關卡會給假綠燈）。
+**還在你手上的三件事**（都不是技術問題）：
+
+1. **#11 `你先坐這裡等一下` 要不要留在出貨句單** —— 已標 `needs-johnny`，
+   三個選項寫在 issue 留言裡。棒⑩ 沒有自己刪。
+2. **#9 吧八巴要不要做** —— 作做坐座 已證實淨傷害（見 dead-ends C 節）。
+   吧八巴 的先驗好很多（天花板 96.5%、語料 98.6%），但**要從
+   `~/laowang-data/eval-models/path-char-lstm-spoken-v2d.bin` 起訓，不是 v2c**（棒⑩ 踩過）。
+3. **ship-gate 真實語料關卡進 CI** —— 見上。
+
+#11 的「中途掉線」根因仍未解，最小提案寫在 issue，**沒實作**：
+改的是出貨關卡的 pass/fail 語意，而驗證它需要 `SHIP_GATE_E2E=1`，那是被禁的。
+驗不了就不要改。
 
 > **whisper-server fetch 這個洞已經補過三次**（`release.yml` `7a05fd79` →
 > Build workflow v2.17.1 → `codeql.yml` 2026-08-13 / issue #12）。
