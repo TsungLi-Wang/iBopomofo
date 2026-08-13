@@ -34,6 +34,11 @@
 # 難題考卷（EX1166）的分數**只印出來參考，不當關卡**。
 #
 # 環境變數：
+# ⛔ 本腳本**不比較兩個模型**。關卡 1 比的是「規則開 vs 規則關」，兩邊用同一個
+#    Source/Data/path-char-lstm.bin —— 換權重這裡抓不到。
+#    換神經權重的判準是 ./scripts/model-ab.sh（逐題配對 McNemar）。
+#    2026-08-13：一個真實語料淨傷害 −36（p=4.4e-05）的模型照樣跑出 CORE。
+#
 #   IBOPOMOFO_CORPUS_DIR  預設 $HOME/Documents/i注音-語料/EX1166-題庫
 #   IBOPOMOFO_EVAL_BIN    預設 bin/newstar_homophone_eval
 #   SHIP_GATE_E2E         預設 0（不跑實機打字）。設 1 才跑關卡 3。

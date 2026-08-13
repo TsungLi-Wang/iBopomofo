@@ -43,3 +43,22 @@ clang++ -std=c++17 -O2 \
 
 echo "完成：$EVAL_OUT"
 ls -l "$EVAL_OUT"
+
+# 可選：ORACLE=1 順便建 oracle_ceiling（錯誤分層地圖用；預設不建，
+# 不影響上面的產物路徑與既有呼叫端）。
+if [ "${ORACLE:-0}" = "1" ]; then
+  ORACLE_OUT="$ROOT/bin/oracle_ceiling"
+  echo "編譯 oracle_ceiling → $ORACLE_OUT"
+  clang++ -std=c++17 -O2 \
+    -I"$ENGINE" -I"$ENGINE/gramambular2" \
+    oracle_ceiling.cpp \
+    "$ENGINE/gramambular2/reading_grid.cpp" \
+    "$ENGINE/CorpusBigramContextModel.cpp" \
+    "$ENGINE/NeuralLMPathScorer.cpp" \
+    "$ENGINE/ParselessLM.cpp" \
+    "$ENGINE/ParselessPhraseDB.cpp" \
+    "$ENGINE/MemoryMappedFile.cpp" \
+    -framework Accelerate \
+    -o "$ORACLE_OUT"
+  echo "完成：$ORACLE_OUT"
+fi

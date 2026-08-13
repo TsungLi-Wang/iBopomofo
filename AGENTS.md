@@ -21,6 +21,19 @@ Internal identifiers were unified to `iBopomofo` on 2026-08-12 (baton 6), taken 
 - `FULL`＝CORE＋E2E 都過。`FAIL`＝CORE 掛，或你強制 E2E 卻掛。  
 - **AI 禁止**：因 E2E 選不到 i注音而改腳本／重試／開 TextEdit 纏鬥。那是環境問題，不是選字 bug。  
 
+#### 改了什麼 → 用哪把尺（2026-08-13 補 · 別再拿錯）
+
+| 你改了 | 判準 |
+|---|---|
+| 規則表／詞庫 | `./scripts/ship-gate.sh` → `SHIP_GATE_STATUS=CORE` |
+| **`Source/Data/path-char-lstm.bin`（換神經權重）** | CORE **必要但不足** —— 另跑 `./scripts/model-ab.sh <舊> <新> --items <兩份真實語料>`，看逐題配對（McNemar） |
+| UOM 行為 | 隔離的單元測試（自建 `UserOverrideModel` 實例，**不碰全域 cache 檔**） |
+
+⛔ **`ship-gate.sh` 比的是「規則開 vs 規則關」，兩邊用同一個 `path-char-lstm.bin` ——
+換權重它抓不到。** 2026-08-13 那個在真實語料上淨傷害 −36（p=4.4e-05）的模型，
+照樣跑出 `SHIP_GATE_STATUS=CORE`，數字還跟前一版一模一樣。
+**CI 綠燈與 CORE 都不是換模型的判準。**
+
 **Canonical product rule (v2.13.0+):** 定案 ≠ 送出; post-commit ↓ reselect 1→1; **v2.14.0** post-commit correction also feeds UOM soft personalization (one pick → soft active). **v2.15.0** 的/得 結果補語規則. **v2.16.2** 退掉 v2.16.0/1 的六組同音規則與頻率壓縮；留下 particle + v2d.  
 Handoff: `AI_HANDOFF_PROMPT.md`（現況、一頁）+ `docs/dead-ends.md`（**動手前必讀**）+ `CHANGELOG.md` + GitHub Issues（`deadend`／開著的 issue）。要動某個領域之前再讀 `docs/decisions/`（為什麼這樣做、試過什麼）。**全部在 repo 內** —— 必看文件不得住在 repo 外（2026-08-13 起）。
 
