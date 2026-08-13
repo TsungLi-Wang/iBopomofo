@@ -34,35 +34,23 @@ gh issue list                               # 目前開著的工作
 2. **Build workflow（GitHub Actions）已恢復綠燈** —— 兩個根因都修了：
    `whisper-server` 不進 git 但 Build workflow 缺 fetch 步驟；`Create commit comment`
    需要 `contents: write` 權杖。
-3. **棒⑩（本棒）**：#10 拆詞校正記不住**已修**（`observe()` 在 breakingUp 時
-   額外記一把拆開前的鍵；ctest 157/157）。#9 作做坐座 v2d 實測**淨傷害 → 已還原**，
-   出貨權重一位元組未變。#11 收斂完畢、標了 `needs-johnny`。
-   `doc-check` 的「字面版零家目錄豁免」已否決（`docs/decisions/0006`），別再提。
-   **未發版、未 bump plist、未打 tag。**
+3. **棒⑩ 已收**：#10 拆詞校正已修；#9 作做坐座淨傷害已還原；#11 假綠燈收斂。
+   Johnny 2026-08-13 續裁：句單**保留**「你先坐這裡等一下」（當以後模型變強的指標）；
+   吧八巴**先不做**，排進之後的優化。未發版、未 bump、未打 tag。
+   `doc-check` 字面版零豁免已否決（`docs/decisions/0006`），別再提。
 
 ## 下一刀
 
-**`ship-gate.sh` 的「真實語料不得淨傷害」關卡仍進不了 CI。**
-語料在 `~/Documents/i注音-語料/`，隱私紅線不可上傳，CI 只能跑 SUBSET —— 這是選字品質
-目前**唯一沒被自動守住**的一環。
+**沒有阻塞項。** 動過詞庫／ranking／規則表／模型的棒，收工前仍必須本機跑
+`./scripts/ship-gate.sh` 到 `SHIP_GATE_STATUS=CORE`；換權重另做模型對模型逐題配對
+（`ship-gate` 比的是規則開／關，抓不到換模型，見 dead-ends）。
 
-→ **動過詞庫／ranking／規則表／模型的棒，收工前必須本機跑
-`./scripts/ship-gate.sh` 到 `SHIP_GATE_STATUS=CORE`，別依賴 GitHub Actions 綠燈。**
+可選後備（不要自己開做）：
+- **#9 吧八巴**：先驗比作做坐座好；要做從 `path-char-lstm-spoken-v2d.bin` 起訓，不是 v2c。
+- **真實語料進 CI**：只有「常常沒人跑本機 CORE 就當可發版」變成常態時才需要。
+  現成 `ship-gate` 搬上 Actions 也守不住換模型。三條路都還沒做：私有語料 repo／加密附檔／去識別子集。
 
-要根治有三條路，都還沒實作：私有語料 repo／加密附檔／去識別子集。
-
-**還在你手上的三件事**（都不是技術問題）：
-
-1. **#11 `你先坐這裡等一下` 要不要留在出貨句單** —— 已標 `needs-johnny`，
-   三個選項寫在 issue 留言裡。棒⑩ 沒有自己刪。
-2. **#9 吧八巴要不要做** —— 作做坐座 已證實淨傷害（見 dead-ends C 節）。
-   吧八巴 的先驗好很多（天花板 96.5%、語料 98.6%），但**要從
-   `~/laowang-data/eval-models/path-char-lstm-spoken-v2d.bin` 起訓，不是 v2c**（棒⑩ 踩過）。
-3. **ship-gate 真實語料關卡進 CI** —— 見上。
-
-#11 的「中途掉線」根因仍未解，最小提案寫在 issue，**沒實作**：
-改的是出貨關卡的 pass/fail 語意，而驗證它需要 `SHIP_GATE_E2E=1`，那是被禁的。
-驗不了就不要改。
+#11 句單已裁保留。中途掉線的最小提案寫在 issue，**沒實作**（驗證需要 `SHIP_GATE_E2E=1`）。
 
 > **whisper-server fetch 這個洞已經補過三次**（`release.yml` `7a05fd79` →
 > Build workflow v2.17.1 → `codeql.yml` 2026-08-13 / issue #12）。
