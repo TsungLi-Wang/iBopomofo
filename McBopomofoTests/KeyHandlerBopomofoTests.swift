@@ -43,11 +43,15 @@ class KeyHandlerBopomofoTests: XCTestCase {
         Preferences.chineseConversionEnabled = false
         Preferences.keyboardLayout = .standard
         LanguageModelManager.loadDataModels()
+        // Cold UOM: soft personalization from other tests (e.g. hand-pick 妳好)
+        // or the developer cache must not flip default ㄋㄧˇ-ㄏㄠˇ → 你好.
+        LanguageModelManager.clearUserOverrideModelForTesting()
         handler = KeyHandler()
         handler.inputMode = .bopomofo
     }
 
     override func tearDownWithError() throws {
+        LanguageModelManager.clearUserOverrideModelForTesting()
         Preferences.chineseConversionEnabled = chineseConversionEnabled
         Preferences.keyboardLayout = savedKeyboardLayout
     }

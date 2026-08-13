@@ -8,6 +8,22 @@
 
 ## [Unreleased]
 
+### 內部（你好／妳好 測試隔離 · 2026-08-12）
+
+- **根因**：`ㄋㄧˇ ㄏㄠˇ` 在**冷 UOM** 下引擎與詞頻仍穩定選「你好」（phrase −5.18 > 妳好 −6.09）。
+  CI／本機 KeyHandlerBopomofoTests 變成「妳好」是因為：
+  1. `CommitContractGoldenTests` G17/G18 對手選 `candidates[1]`（對 su3cl3 常為「妳好」）
+     寫入全域 soft 個人化，並曾 `saveUserOverrideCache` 污染磁碟；
+  2. 測試宿主 `AppDelegate` 會 `loadUserOverrideCache`，把開發者本機
+     `user-override-cache.dat`（含多次「妳好」soft）灌進單元測試。
+- **修復**（不改測試 expectation、不改詞庫／ranking 本體）：
+  - XCTest 環境不 load／不 save UOM 檔；
+  - `LanguageModelManager.clearUserOverrideModelForTesting`；
+  - `KeyHandlerBopomofoTests`／`CommitContractGoldenTests` setUp/tearDown 清冷 UOM。
+- **產品**：無 soft 證據時預設仍為「你好」。若本機 soft 已學會「妳好」，需自行清
+  `~/Library/Application Support/iBopomofo/user-override-cache.dat` 或對應條目
+  （個人化機制本身未廢）。
+
 ### 內部（驗收腳本 · 2026-08-12）
 
 - **出貨關卡強制拆開 CORE／E2E**（Johnny 明令：禁止再為「選不到輸入法」纏鬥）：

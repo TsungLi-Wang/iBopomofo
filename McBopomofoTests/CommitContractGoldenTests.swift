@@ -48,10 +48,14 @@ final class CommitContractGoldenTests: XCTestCase {
         Preferences.sentenceEndTriggerPeriod = false
         Preferences.sentenceEndTriggerComma = false
         LanguageModelManager.loadDataModels()
+        // G17/G18 hand-pick candidates[1] (often 妳好 for su3cl3). Clear so
+        // soft DP does not leak into later cases or KeyHandlerBopomofoTests.
+        LanguageModelManager.clearUserOverrideModelForTesting()
         remakeHandler()
     }
 
     override func tearDownWithError() throws {
+        LanguageModelManager.clearUserOverrideModelForTesting()
         Preferences.keyboardLayout = savedKeyboardLayout
         Preferences.associatedPhrasesEnabled = savedAssociated
         Preferences.sentenceEndTriggerPeriod = savedPeriod

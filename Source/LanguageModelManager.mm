@@ -459,8 +459,22 @@ static void LTLoadVariantAnnotatorData()
     return [[self dataFolderPath] stringByAppendingPathComponent:@"user-override-cache.dat"];
 }
 
+/// XCTest host sets this; UOM must not load/save against the developer's
+/// real personalization file during unit tests (suite self-pollution).
+static BOOL LTIsRunningUnitTests(void)
+{
+    return getenv("XCTestConfigurationFilePath") != NULL;
+}
+
 + (void)loadUserOverrideCache
 {
+    // Tests start from a cold UOM; loading the developer's cache (or a file
+    // polluted by a prior test save) makes KeyHandlerBopomofoTests expect
+    // 你好 while soft personalization returns 妳好.
+    if (LTIsRunningUnitTests()) {
+        gUserOverrideModel.clear();
+        return;
+    }
     if (![self checkIfUserDataFolderExists]) {
         return;
     }
@@ -473,10 +487,19 @@ static void LTLoadVariantAnnotatorData()
 
 + (void)saveUserOverrideCache
 {
+    // Never write the real personalization file from the XCTest host.
+    if (LTIsRunningUnitTests()) {
+        return;
+    }
     if (![self checkIfUserDataFolderExists]) {
         return;
     }
     gUserOverrideModel.save([self userOverrideCachePath].UTF8String);
+}
+
++ (void)clearUserOverrideModelForTesting
+{
+    gUserOverrideModel.clear();
 }
 
 + (BOOL)noteSoftPersonalizationWithPrevious:(NSString *)previous

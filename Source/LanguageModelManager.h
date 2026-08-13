@@ -73,6 +73,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// The following methods are merely for testing.
 @interface LanguageModelManager ()
 + (void)loadDataModels;
+/// Clear in-memory UOM only (does not touch the on-disk personalization file).
+/// Unit tests must call this in setUp so soft picks from one case cannot flip
+/// default ranking in later cases (e.g. hand-pick 妳好 then expect 你好).
++ (void)clearUserOverrideModelForTesting;
 @end
 
 @interface LanguageModelManager ()
