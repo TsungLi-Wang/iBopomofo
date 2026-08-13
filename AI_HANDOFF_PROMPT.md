@@ -65,9 +65,33 @@ gh issue list                               # 目前開著的工作
 
 ---
 
-## ⚠️⚠️ 開場第一件事：v2.17.0 本機已對齊；E2E 預設關閉
+## ⚠️⚠️ 開場第一件事：v2.17.1 已發版；Build CI 已恢復綠燈；E2E 預設關閉
 
-**2026-08-12 晚間收工狀態。接手先讀這節。**
+**2026-08-13 收工狀態。接手先讀這節。**
+
+**三行同步狀態**
+
+1. 棒⑧ tag **v2.17.1**（build 2325，commit 範圍 `f8cf0486…e2dd474a`）。
+   內容全為測試隔離與 CI 修復，**使用者可見行為零變更**；選字邏輯一行未動。
+2. **Build workflow（GitHub Actions）恢復綠燈**——先前一直紅，兩個根因：
+   ① `whisper-server` 不進 git，Build workflow 缺 fetch 步驟 → 編譯階段就死，測試從未跑到
+   （`release.yml` 於 `7a05fd79` 補過同一步且註解已預告 Build CI 會踩同洞，當時未補）；
+   ② `Create commit comment` 需 `contents: write`，權杖預設唯讀 → 403 讓整條變紅。
+3. 「`ㄋㄧˇ ㄏㄠˇ` → 妳好」**不是產品 regression，是測試自我污染**：
+   `CommitContractGoldenTests` G17/G18 手選 `candidates[1]` 經 `observe` 寫進全域 UOM。
+   已改為 XCTest 環境不 load／save UOM 檔 + 每測清空。冷 UOM 下引擎本來就選「你好」
+   （你好 −5.18 > 妳好 −6.09）。**不要再去查詞庫或 ranking。**
+
+**下一刀**：`ship-gate.sh` 的「真實語料不得淨傷害」關卡仍**進不了 CI**
+（語料在 `~/Documents/i注音-語料/`，未進 repo，CI 只能 SUBSET）。
+選字品質目前唯一沒被自動守住的一環 —— **動過詞庫／ranking／規則表／模型的棒，
+收工前必須本機跑 `./scripts/ship-gate.sh` 到 `SHIP_GATE_STATUS=CORE`**，
+別依賴 GitHub Actions 綠燈。要根治見 CHANGELOG 2.17.1 段與交接討論（私有語料 repo／
+加密附檔／去識別子集三選一，皆未實作）。
+
+**已排除的路**：把 `whisper-server` 提交進 git（3.5MB 二進位進公開 repo：
+歷史不可逆膨脹、審查看不出 diff、綁 CPU 架構）；CI 快取 whisper（換版忘改 key 會
+造成「假綠燈」，比紅燈危險）。維持每次重編，公開 repo 的 Actions 免費。
 
 棒⑥ 改名；棒⑦ tag **v2.17.0**（build 2324、`d7a571ea`）。  
 本機已重編安裝 **2.17.0／2324**。GitHub Release 已有 `iBopomofo.dmg`。  

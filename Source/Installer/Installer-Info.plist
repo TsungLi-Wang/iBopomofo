@@ -17,11 +17,11 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.17.0</string>
+	<string>2.17.1</string>
 	<key>CFBundleSignature</key>
 	<string>MBIN</string>
 	<key>CFBundleVersion</key>
-	<string>2324</string>
+	<string>2325</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>LSHasLocalizedDisplayName</key>
