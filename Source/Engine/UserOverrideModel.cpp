@@ -119,6 +119,28 @@ void UserOverrideModel::observe(
   // head reading parsed out of the key + candidate). Do not also call
   // noteSoftObservation here or counts would double.
   observe(key, candidate, timestamp, forceHighScoreOverride);
+
+  // issue #10: when breaking a multi-syllable word apart, the key above is
+  // anchored on the *after* walk, so it encodes the already-corrected node
+  // (…-(ㄗㄨㄛˋ,坐)). But suggest() keys off the *current* walk, which on the
+  // next round still takes the word path (…-(ㄒㄧㄢ-ㄗㄨㄛˋ,先做)) — the two
+  // never meet, so "correct it once, remember it next time" simply does not
+  // work for this class of correction.
+  //
+  // Also record the pre-break key, which is exactly what suggest() will build
+  // next time: FormObservationKey(before walk, node at the cursor).
+  // Additive on purpose — the after-key keeps its old meaning (reinforcement
+  // once the sentence is already correct) and previously stored cache entries
+  // keep working unchanged. Existing caches simply have no pre-break key yet;
+  // those old entries go on missing exactly as they do today, and the first
+  // correction after upgrading writes the new one.
+  if (breakingUp) {
+    std::string preBreakKey =
+        FormObservationKey(walkBeforeUserOverride, prevHeadNodeIt);
+    if (preBreakKey != key) {
+      observe(preBreakKey, candidate, timestamp, forceHighScoreOverride);
+    }
+  }
 }
 
 UserOverrideModel::Suggestion UserOverrideModel::suggest(

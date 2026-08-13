@@ -278,4 +278,99 @@ TEST(UserOverrideModelTest, ObservationKeyUsesChosenValueWithContextModel) {
       << underUnflipped.candidate << "'.";
 }
 
+// ── issue #10：拆詞校正記不住（breakingUp）─────────────────────────────
+//
+// 這兩個測試量的是**使用者看得到的需求**，不是 observe() 自己組出來的鍵：
+// 「改對一次，同前文重打就要記得」。故意不去斷言 key 的字串長什麼樣 ——
+// 那等於拿機制自己當驗收（見 docs/dead-ends.md B 節）。
+//
+// 情境：詞庫有 2 字詞「先做」。打「你先ㄗㄨㄛˋ」走詞路 → 你先做。
+// 使用者開候選窗改成單字「坐」→ 節點被拆成 先 ＋ 坐（breakingUp）。
+// 下一次同前文重打，walk 仍然走「先做」，這時 suggest() 必須給出「坐」。
+class UomBreakUpFakeLM : public LanguageModel {
+ public:
+  std::vector<Unigram> getUnigrams(const std::string& reading) override {
+    if (reading == "ㄋㄧˇ") return {Unigram("你", -3.0)};
+    if (reading == "ㄒㄧㄢ") return {Unigram("先", -3.5)};
+    if (reading == "ㄗㄨㄛˋ") {
+      return {Unigram("做", -2.0), Unigram("坐", -5.0)};
+    }
+    // 2 字詞：分數要高到讓 walk 選詞路而不是兩個單字。
+    if (reading == "ㄒㄧㄢ-ㄗㄨㄛˋ") return {Unigram("先做", -1.0)};
+    return {};
+  }
+  bool hasUnigrams(const std::string& reading) override {
+    return !getUnigrams(reading).empty();
+  }
+};
+
+// 你 先 坐/做 —— ㄗㄨㄛˋ 是第 3 個讀音（0-based index 2）。
+constexpr size_t kBreakUpCursor = 2;
+
+ReadingGrid::WalkResult walkBreakUpGrid(const std::string* overrideAt2) {
+  ReadingGrid grid(std::make_shared<UomBreakUpFakeLM>());
+  for (const std::string& reading : {"ㄋㄧˇ", "ㄒㄧㄢ", "ㄗㄨㄛˋ"}) {
+    grid.insertReading(reading);
+  }
+  if (overrideAt2 != nullptr) {
+    EXPECT_TRUE(grid.overrideCandidate(kBreakUpCursor, *overrideAt2));
+  }
+  return grid.walk();
+}
+
+// 前提檢查：先確認這個 fake LM 真的重現了「詞路蓋過單字」的情境。
+// 前提不成立的話下面那個測試就算過了也沒有意義。
+TEST(UserOverrideModelTest, BreakUpFixtureActuallyWalksAsWord) {
+  ReadingGrid::WalkResult before = walkBreakUpGrid(nullptr);
+  ASSERT_EQ(chosenJoined(before), "你先做");
+  ASSERT_EQ(before.nodes.size(), 2u) << "應該是 你 ＋ 先做 兩個節點";
+  ASSERT_EQ(before.nodes[1]->spanningLength(), 2u);
+
+  const std::string kSit = "坐";
+  ReadingGrid::WalkResult after = walkBreakUpGrid(&kSit);
+  ASSERT_EQ(chosenJoined(after), "你先坐");
+  ASSERT_EQ(after.nodes.size(), 3u) << "詞被拆成 你 ＋ 先 ＋ 坐";
+  ASSERT_EQ(after.nodes[2]->spanningLength(), 1u);
+}
+
+// (a) 主命題：拆詞校正後，同前文重打（不開候選窗）要拿得到校正字。
+TEST(UserOverrideModelTest, BreakingUpCorrectionIsRetrievableOnNextWalk) {
+  UserOverrideModel uom(kCapacity, kHalflife);
+  const std::string kSit = "坐";
+
+  ReadingGrid::WalkResult before = walkBreakUpGrid(nullptr);
+  ReadingGrid::WalkResult after = walkBreakUpGrid(&kSit);
+  uom.observe(before, after, kBreakUpCursor, kFakeNow);
+
+  // 全新的 grid，跟使用者下次重打一樣：walk 仍然走「先做」。
+  ReadingGrid::WalkResult again = walkBreakUpGrid(nullptr);
+  ASSERT_EQ(chosenJoined(again), "你先做");
+
+  auto suggestion = uom.suggest(again, kBreakUpCursor, kFakeNow);
+  EXPECT_EQ(suggestion.candidate, kSit)
+      << "issue #10：breakingUp 時 observe() 用校正後的 walk 組鍵（鍵裡是「坐」），"
+         "suggest() 用當下 walk 組鍵（仍是「先做」）—— 永遠對不上。";
+}
+
+// (b) 對照組：單字對單字的校正**不**走 breakingUp，必須維持原行為。
+// 沒有這條，就分不清「修好了」跟「把另一條路一起改壞了」。
+TEST(UserOverrideModelTest, SingleCharCorrectionStillRetrievable) {
+  UserOverrideModel uom(kCapacity, kHalflife);
+  const std::string kBlock = "塊";
+
+  ReadingGrid::WalkResult before =
+      walkGrid(/*model=*/nullptr, /*lambda=*/0.0, /*overrideLast=*/nullptr);
+  ReadingGrid::WalkResult after =
+      walkGrid(/*model=*/nullptr, /*lambda=*/0.0, &kBlock);
+  ASSERT_EQ(before.nodes[before.nodes.size() - 1]->spanningLength(), 1u)
+      << "這組 fixture 的最後一個節點必須是單字，才算對照組";
+
+  uom.observe(before, after, kLastReadingCursor, kFakeNow);
+
+  ReadingGrid::WalkResult again =
+      walkGrid(/*model=*/nullptr, /*lambda=*/0.0, /*overrideLast=*/nullptr);
+  auto suggestion = uom.suggest(again, kLastReadingCursor, kFakeNow);
+  EXPECT_EQ(suggestion.candidate, kBlock);
+}
+
 }  // namespace iBopomofo
