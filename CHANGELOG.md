@@ -31,6 +31,9 @@
 - **移除 `llama-runtime/`**：本機 llama 路線在 v2.7.0 已退役，Xcode 的
   「Copy Llama Runtime」build phase 早已刪除、grep 計數 0。相關文件標為歷史。
 - 專案內派工緩衝艙 `.ai-handoff/`（已 gitignore，永不入 git）取代原本的家目錄版本。
+- **「字面版零家目錄豁免」已否決**（Johnny 裁定，`docs/decisions/0006`）：把路徑改寫成散文
+  只是讓檢查器看不見，例外沒消失；而且「必讀不得指向 repo 外」那條檢查也靠反引號，
+  改成散文反而更弱。維持四項可列舉的白名單。
 
 ## [2.17.1] — 2026-08-13
 

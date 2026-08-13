@@ -37,6 +37,8 @@ gh issue list                               # 目前開著的工作
 3. **棒⑨（本棒）只動文件與 repo 雜物，不動任何程式碼、不發版。**
    軍師交接檔已拆解進 `docs/decisions/` 與 `docs/dead-ends.md` 並刪除；
    舊的家目錄派工緩衝艙已清空，改為各專案的 `.ai-handoff/`（不入 git）。
+   **doc-check 的「字面版零家目錄豁免」已否決**（`docs/decisions/0006`）——
+   維持四項可列舉白名單，別再提。
 
 ## 下一刀
 
