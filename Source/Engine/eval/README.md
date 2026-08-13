@@ -284,10 +284,16 @@ synthetic) eval cases show a before/after improvement, or after Johnny
 explicitly decides the synthetic evidence plus the default-off experimental
 gate is enough for a real-machine trial.
 
-## LLM Constrained Rerank PoC (Route A, logit_bias + beam)
+## LLM Constrained Rerank PoC (Route A, logit_bias + beam) — **RETIRED**
+
+> ⚠️ **This PoC no longer runs as written.** The local-llama route was retired in
+> v2.7.0 and the `llama-runtime/` directory was removed from the repo on 2026-08-13
+> (the "Copy Llama Runtime" build phase had already been deleted). To reproduce any
+> of this you must supply your own `llama-server` binary and model. Kept for the
+> analysis below, not as a runnable recipe.
 
 `llm_rerank_poc.py` is a standalone Python harness for experimenting with
-neural scoring of real-time selection using the existing llama-server.
+neural scoring of real-time selection using a local llama-server.
 
 **Current implementation (correct direction)**: logit_bias to strictly constrain
 tokens to allowed homophones per position + position-level constrained beam
@@ -308,8 +314,8 @@ See AI_HANDOFF_PROMPT.md for latest analysis and results.
 2. Start the server outside the input method (example):
 
    ```bash
-   cd laowang-zhuyin
-   ../llama-runtime/bin/llama-server \
+   # llama-server 需自備（repo 內已無 llama-runtime/）
+   /path/to/llama-server \
      -m ~/Library/Application\ Support/McBopomofo/AIModel/model.gguf \
      --host 127.0.0.1 --port 8080 -c 2048
    ```

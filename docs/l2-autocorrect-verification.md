@@ -1,5 +1,9 @@
 # L2 句末自動校正 —— 實機驗證清單
 
+> ⚠️ **歷史文件（已作廢）。** 本文描述的本機 llama／雲端 AI 路線在 v2.7.0 已整批移除，
+> `llama-runtime/` 也於 2026-08-13 從 repo 刪除。現役的神經重排是進程內 char-LSTM
+> （`Source/Data/path-char-lstm.bin`），與本文的架構無關。保留供查閱設計脈絡，**不要照著操作**。
+
 - 最後更新：2026-07-01T17:35:00+08:00
 - 對象：L2「AI 句末自動校正（實驗）」+ 本次新增的**低調隱形提示**（走 `InputState.Inputting.pendingAISuggestion` / `aiTooltipMessage`）。
 - 為什麼要人工驗：這條路徑跟 IMK / `NSEvent` / 本機模型綁死，無頭環境（CLI）按不了鍵，單元測試只覆蓋純觸發與顯示決策邏輯。**tooltip 是否真的出現在游標旁、Tab 是否真的套用、句末標點是否確實進組字區**，只能實機打字確認。

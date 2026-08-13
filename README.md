@@ -110,12 +110,15 @@ open "$HOME/Library/Input Methods/iBopomofo.app"
 
 這份 repo 是**真人 + AI 協作**的產品庫。若你是接棒的 AI：
 
-1. 先跑 `gh issue list --label deadend --state all` 與 `gh issue list`（現況／死亡路在 Issues）。  
-2. 讀 **[AGENTS.md](AGENTS.md)**（建置、UX 總則、**收工清單**、隱私紅線）。  
-3. 讀 **[AI_HANDOFF_PROMPT.md](AI_HANDOFF_PROMPT.md)**（目前真相、試過不行的路、下一棒）。  
+1. 讀 **[AI_HANDOFF_PROMPT.md](AI_HANDOFF_PROMPT.md)**（現況與下一刀，一頁）。  
+2. 讀 **[docs/dead-ends.md](docs/dead-ends.md)**（已證明無效的路，**動手前必讀**）。  
+3. 讀 **[AGENTS.md](AGENTS.md)**（建置、UX 總則、**收工清單**、隱私紅線）。  
 4. 變更歷程：**[CHANGELOG.md](CHANGELOG.md)**（版本號真源）。  
-5. 軍師視角（本機）：`~/Documents/i注音-傳承交接檔.md`——**產品現況不以它為準**。  
-6. 評測：`Source/Engine/eval/benchmarks/README-newstar.md`；出貨前 **`./scripts/ship-gate.sh`**。
+5. 要動某個領域之前：**[docs/decisions/](docs/decisions/)**（為什麼這樣做、試過什麼）。  
+6. `gh issue list --label deadend --state all` 與 `gh issue list`（開著的工作）。  
+7. 評測：`Source/Engine/eval/benchmarks/README-newstar.md`；出貨前 **`./scripts/ship-gate.sh`**。
+
+**必看文件一律在 repo 內**（2026-08-13 起）。原本住在使用者家目錄的必讀檔已全部拆解入庫 —— 派外部 AI 時 `--cwd` 就是 repo 根，它看得到；CI 也看得到。
 
 **協作模式摘要**：改產品行為必須更新 CHANGELOG 人話；發布點須 bump 兩份 Info.plist + annotated tag + `doc-check`／`ship-gate`；major/minor 由維護者拍板。**勿**把本機 `rerank-diff.log`、UOM cache、API key、`.env` commit 進來。
 

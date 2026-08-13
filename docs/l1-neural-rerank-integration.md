@@ -1,5 +1,9 @@
 # L1 神經重排整合設計：從 PoC harness 到 AICandidateReranker
 
+> ⚠️ **歷史文件（已作廢）。** 本文描述的本機 llama／雲端 AI 路線在 v2.7.0 已整批移除，
+> `llama-runtime/` 也於 2026-08-13 從 repo 刪除。現役的神經重排是進程內 char-LSTM
+> （`Source/Data/path-char-lstm.bin`），與本文的架構無關。保留供查閱設計脈絡，**不要照著操作**。
+
 最後更新：2026-07-07T14:30:00+08:00
 
 本文件把 `Source/Engine/eval/llm_rerank_poc.py` 已驗證的「focus position global full-sentence preview」邏輯,對應到真實 L1(`AICandidateReranker` / `AIAssistCoordinator`)的整合方案。**尚未動程式碼**,先定架構與風險,待拍板後實作。

@@ -22,7 +22,7 @@ Internal identifiers were unified to `iBopomofo` on 2026-08-12 (baton 6), taken 
 - **AI 禁止**：因 E2E 選不到 i注音而改腳本／重試／開 TextEdit 纏鬥。那是環境問題，不是選字 bug。  
 
 **Canonical product rule (v2.13.0+):** 定案 ≠ 送出; post-commit ↓ reselect 1→1; **v2.14.0** post-commit correction also feeds UOM soft personalization (one pick → soft active). **v2.15.0** 的/得 結果補語規則. **v2.16.2** 退掉 v2.16.0/1 的六組同音規則與頻率壓縮；留下 particle + v2d.  
-Handoff: `AI_HANDOFF_PROMPT.md` + `CHANGELOG.md` + GitHub Issues（`deadend`／開著的 issue）+ `~/Documents/i注音-傳承交接檔.md`（軍師視角；**產品現況以 CHANGELOG + plist 為準**）。
+Handoff: `AI_HANDOFF_PROMPT.md`（現況、一頁）+ `docs/dead-ends.md`（**動手前必讀**）+ `CHANGELOG.md` + GitHub Issues（`deadend`／開著的 issue）。要動某個領域之前再讀 `docs/decisions/`（為什麼這樣做、試過什麼）。**全部在 repo 內** —— 必看文件不得住在 repo 外（2026-08-13 起）。
 
 **Brand vs technical IDs:** User-visible name is **i注音 / iBopomofo**. Internal Xcode target, bundle id `io.ibopomofo.inputmethod.iBopomofo`, install path `~/Library/Input Methods/iBopomofo.app`. Renamed in baton 6; see CHANGELOG.
 
@@ -46,7 +46,42 @@ Three actions (never collapse them):
 
 **定案後改字 (v2.13.3):** only **delete-and-recompose** — ↓ opens homophone list; on pick, **verified 1→1 replace** (atomic / mark / delete-verify / CGEvent+verify). Fail → beep, **no insert** (never grow the sentence). LINE/Telegram when `selectedRange` unreadable: expected degrade (beep, no edit), not a bug. ←/→ after 定案 always pass-through to the app.
 
-Triggers (prefs panel): pause (+ms), period, comma — each optional. Enter is **not** a toggle.
+Triggers (prefs panel): pause (+ms, 預設 800), period, comma — each optional. Enter is **not** a toggle.
+標準注音鍵位：。＝ `>`，，＝ `<`（v2.13.1 修偵測）。
+
+### 定案後的四個鍵（重選語境）
+
+| 鍵 | 行為 |
+|----|------|
+| **待修改字** | 游標**右方**那一個字（句尾無右方字時 ↓ 預設改**最後一字**） |
+| **←／→** | **app 原生**移游標（不攔截）；↓ 當下再 map 影子 |
+| **↑** | 放行；shadow disarm（不追跨行） |
+| **↓** | 開該字讀音的同音**單字**清單（不重跑模型）→ 選字 → 驗證 1→1 置換 |
+
+組字中（有底線）仍是一般注音的 ←／→／↓ 原生候選行為，與定案後路徑不同。
+
+置換成功後 **best-effort** 寫入 UOM soft（`noteSoftObservationStrong`：prev＝左方字、
+reading、chosen；一次達 count≥2）；寫入失敗不影響已換上的字。組字中的
+`fixNode→observe` 路徑不變、不雙算同一次動作。
+
+**校正 log schema v1**（`manual-correction.log`，純紀錄、不回灌）：
+`schemaVer \t ISO8601 \t reading \t left_context \t wrong_char \t chosen`
+
+### 重選／定案的程式入口
+
+| 用途 | 檔案 |
+|------|------|
+| 定案 hard commit | `KeyHandler.mm` → `hardCommitSentence` / `_handleEnter` |
+| 停頓觸發 | `InputMethodController.swift` → `fireSentenceEndIdleTimer` |
+| 影子 armed / ↓ | `InputMethodController+ShadowReselect.swift`、`ShadowReselect.swift` |
+| 選字 1→1 置換 | `PostCommitReselect.replacePendingCharacter` + CandidateDelegate pick |
+| 偏好觸發點 | `Preferences.swift` / `PreferencesWindowController` 句子結束分頁 |
+
+### 對使用者說明時的用語
+
+用「定案＝底線消失、字已進 app」「送出＝再按一次 Enter」。**不要**說「停頓只改字留底線」
+或「Enter 一下就送出」—— 那是已作廢的 2.12.x 語意。定案後改錯字＝↓ 重選；
+改失敗 beep ＝正常 fail-closed，不是 bug。講版本一律去看 `CHANGELOG.md` 最上面那段。
 
 ## Version traceability (standing rule — every baton)
 
@@ -87,7 +122,7 @@ pbxproj 新檔 ID 起點是否過時、被 git 追蹤的建置產物是否髒了
 
 **引擎行為改動額外要求**：在 CHANGELOG 條目裡寫清楚**用什麼資料、怎麼量的、數字多少**。tw538 已作廢。EX1166（難題考卷）與兩份真實語料驗證集已在 `~/Documents/i注音-語料/EX1166-題庫/`；**出貨硬關卡是 `./scripts/ship-gate.sh`**（真實語料不得淨傷害）。EX1166 分數只當難題能力參考，**不得**當唯一驗收或對外宣稱。研究棒仍應在 CHANGELOG 自述量測方法。
 
-**排除的路要寫進 `AI_HANDOFF_PROMPT.md` 的「已排除的路」或 GitHub issue `deadend`**：試過但行不通的方向，要連同**實測數字**一起記下來，否則下一棒會重試一次。
+**排除的路要寫進 `docs/dead-ends.md`（或 GitHub issue `deadend`）**：試過但行不通的方向，要連同**實測數字**一起記下來，否則下一棒會重試一次。那份是每次進場都要讀的，所以**一條一到三行**，超過兩頁就沒人讀 —— 加新條目時順手砍過期的。
 
 ### Clean `GitRevision` on formal builds
 
@@ -332,7 +367,30 @@ For GitHub Copilot-specific configuration, see:
 
 ## Architecture Overview
 
-iBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detailed architecture and algorithm documentation, see:
+iBopomofo uses a three-layer architecture (Swift/Objective-C++/C++).
+
+### 選字的四個角色（誰在什麼時候決定用哪個字）
+
+| 角色 | 是什麼 | 何時跑 |
+|------|--------|--------|
+| **walk** | 詞圖 lattice ＋ Viterbi ＋ 詞庫 unigram/bigram 情境。以**詞**為單位看前後文，是四十年注音輸入法的地基 | 每一次按鍵 |
+| **v2c** | 句末小型 char-LSTM，對 walk 的 n-best **路徑**重排。完全離線、約 45ms、int8 | 定案當下跑一次 |
+| **節點層規則** | `ParticleRuleDisambiguator`：走完路徑後在**節點既有候選裡**改選，不碰使用者手選 | walk 之後 |
+| **UOM** | 個人化 soft 偏好，進 DP 打分 | 每一次 walk |
+
+- **v2c 是路徑層模型**：它的天花板是「正解那條路徑進不進得了 N-best」。節點層機制（規則、
+  未來的神經專家）才看得到節點內的候選。兩者天花板差很多（85.3% vs 95.9%），
+  接線位置選錯就白做 —— 見 `docs/decisions/0001-同音消歧不是語言生成.md`。
+- **UOM 參數**：`user-override-cache.dat`，capacity 500 LRU、halflife 7 天、
+  soft 門檻 count≥2、cap 4.0、μ_user 4.0，**key ＝ 前詞＋讀音＋詞**。
+  當下 hand-pick 永遠壓過 soft。學習很專一（只在該特定前文生效）。
+- **`cond`（zenz 式條件模型，讀音當硬約束）是研究線，不出貨**，而且權重是 epoch-1 殘缺品
+  （訓練中途崩、bug 已修但未重訓）。所有 cond 數字都在殘缺權重下量的，日後值得乾淨重訓重量。
+- 錯誤集中在**高頻字對**（不→部、在→再、是→視、版→板）。85.7 萬真實 hard 位置存在
+  `~/laowang-data/`（gold ＝ 語料原字）；用之前要先查與 v2c 訓練語料（中文維基＋PTT 八卦板）
+  不重疊，否則是污染。
+
+For detailed architecture and algorithm documentation, see:
 - `algorithm.md`: Comprehensive technical documentation (Chinese)
 - [Wiki: 程式架構](https://github.com/openvanilla/McBopomofo/wiki/程式架構): Program architecture
 - [Wiki: Gramambular 演算法](https://github.com/openvanilla/McBopomofo/wiki/程式架構_Gramambular): Gramambular algorithm
@@ -362,6 +420,9 @@ iBopomofo uses a three-layer architecture (Swift/Objective-C++/C++). For detaile
 | `Source/Data/path-char-lstm.bin` | 出貨神經權重（**v2d int8**；架構 v2c） |
 | `Source/Data/confusion-alphas.tsv` | 頻率先驗壓縮表（機制仍在；**條目已清空**，2026-08-11 停用） |
 | `scripts/ship-gate.sh` | 出貨 CORE（語料＋ctest）；E2E 預設關。`SHIP_GATE_STATUS=CORE` 可出貨 |
+| `docs/dead-ends.md` | **已證明無效的路，動手前必讀**（兩頁內） |
+| `docs/decisions/` | 決策脈絡：為什麼這樣做、試過什麼。要動該領域時才讀 |
+| `Source/Engine/eval/benchmarks/出題管線.md` | 新北極星題庫怎麼生（prompt＋轉換腳本契約） |
 
 ## Development Guidelines
 

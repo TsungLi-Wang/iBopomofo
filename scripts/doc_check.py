@@ -140,13 +140,57 @@ def running_on_ci():
     return truthy("CI") or truthy("GITHUB_ACTIONS")
 
 
-def is_maintainer_home_path(raw: str) -> bool:
-    """文件裡寫的維護者本機路徑（語料、ai-handoff、Library…）—— 不進 repo、不進 Actions。"""
-    if raw.startswith("~/") or raw == "~":
-        return True
-    if raw.startswith("$HOME/") or raw == "$HOME":
-        return True
-    return False
+# 維護者本機路徑的白名單 —— 只有這幾個根目錄「依定義」不可能進 repo：
+#   ~/Library/            安裝路徑、使用者資料、偏好（是 macOS 給的位置，不是我們的選擇）
+#   ~/Documents/i注音-語料/ 私有語料（隱私紅線，永不上傳）
+#   ~/laowang-data/       大資產（研究模型、mined 語料）
+#   ~/.claude/            維護者的 AI 協作設定，不屬於本 repo
+# 這幾個在 CI runner 上不存在是正常的，所以 CI 不做存在性檢查（本機仍檢查，抓寫錯路徑）。
+#
+# **白名單以外的 `~/` 路徑一律 fail，本機與 CI 都一樣。**
+# 2026-08-13 之前這裡是「CI 上所有 ~/ 路徑都跳過」的無條件豁免，那個豁免的存在
+# 只是因為當時有一份必看文件（軍師交接檔）住在 ~/Documents —— 一條必須關掉才能通過的
+# 規則等於沒有規則。那份檔已拆解進 repo，豁免收窄成這份可列舉的白名單。
+# 要新增白名單項目 = 你正在讓 repo 依賴 repo 外的東西，先想清楚再加，並在這裡寫下理由。
+MAINTAINER_LOCAL_ROOTS = (
+    "~/Library/",
+    "~/Documents/i注音-語料/",
+    "~/laowang-data/",
+    "~/.claude/",
+)
+
+HOME_PREFIXES = ("~/", "$HOME/")
+
+
+def is_home_path(raw: str) -> bool:
+    return raw.startswith(HOME_PREFIXES) or raw in ("~", "$HOME")
+
+
+def is_allowlisted_local_path(raw: str) -> bool:
+    norm = raw.replace("$HOME/", "~/", 1) if raw.startswith("$HOME/") else raw
+    return norm.startswith(MAINTAINER_LOCAL_ROOTS)
+
+
+# 「必讀」不得指向 repo 外 —— 派外部 AI 時 `--cwd` 是 repo 根、CI 只拿得到 repo，
+# 寫在 repo 外的必看文件對它們等於不存在（2026-08-13 實際發生過：被丟進垃圾桶沒人察覺）。
+REQUIRED_READING_RE = re.compile(r"(必讀|必看|進場先讀|進來先讀|先讀這|讀哪些檔)")
+
+
+def check_required_reading_in_repo():
+    for doc in NO_VERSION_DOCS + PATH_ONLY_DOCS:
+        lines = read(doc)
+        if lines is None:
+            continue
+        for i, line in enumerate(lines, 1):
+            if IGNORE_MARK in line or not REQUIRED_READING_RE.search(line):
+                continue
+            checked["其他"] += 1
+            for m in PATH_RE.finditer(line):
+                if is_home_path(m.group(1)):
+                    fail("必讀", f"{doc}:{i}",
+                         f"把 repo 外的 `{m.group(1)}` 列為必讀 —— 派外部 AI（`--cwd` ＝ repo 根）"
+                         f"與 CI 都看不到它。必看的東西要搬進 repo。\n"
+                         f"      原文：{line.strip()[:90]}")
 
 
 def check_paths():
@@ -168,12 +212,17 @@ def check_paths():
                     continue
                 if "{" in raw:
                     raw = raw.split("{")[0] + "h"
-                # 2026-08-12：CI runner 沒有維護者 ~/Documents、~/ai-handoff 等。
-                # 那些路徑是刻意本機的；在 CI 上「不存在」不得 fail。
-                # 本機（非 CI）仍檢查，避免文件寫錯路徑自己不知道。
-                # 版本裁判（plist / CHANGELOG / 兩份 plist）與 repo 內路徑不受影響。
-                if on_ci and is_maintainer_home_path(raw):
-                    continue
+                if is_home_path(raw):
+                    if not is_allowlisted_local_path(raw):
+                        checked["路徑"] += 1
+                        fail("路徑", f"{doc}:{i}",
+                             f"`{raw}` 在 repo 外，且不在 `MAINTAINER_LOCAL_ROOTS` 白名單裡。"
+                             f"CI 與外部 AI 都看不到它 —— 把內容搬進 repo，"
+                             f"或（真的必要時）把根目錄加進白名單並寫下理由。")
+                        continue
+                    # 白名單：CI runner 上依定義不存在，不做存在性檢查；本機仍檢查。
+                    if on_ci:
+                        continue
                 checked["路徑"] += 1
                 if raw.startswith("~"):
                     ok = os.path.exists(os.path.expanduser(raw))
@@ -228,6 +277,7 @@ def main():
     check_two_plists(short, build)
     check_changelog_top(short, build)
     check_no_versions_in_docs()
+    check_required_reading_in_repo()
     check_paths()
     check_pbxproj_ids()
     check_git_clean_for_release()
