@@ -22,6 +22,8 @@ import os
 import random
 import time
 
+import hashlib
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -72,6 +74,25 @@ class NodeExpert(nn.Module):
         return logits.masked_fill(~cand_mask, -1e4)
 
 
+def load_split_override(sentences_path, dev_frac, salt='tau2'):
+    """從 sentences.jsonl 重建 sid → train/dev。
+
+    為什麼要能重切：nodes.tsv 裡的 split 是抽取當下寫死的（dev 8%），
+    而白名單那一組（作做坐座）在 dev 裡只剩幾百個節點 —— 掃 τ 時出手次數
+    不到 30，分母比 dead-ends B 節的下限還小，定出來的門檻不可信。
+    加大 dev 是**修量測**，不是調參數：τ 仍然只在 held-out 上定。
+
+    切分一律以 doc_id 為單位，同一篇文件不會一半訓練一半驗證。
+    """
+    sid_split = {}
+    with open(sentences_path, encoding='utf-8') as fh:
+        for i, line in enumerate(fh, start=1):
+            doc = json.loads(line)['doc_id']
+            h = int(hashlib.sha256((salt + ':' + doc).encode()).hexdigest()[:8], 16)
+            sid_split[i] = 'dev' if (h % 1000) < int(dev_frac * 1000) else 'train'
+    return sid_split
+
+
 def utf8_chars(s):
     return list(s)
 
@@ -100,7 +121,7 @@ def build_vocab(path, limit=0):
     return itos, stos
 
 
-def load_rows(path, itos, stos, args):
+def load_rows(path, itos, stos, args, sid_split=None):
     """讀 TSV → 張量。同時回傳每筆的分層鍵與難例旗標。"""
     ci = {c: i for i, c in enumerate(itos)}
     si = {s: i for i, s in enumerate(stos)}
@@ -114,6 +135,8 @@ def load_rows(path, itos, stos, args):
                 stats['bad_line'] += 1
                 continue
             split, kind, reading = f[1], int(f[2]), f[6]
+            if sid_split is not None:
+                split = sid_split.get(int(f[0]), split)
             chosen, gold, gold_in = f[7], f[8], f[9] == '1'
             stats['total'] += 1
             if DE_READING in reading.split('-'):
@@ -211,6 +234,11 @@ def main():
                     help='「引擎選錯、金標仍在候選裡」的難例重複取樣倍數')
     ap.add_argument('--per-stratum', type=int, default=400,
                     help='每個（讀音×金標值）最多留幾筆；分層採樣，不是自然字頻')
+    ap.add_argument('--sentences', default='',
+                    help='給了就用它重切 train/dev（修量測用，見 load_split_override）')
+    ap.add_argument('--dev-frac', type=float, default=0.20)
+    ap.add_argument('--fire-readings', default='ㄗㄨㄛˋ',
+                    help='挑 checkpoint 時看的那一組（＝引擎端的開火白名單）')
     ap.add_argument('--device', default='mps')
     args = ap.parse_args()
 
@@ -219,7 +247,9 @@ def main():
                                           torch.backends.mps.is_available())
                           else 'cpu')
     itos, stos = build_vocab(args.nodes)
-    rows, stats, ci, si = load_rows(args.nodes, itos, stos, args)
+    sid_split = (load_split_override(args.sentences, args.dev_frac)
+                 if args.sentences else None)
+    rows, stats, ci, si = load_rows(args.nodes, itos, stos, args, sid_split)
     print(json.dumps(dict(stats), ensure_ascii=False, indent=2))
 
     # ── 分層採樣：按（讀音 × 金標值）截頂 ──
