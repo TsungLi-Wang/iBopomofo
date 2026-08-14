@@ -21,6 +21,8 @@ add_library(McBopomofoLMLib
         NeuralLMPathScorer.h
         NeuralLMPathScorer.cpp
         ParticleRuleDisambiguator.cpp
+        NodeHomophoneExpert.h
+        NodeHomophoneExpert.cpp
         McBopomofoLM.cpp
         McBopomofoLM.h
         MemoryMappedFile.h
@@ -106,6 +108,7 @@ if (ENABLE_TEST)
                 MemoryMappedFileTest.cpp
                 NeuralLMPathScorerEqualityTest.cpp
                 ParticleRuleDisambiguatorTest.cpp
+                NodeHomophoneExpertTest.cpp
                 DecodePipelineTest.cpp
                 ParselessLMTest.cpp
                 ParselessPhraseDBTest.cpp
