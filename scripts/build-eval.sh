@@ -38,6 +38,7 @@ clang++ -std=c++17 -O2 \
   "$ENGINE/ParselessPhraseDB.cpp" \
   "$ENGINE/MemoryMappedFile.cpp" \
   "$ENGINE/ParticleRuleDisambiguator.cpp" \
+  "$ENGINE/NodeHomophoneScorer.cpp" \
   -framework Accelerate \
   -o "$EVAL_OUT"
 
@@ -61,4 +62,18 @@ if [ "${ORACLE:-0}" = "1" ]; then
     -framework Accelerate \
     -o "$ORACLE_OUT"
   echo "完成：$ORACLE_OUT"
+fi
+
+# 可選：NODE_PROBE=1 建 node_scorer_probe（C++ vs PyTorch 對數字用；
+# 換節點層模型的第一道關卡，見 scripts/node-scorer-parity.sh）。
+if [ "${NODE_PROBE:-0}" = "1" ]; then
+  PROBE_OUT="$ROOT/bin/node_scorer_probe"
+  echo "編譯 node_scorer_probe → $PROBE_OUT"
+  clang++ -std=c++17 -O2 \
+    -I"$ENGINE" -I"$ENGINE/gramambular2" \
+    node_scorer_probe.cpp \
+    "$ENGINE/NodeHomophoneScorer.cpp" \
+    "$ENGINE/gramambular2/reading_grid.cpp" \
+    -o "$PROBE_OUT"
+  echo "完成：$PROBE_OUT"
 fi

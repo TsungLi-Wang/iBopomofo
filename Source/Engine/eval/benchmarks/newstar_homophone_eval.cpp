@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -25,6 +26,7 @@
 
 #include "CorpusBigramContextModel.h"
 #include "NeuralLMPathScorer.h"
+#include "NodeHomophoneScorer.h"
 #include "ParticleRuleDisambiguator.h"
 #include "ParselessLM.h"
 #include "gramambular2/reading_grid.h"
@@ -485,6 +487,28 @@ int main(int argc, char** argv) {
     }
   }
 
+  // 節點層同音打分器（docs/decisions/0008）。走環境變數而不是 argv，
+  // 因為 argv 的位置被 ship-gate.sh 與 model-ab.sh 兩邊寫死了 ——
+  // 插一個位置進去會讓那兩支各驗一個不同的東西（2026-08-12 踩過同一個坑）。
+  //   IBOPOMOFO_NODE_SCORER=<model.bin>   不設就完全不掛（行為與現況逐位相同）
+  //   IBOPOMOFO_NODE_MARGIN=<float>       棄權門檻，預設 0
+  iBopomofo::NodeHomophoneScorer nodeScorer;
+  bool hasNodeScorer = false;
+  {
+    const char* np = std::getenv("IBOPOMOFO_NODE_SCORER");
+    if (np != nullptr && np[0] != '\0') {
+      if (!nodeScorer.load(np)) {
+        std::cerr << "FATAL: cannot load node scorer: " << np << "\n";
+        return 1;
+      }
+      hasNodeScorer = true;
+      const char* nm = std::getenv("IBOPOMOFO_NODE_MARGIN");
+      if (nm != nullptr && nm[0] != '\0') {
+        nodeScorer.setMargin(std::stod(nm));
+      }
+    }
+  }
+
   iBopomofo::ParticleRuleDisambiguator particleRule;
   for (const std::string& rulesPath : rulesPaths) {
     if (!particleRule.load(rulesPath)) {
@@ -503,6 +527,8 @@ int main(int argc, char** argv) {
             << " confusion_alphas=" << confusionAlphas.size()
             << " grammar_rules=" << particleRule.ruleCount()
             << " rule_files=" << rulesPaths.size()
+            << " node_scorer=" << (hasNodeScorer ? 1 : 0)
+            << " node_margin=" << (hasNodeScorer ? nodeScorer.margin() : 0.0)
             << " uom=off\n";
 
   std::ifstream in(itemsPath);
@@ -595,6 +621,12 @@ int main(int argc, char** argv) {
     if (particleRule.ruleCount() > 0) {
       particleRule.reset();
       particleRule.rescoreWalk(w);
+    }
+    // 規則之後才跑 —— 規則是手寫的、可解釋的，讓它先講話；
+    // 模型只在規則沒出手的位置改選（它自己也會棄權）。
+    if (hasNodeScorer) {
+      nodeScorer.reset();
+      nodeScorer.rescoreWalk(w);
     }
     std::string out = joined(w);
     auto outChars = utf8Chars(out);
