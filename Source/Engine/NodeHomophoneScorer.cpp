@@ -469,6 +469,15 @@ bool NodeHomophoneScorer::rescoreWalk(const ReadingGrid::WalkResult& walk) {
                 kOverrideValueWithScoreFromTopUnigram)) {
       applied_[node.get()] = node;
       changed = true;
+      // 改完就把攤平的字元序列同步回來。ParticleRuleDisambiguator 沒做這件事
+      // （它一棒子只出手幾次，差別看不出來），但這顆模型會沿著整句一路出手 ——
+      // 不同步的話後面每個位置都拿舊的左文去打分。
+      std::vector<std::string> updated = splitUtf8(walk.chosenValueAt(ownerNode[i]));
+      for (size_t k = 0; k < chars.size(); ++k) {
+        if (ownerNode[k] == ownerNode[i] && offsetInNode[k] < updated.size()) {
+          chars[k] = updated[offsetInNode[k]];
+        }
+      }
     }
   }
   return changed;
