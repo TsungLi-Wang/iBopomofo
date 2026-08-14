@@ -75,6 +75,24 @@ def main():
             if len(examples) < args.show:
                 examples.append((k, oa, ob, ti, outside))
 
+    # ── 整句逐字正確率 ──
+    # 「目標字以外被改了幾個字」單看是**歧義的**：題庫的 sentence 是真人原文，
+    # 引擎從注音解回來的整句本來就有一堆別的地方是錯的。模型把那些地方改對，
+    # 跟改錯，在「改動數」上長得一模一樣。所以一定要對著原文數。
+    ca = cb = ctot = 0
+    for k in keys:
+        it = items.get(k)
+        if it is None:
+            continue
+        gold = it['sentence']
+        oa, ob = a[k]['output'], b[k]['output']
+        n = len(gold)
+        ctot += n
+        ca += sum(1 for i in range(min(n, len(oa))) if oa[i] == gold[i])
+        cb += sum(1 for i in range(min(n, len(ob))) if ob[i] == gold[i])
+    if ctot:
+        print(f'整句逐字正確率（對真人原文）  前 {100 * ca / ctot:.3f}%  '
+              f'後 {100 * cb / ctot:.3f}%  淨 {cb - ca:+d} 字 / {ctot} 字')
     print(f'共同題數 {len(keys)}')
     print(f'整句被改的題數      {changed_sent}')
     print(f'  其中目標字被改    {target_changed}')
