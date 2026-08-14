@@ -30,6 +30,7 @@ ROOT="$(pwd)"
 
 EVAL="${IBOPOMOFO_EVAL_BIN:-bin/newstar_homophone_eval}"
 COMPARE="Source/Engine/eval/benchmarks/compare_dumps.py"
+COLLATERAL="Source/Engine/eval/benchmarks/node_scorer_collateral.py"
 SAMPLE="Source/Engine/eval/benchmarks/newstar_sample.jsonl"
 
 self_mode=0
@@ -120,6 +121,10 @@ for item in "${items[@]}"; do
     fi
 
     python3 "$COMPARE" "$tmpdir/before.tsv" "$tmpdir/after.tsv" --items "$item" --show 0
+
+    # 附帶傷害體檢 —— 上面的檢定只看目標那一個字，看不到句子其他地方被改爛。
+    python3 "$COLLATERAL" "$tmpdir/before.tsv" "$tmpdir/after.tsv" \
+        --items "$item" --show 3
 
     read -r gain loss n <<<"$(python3 - "$tmpdir/before.tsv" "$tmpdir/after.tsv" <<'PY'
 import sys
