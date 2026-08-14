@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -25,6 +26,7 @@
 
 #include "CorpusBigramContextModel.h"
 #include "NeuralLMPathScorer.h"
+#include "NodeHomophoneExpert.h"
 #include "ParticleRuleDisambiguator.h"
 #include "ParselessLM.h"
 #include "gramambular2/reading_grid.h"
@@ -485,6 +487,44 @@ int main(int argc, char** argv) {
     }
   }
 
+  // 節點層同音專家（棒⑬）。走環境變數而不是 argv：argv 的位置被
+  // ship-gate.sh 與 model-ab.sh 兩邊寫死了，插一個進去會讓兩支各驗一個
+  // 不同的東西（2026-08-12 踩過同一個坑）。不設＝完全不掛，行為逐位相同。
+  //
+  //   IBOPOMOFO_NODE_EXPERT           模型路徑
+  //   IBOPOMOFO_NODE_EXPERT_TAU       棄權門檻（只准在抽取資料的 held-out 上定）
+  //   IBOPOMOFO_NODE_EXPERT_READINGS  開火白名單，逗號分隔；預設只有 ㄗㄨㄛˋ
+  iBopomofo::NodeHomophoneExpert nodeExpert;
+  bool hasNodeExpert = false;
+  {
+    const char* np = std::getenv("IBOPOMOFO_NODE_EXPERT");
+    if (np != nullptr && np[0] != '\0') {
+      if (!nodeExpert.load(np)) {
+        std::cerr << "FATAL: cannot load node expert: " << np << "\n";
+        return 1;
+      }
+      hasNodeExpert = true;
+      const char* tau = std::getenv("IBOPOMOFO_NODE_EXPERT_TAU");
+      if (tau != nullptr && tau[0] != '\0') nodeExpert.setTau(std::stod(tau));
+      const char* rd = std::getenv("IBOPOMOFO_NODE_EXPERT_READINGS");
+      if (rd != nullptr && rd[0] != '\0') {
+        std::unordered_set<std::string> set;
+        std::string cur;
+        for (const char* p = rd;; ++p) {
+          if (*p == ',' || *p == '\0') {
+            if (!cur.empty()) set.insert(cur);
+            cur.clear();
+            if (*p == '\0') break;
+          } else {
+            cur.push_back(*p);
+          }
+        }
+        nodeExpert.setFireReadings(set);
+      }
+      nodeExpert.setContextModel(&cm);
+    }
+  }
+
   iBopomofo::ParticleRuleDisambiguator particleRule;
   for (const std::string& rulesPath : rulesPaths) {
     if (!particleRule.load(rulesPath)) {
@@ -503,6 +543,9 @@ int main(int argc, char** argv) {
             << " confusion_alphas=" << confusionAlphas.size()
             << " grammar_rules=" << particleRule.ruleCount()
             << " rule_files=" << rulesPaths.size()
+            << " node_expert=" << (hasNodeExpert ? 1 : 0)
+            << " node_tau=" << (hasNodeExpert ? nodeExpert.tau() : 0.0)
+            << " node_fire=" << (hasNodeExpert ? nodeExpert.fireReadings().size() : 0)
             << " uom=off\n";
 
   std::ifstream in(itemsPath);
@@ -596,6 +639,12 @@ int main(int argc, char** argv) {
       particleRule.reset();
       particleRule.rescoreWalk(w);
     }
+    // 規則先講話（手寫、可解釋），專家只在規則沒出手的節點上考慮改選，
+    // 而且它自己預設棄權。
+    if (hasNodeExpert) {
+      nodeExpert.reset();
+      nodeExpert.rescoreWalk(w);
+    }
     std::string out = joined(w);
     auto outChars = utf8Chars(out);
     bool ok = false;
@@ -620,6 +669,14 @@ int main(int argc, char** argv) {
   }
   if (feedFail) {
     std::cout << "FEED_FAIL " << feedFail << "\n";
+  }
+
+  if (hasNodeExpert) {
+    const auto& c = nodeExpert.counters();
+    std::cout << "NODE_EXPERT considered=" << c.considered << " fired="
+              << c.fired << " abstain_tau=" << c.abstained_tau
+              << " abstain_same=" << c.abstained_same << " skip_override="
+              << c.skipped_user_override << "\n";
   }
 
   // Print in stable order: single train, single heldout, multi train, multi heldout

@@ -38,6 +38,7 @@ clang++ -std=c++17 -O2 \
   "$ENGINE/ParselessPhraseDB.cpp" \
   "$ENGINE/MemoryMappedFile.cpp" \
   "$ENGINE/ParticleRuleDisambiguator.cpp" \
+  "$ENGINE/NodeHomophoneExpert.cpp" \
   -framework Accelerate \
   -o "$EVAL_OUT"
 
@@ -61,4 +62,30 @@ if [ "${ORACLE:-0}" = "1" ]; then
     -framework Accelerate \
     -o "$ORACLE_OUT"
   echo "完成：$ORACLE_OUT"
+fi
+
+# 可選：NODE_TOOLS=1 建節點層專家的兩支工具（抽樣本、對數字）。
+# 預設不建 —— 它們只在訓練／驗收流程裡用得到，不影響出貨關卡的產物路徑。
+if [ "${NODE_TOOLS:-0}" = "1" ]; then
+  echo "編譯 node_sample_extract → $ROOT/bin/node_sample_extract"
+  clang++ -std=c++17 -O2 \
+    -I"$ENGINE" -I"$ENGINE/gramambular2" \
+    node_sample_extract.cpp \
+    "$ENGINE/gramambular2/reading_grid.cpp" \
+    "$ENGINE/CorpusBigramContextModel.cpp" \
+    "$ENGINE/NeuralLMPathScorer.cpp" \
+    "$ENGINE/ParselessLM.cpp" \
+    "$ENGINE/ParselessPhraseDB.cpp" \
+    "$ENGINE/MemoryMappedFile.cpp" \
+    -framework Accelerate \
+    -o "$ROOT/bin/node_sample_extract"
+  echo "編譯 node_expert_probe → $ROOT/bin/node_expert_probe"
+  clang++ -std=c++17 -O2 \
+    -I"$ENGINE" -I"$ENGINE/gramambular2" \
+    node_expert_probe.cpp \
+    "$ENGINE/NodeHomophoneExpert.cpp" \
+    "$ENGINE/CorpusBigramContextModel.cpp" \
+    "$ENGINE/gramambular2/reading_grid.cpp" \
+    -o "$ROOT/bin/node_expert_probe"
+  echo "完成：bin/node_sample_extract、bin/node_expert_probe"
 fi
