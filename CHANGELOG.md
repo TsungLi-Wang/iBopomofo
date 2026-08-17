@@ -8,6 +8,30 @@
 
 ## [Unreleased]
 
+### 內部（棒⑭ · 2026-08-17）：修正 Node Expert 的 training recipe，**仍 NO-GO**。零使用者可見行為、未發版
+
+引擎 C++ 一行未動（`NodeHomophoneExpert.{h,cpp}` 與棒⑬ 相同），
+`Source/Data/` 未碰，`path-char-lstm.bin` sha256 與進場相同，專家仍預設不掛。
+本棒只動 `Source/Engine/eval/` 下的訓練與評測腳本。
+
+- **⑭-A 人工核驗 263 筆**：語料金標乾淨（母體回加權 **99.6%**）——
+  棒⑬ 不是被髒標籤訓壞的。訓練／驗證的金標分布落差來自
+  ① 驗證集有 47% 是刻意過抽低頻字的 `ptt-minor`
+  ② 訓練節點 74.2% 是多字詞（工作 1,671…），引擎在那裡 96.2% 正確。
+- **⑭-B 五個 recipe 對照**：淘汰 hard ×12 物理複製、改逐樣本 loss 權重。
+  自然 **−28→−10**（p 9.7e-05→0.26）、X **−5→+2**、
+  整句逐字正確率 −31 字→−9 字。**方向對了，但沒過 GO。**
+- **兩個被資料修正的假設**：×12 不會扭曲方向比例（扭曲的是分層採樣）；
+  「多字詞佔據 training signal」在筆數成立、在 loss 不成立，
+  所以單字節點加權反而更差。
+- **一條方法上的死路**：拿 audited dev 的「零傷害」**點估計**當進場依據。
+  27 次出手 0 次改壞 → 預估淨 +19.9／1,000；正式測試真實傷害率 3.4%、淨 −10。
+  凍結規則要改用區間下界。
+- 新工具：`sample_corpus_gold_audit.py`／`annotate_corpus_gold.py`／
+  `score_corpus_gold_audit.py`（人工核驗三件套）、`make_audited_dev.py`、
+  `eval_node_expert_dev.py`、`analyze_training_composition.py`、
+  `audit_node_directions.py`。
+
 ### 內部（棒⑬ · 2026-08-14）：節點層同音專家對作做坐座，**NO-GO**。零使用者可見行為、未發版
 
 引擎行為、規則表、詞庫、出貨神經權重**一律未動**（`path-char-lstm.bin` 收工

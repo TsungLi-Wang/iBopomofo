@@ -11,8 +11,11 @@
 #   * 讀音含 ㄉㄜ˙ 的節點一律不進訓練（PTT 標籤髒，dead-ends D）
 #   * 金標不在候選裡的節點丟掉（lattice-miss，不訓練模型去選不合法的字）
 #   * 分層採樣：按「讀音 × 金標值」，不是按自然字頻，否則永遠選高頻同音
-#   * 難例（引擎選錯、金標仍在候選裡）要加權，否則模型只會學複製引擎
-#   * τ 只在 held-out（split=dev）上定，不准看考卷或兩份真實驗證集
+#   * 難例要加權，但**用 loss 權重，不是複製樣本**（棒⑭-B）：
+#     棒⑬ 的 hard ×12 是物理複製，把「引擎多半是對的」這個先驗整個翻掉
+#     （easy:hard 從 6.42:1 變 0.56:1，引擎正確率 88.8% → 35.8%），
+#     模型因此學成「引擎通常不可信」。loss 權重能加重難例，又不動先驗。
+#   * τ 只在 held-out 上定，不准看考卷或兩份真實驗證集
 
 import argparse
 import collections
@@ -165,6 +168,7 @@ def load_rows(path, itos, stos, args, sid_split=None):
                 stats['drop_gold_truncated'] += 1
                 continue
             rows.append({
+                'sid': int(f[0]), 'span': int(f[5]),
                 'split': split, 'kind': kind, 'reading': reading,
                 'gold': gold, 'chosen': chosen, 'gi': gi, 'cands': cands,
                 'left': f[12], 'right': f[13], 'right_empty': f[14] == '1',
@@ -210,9 +214,11 @@ def encode(rows, ci, si):
                 cchars=cchars, cfeat=cfeat, cmask=cmask, gold=gold)
 
 
-def batches(enc, idx, bs, device):
+def batches(enc, idx, bs, device, weights=None):
     for i in range(0, len(idx), bs):
         sel = idx[i:i + bs]
+        extra = ((torch.from_numpy(weights[sel]).to(device),)
+                 if weights is not None else ())
         yield (torch.from_numpy(enc['left'][sel].astype(np.int64)).to(device),
                torch.from_numpy(enc['right'][sel].astype(np.int64)).to(device),
                torch.from_numpy(enc['syl'][sel].astype(np.int64)).to(device),
@@ -220,7 +226,7 @@ def batches(enc, idx, bs, device):
                torch.from_numpy(enc['cchars'][sel].astype(np.int64)).to(device),
                torch.from_numpy(enc['cfeat'][sel]).to(device),
                torch.from_numpy(enc['cmask'][sel]).to(device),
-               torch.from_numpy(enc['gold'][sel]).to(device))
+               torch.from_numpy(enc['gold'][sel]).to(device)) + extra
 
 
 def main():
@@ -230,8 +236,19 @@ def main():
     ap.add_argument('--epochs', type=int, default=6)
     ap.add_argument('--batch', type=int, default=512)
     ap.add_argument('--lr', type=float, default=2e-3)
-    ap.add_argument('--hard-weight', type=int, default=6,
-                    help='「引擎選錯、金標仍在候選裡」的難例重複取樣倍數')
+    ap.add_argument('--hard-weight', type=float, default=1.0,
+                    help='難例的 **loss 權重**（不是複製倍數）。1.0＝不加權')
+    ap.add_argument('--single-weight', type=float, default=1.0,
+                    help='單字節點的 loss 權重（多字詞維持 1.0）')
+    ap.add_argument('--dir-bounded', action='store_true',
+                    help='目標組內逐方向的有界權重 clip(sqrt(median/n),0.5,3)')
+    ap.add_argument('--dir-clip', type=float, nargs=2, default=(0.5, 3.0))
+    ap.add_argument('--exclude-docs', default='',
+                    help='要整份排除的 doc_id 清單（audited dev 的文件，防洩漏）')
+    ap.add_argument('--min-sentence-len', type=int, default=0,
+                    help='句長下限；0＝不過濾')
+    ap.add_argument('--recipe', default='',
+                    help='只是寫進 meta 的標籤，方便對照 R0/R1/R2/R3')
     ap.add_argument('--per-stratum', type=int, default=400,
                     help='每個（讀音×金標值）最多留幾筆；分層採樣，不是自然字頻')
     ap.add_argument('--sentences', default='',
@@ -266,15 +283,86 @@ def main():
     rows = [rows[i] for i in keep]
     print(f'分層採樣後 {len(rows):,} 筆（{len(by_stratum):,} 個層）')
 
+    # ── 防洩漏：audited dev 的文件整份排除 ──
+    # 不做這一條，dev 就是「模型看過的文件」，後面所有 dev 數字都不算數。
+    if args.exclude_docs:
+        bad = {ln.strip() for ln in open(args.exclude_docs, encoding='utf-8')
+               if ln.strip()}
+        sid2doc = {}
+        with open(args.sentences, encoding='utf-8') as fh:
+            for i, line in enumerate(fh, start=1):
+                sid2doc[i] = json.loads(line)['doc_id']
+        before = len(rows)
+        rows = [r for r in rows if sid2doc.get(r['sid']) not in bad]
+        print(f'排除 audited 文件 {len(bad)} 份：{before:,} → {len(rows):,} 筆')
+
+    # ── 句長下限（context filtering）──
+    if args.min_sentence_len > 0:
+        sid_len = {}
+        with open(args.sentences, encoding='utf-8') as fh:
+            for i, line in enumerate(fh, start=1):
+                sid_len[i] = len(json.loads(line)['text'])
+        before = len(rows)
+        rows = [r for r in rows
+                if sid_len.get(r['sid'], 0) >= args.min_sentence_len]
+        print(f'句長 ≥{args.min_sentence_len}：{before:,} → {len(rows):,} 筆')
+
     enc = encode(rows, ci, si)
     is_dev = np.array([r['split'] == 'dev' for r in rows])
     is_hard = np.array([r['hard'] for r in rows])
     tr_idx = np.where(~is_dev)[0]
     dv_idx = np.where(is_dev)[0]
-    hard_tr = tr_idx[is_hard[tr_idx]]
-    pool = np.concatenate([tr_idx] + [hard_tr] * (args.hard_weight - 1))
-    print(f'train {len(tr_idx):,}（難例 {len(hard_tr):,} ×{args.hard_weight}）'
-          f' dev {len(dv_idx):,} → 每 epoch {len(pool):,}')
+
+    # ── 每筆一個 loss 權重（**不複製樣本**）──
+    # 棒⑬ 用物理複製，先驗被翻掉；這裡改成權重，資料的 easy/hard 比例維持真實。
+    w = np.ones(len(rows), dtype=np.float32)
+    if args.hard_weight != 1.0:
+        w[is_hard] *= args.hard_weight
+    if args.single_weight != 1.0:
+        single = np.array([r['span'] == 1 for r in rows])
+        w[single] *= args.single_weight
+    if args.dir_bounded:
+        # 只在目標組內做，而且有界：稀有方向給有限加成，不是無中生有。
+        fire = set(args.fire_readings.split(','))
+
+        def dir_key(r):
+            syls = r['reading'].split('-')
+            hit = [x for x in syls if x in fire]
+            if not hit or not r['hard']:
+                return None
+            i = syls.index(hit[0])
+            if len(r['chosen']) != len(syls) or len(r['gold']) != len(syls):
+                return None
+            # 節點層 hard 不等於目標字錯：多字詞可能是別的位置錯了
+            # （chosen「坐在」vs gold「坐再」），那種不該進方向權重。
+            if r['chosen'][i] == r['gold'][i]:
+                return None
+            return (r['chosen'][i], r['gold'][i])
+
+        keys = [dir_key(r) for r in rows]
+        cnt = collections.Counter(k for k, d in zip(keys, is_dev)
+                                  if k is not None and not d)
+        if cnt:
+            med = sorted(cnt.values())[len(cnt) // 2]
+            lo, hi = args.dir_clip
+            for i, k in enumerate(keys):
+                if k is not None:
+                    w[i] *= float(np.clip((med / cnt[k]) ** 0.5, lo, hi))
+            print('逐方向有界權重（中位數 %d）：' % med
+                  + '、'.join(f'{a}→{b} ×{float(np.clip((med / n) ** 0.5, *args.dir_clip)):.2f}'
+                              for (a, b), n in sorted(cnt.items(), key=lambda x: -x[1])))
+
+    pool = tr_idx
+    eff_hard = w[tr_idx][is_hard[tr_idx]].sum()
+    eff_all = w[tr_idx].sum()
+    print(f'train {len(tr_idx):,}（難例 {int(is_hard[tr_idx].sum()):,}）'
+          f' dev {len(dv_idx):,}')
+    print(f'  hard 佔 loss：{100 * eff_hard / eff_all:.1f}%'
+          f'（筆數佔比 {100 * is_hard[tr_idx].mean():.1f}%）')
+    single_tr = np.array([r['span'] == 1 for r in rows])[tr_idx]
+    print(f'  單字節點佔 loss：'
+          f'{100 * w[tr_idx][single_tr].sum() / eff_all:.1f}%'
+          f'（筆數佔比 {100 * single_tr.mean():.1f}%）')
 
     model = NodeExpert(len(itos), len(stos)).to(device)
     n_params = sum(p.numel() for p in model.parameters())
@@ -284,17 +372,30 @@ def main():
     steps = args.epochs * math.ceil(len(pool) / args.batch)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=args.lr,
                                                 total_steps=steps, pct_start=0.1)
+    # 挑 checkpoint 用「這顆模型的職位」：在開火組的 dev 節點上，
+    # argmax 相對引擎的淨救回（救 − 壞）。整體 dev_acc 挑出來的是
+    # 「最會複製引擎」的那一顆（棒⑬ 就是這樣：dev_acc 一路升、
+    # 難例正確率一路降）。
+    fire_set = set(args.fire_readings.split(','))
+    in_fire = np.array([bool(fire_set & set(r['reading'].split('-')))
+                        for r in rows])
+    grp_dev = dv_idx[in_fire[dv_idx]]
+    print(f'  開火組 dev 節點 {len(grp_dev):,}'
+          f'（引擎選錯 {int(is_hard[grp_dev].sum()):,}）')
+
     meta = dict(vars(args), n_params=n_params, stats=dict(stats), history=[])
-    best = -1.0
+    best = -1e9
     nprng = np.random.default_rng(20260814)
     for ep in range(args.epochs):
         model.train()
         order = nprng.permutation(pool)
         tot = seen = 0
         t0 = time.time()
-        for *x, g in batches(enc, order, args.batch, device):
+        for *x, g, sw in batches(enc, order, args.batch, device, w):
             logits = model(*x)
-            loss = F.cross_entropy(logits, g)
+            # 逐樣本加權：加重難例，但**不動資料的 easy/hard 先驗**
+            loss = (F.cross_entropy(logits, g, reduction='none') * sw).sum() \
+                / sw.sum()
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -317,24 +418,40 @@ def main():
                 agg['hard_n'] += int(hard.sum())
                 agg['hard_ok'] += int((pred == gold)[hard].sum())
                 agg['engine_ok'] += int((~hard).sum())
+        # 開火組上的淨救回（argmax，未套 τ）
+        saved = broke = 0
+        with torch.no_grad():
+            for i in range(0, len(grp_dev), 2048):
+                sel = grp_dev[i:i + 2048]
+                if not len(sel):
+                    break
+                *x, g = next(batches(enc, sel, len(sel), device))
+                pred = model(*x).argmax(1).cpu().numpy()
+                gold = g.cpu().numpy()
+                hard = is_hard[sel]
+                saved += int(((pred == gold) & hard).sum())
+                broke += int(((pred != gold) & ~hard).sum())
         line = {'epoch': ep + 1, 'loss': tot / seen,
                 'dev_acc': round(agg['ok'] / max(agg['n'], 1), 4),
                 'dev_hard_acc': round(agg['hard_ok'] / max(agg['hard_n'], 1), 4),
                 'engine_acc': round(agg['engine_ok'] / max(agg['n'], 1), 4),
+                'grp_saved': saved, 'grp_broke': broke,
+                'grp_net': saved - broke,
                 'sec': round(time.time() - t0)}
         meta['history'].append(line)
         print(json.dumps(line, ensure_ascii=False))
-        if line['dev_acc'] > best:
-            best = line['dev_acc']
+        if line['grp_net'] > best:
+            best = line['grp_net']
             torch.save({'model': model.state_dict(), 'cfg': model.cfg,
                         'itos': itos, 'stos': stos},
                        os.path.join(args.out, 'node-expert.pt'))
             meta['best_epoch'] = ep + 1
-            meta['best_dev_acc'] = best
+            meta['best_grp_net'] = best
+            meta['best_dev_acc'] = line['dev_acc']
     with open(os.path.join(args.out, 'train-meta.json'), 'w',
               encoding='utf-8') as fh:
         json.dump(meta, fh, ensure_ascii=False, indent=2)
-    print(f'best dev {best:.4f} @ epoch {meta.get("best_epoch")}')
+    print(f'best 開火組淨救回 {best:+.0f} @ epoch {meta.get("best_epoch")}')
 
 
 if __name__ == '__main__':
