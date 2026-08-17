@@ -65,7 +65,11 @@ def render(r, idx, total, done, blind):
     print(f'\n  {shown}\n')
     prefix = ('…' if lo > 0 else '') + sent[lo:pos]
     print(' ' * (2 + display_width(prefix)) + '↑')
-    print(f'  讀音：{r["reading"]}    節點讀音：{r["node_reading"]}')
+    extra = r.get('node_reading') or r.get('cell', '')
+    span = r.get('span_class') or (
+        '單字' if r.get('span') == '1' else '多字詞' if r.get('span') else '')
+    print(f'  讀音：{r["reading"]}    {"節點" if r.get("node_reading") else "分層"}：{extra}'
+          + (f'    節點跨度：{span}' if span else ''))
     print(f'  候選：{r["candidates"]}')
     if not blind:
         print(f'  引擎選了：{r["engine_choice"]}      語料金標：{r["corpus_gold"]}'
