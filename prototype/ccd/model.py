@@ -43,9 +43,25 @@ WIN = 6
 CAND_FEATS = 5  # unigram, pmi_left, pmi_right, is_walk_choice, right_empty
 
 
+# 棒⑰ ablation 變體。四者共用同一份 protocol，只切掉輸入區塊。
+#   full            原版
+#   no-interaction  拿掉四組 candidate x context 交互
+#   no-numeric      拿掉候選數值特徵（unigram / PMI / is_walk_choice / right_empty）
+#   context-only    candidate-independent 對照：不看候選身分、不看候選數值、無交互
+#                   → 同一節點內所有候選同分，argmax 落在第 0 個候選
+#                     （候選依 unigram 分數排序，等同「永遠取詞頻第一名」）
+VARIANTS = ("full", "no-interaction", "no-numeric", "context-only")
+
+
 class ContextualCandidateDecision(nn.Module):
-    def __init__(self, n_char, n_reading, emb=64, rd_emb=32, hid=128):
+    def __init__(self, n_char, n_reading, emb=64, rd_emb=32, hid=128,
+                 variant="full"):
         super().__init__()
+        assert variant in VARIANTS, variant
+        self.variant = variant
+        self.use_inter = variant in ("full", "no-numeric")
+        self.use_numeric = variant in ("full", "no-interaction")
+        self.use_cand = variant != "context-only"
         self.emb = emb
         self.char = nn.Embedding(n_char, emb, padding_idx=0)
         self.reading = nn.Embedding(n_reading, rd_emb, padding_idx=0)
@@ -55,9 +71,13 @@ class ContextualCandidateDecision(nn.Module):
         self.right_proj = nn.Linear(emb * WIN, emb)
 
         # candidate x context 的四組 element-wise 交互 -> 4 * emb
-        inter = emb * 4
-        # 再加：候選本身、左右脈絡摘要、讀音、數值特徵
-        d = inter + emb * 3 + rd_emb + CAND_FEATS
+        d = emb * 2 + rd_emb                       # 左右脈絡摘要 + 讀音（永遠有）
+        if self.use_inter:
+            d += emb * 4
+        if self.use_cand:
+            d += emb                               # 候選身分
+        if self.use_numeric:
+            d += CAND_FEATS
         self.mlp = nn.Sequential(
             nn.Linear(d, hid), nn.ReLU(), nn.Dropout(0.1),
             nn.Linear(hid, hid // 2), nn.ReLU(),
@@ -86,22 +106,22 @@ class ContextualCandidateDecision(nn.Module):
         ce = self.char(cand)                       # B, C, E
 
         def ex(v):
-            return v.unsqueeze(1).expand(B, C, self.emb)
+            return v.unsqueeze(1).expand(B, C, v.shape[-1])
 
-        inter = torch.cat(
-            [
+        blocks = []
+        if self.use_inter:
+            blocks += [
                 ex(l_last) * ce,     # 左鄰字 x 候選
                 ce * ex(r_first),    # 候選 x 右鄰字
                 ex(lp) * ce,         # 左視窗摘要 x 候選
                 ce * ex(rp),         # 候選 x 右視窗摘要
-            ],
-            dim=-1,
-        )
-        ctx = torch.cat(
-            [inter, ce, ex(lp), ex(rp),
-             rd.unsqueeze(1).expand(B, C, rd.shape[-1]), feats],
-            dim=-1,
-        )
+            ]
+        if self.use_cand:
+            blocks.append(ce)
+        blocks += [ex(lp), ex(rp), ex(rd)]
+        if self.use_numeric:
+            blocks.append(feats)
+        ctx = torch.cat(blocks, dim=-1)
         s = self.mlp(ctx).squeeze(-1)              # B, C
         return s.masked_fill(~mask, -1e4)
 

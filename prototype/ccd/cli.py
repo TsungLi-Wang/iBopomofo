@@ -99,7 +99,7 @@ def cmd_train(a):
     enc = featurize(tr, stoi, rtoi)
     mu, sd = norm_feats(enc)
     model = ContextualCandidateDecision(len(itos), len(rtos), emb=a.emb,
-                                        hid=a.hid)
+                                        hid=a.hid, variant=a.variant)
     npar = sum(p.numel() for p in model.parameters())
     print(f"參數量 {npar:,}")
     opt = torch.optim.Adam(model.parameters(), lr=a.lr, weight_decay=1e-5)
@@ -123,7 +123,7 @@ def cmd_train(a):
     ck = {
         "model": model.state_dict(),
         "cfg": {"n_char": len(itos), "n_reading": len(rtos), "emb": a.emb,
-                "hid": a.hid},
+                "hid": a.hid, "variant": a.variant},
         "itos": itos, "rtos": rtos,
         "mu": mu.tolist(), "sd": sd.tolist(),
         "dev_fold": a.dev_fold, "seed": SEED, "max_cands": MAX_CANDS,
@@ -217,9 +217,14 @@ def cmd_evaluate(a):
     t0 = time.time()
     model, ck, stoi, rtoi = load_ckpt(a.ckpt)
     samples = D.load_samples(a.nodes, a.sentences, max_rows=a.max_rows)
-    dv = [s for s in samples if s["fold"] == ck["dev_fold"]]
-    print(f"held-out fold {ck['dev_fold']}：{len(dv):,} 個節點"
-          f"（文件級切分，與訓練不重疊）")
+    if a.all_folds:
+        dv = samples
+        scope = "整份語料（呼叫端已保證與訓練不重疊）"
+    else:
+        dv = [s for s in samples if s["fold"] == ck["dev_fold"]]
+        scope = f"held-out fold {ck['dev_fold']}（文件級切分，與訓練不重疊）"
+    print(f"variant = {ck['cfg'].get('variant', 'full')}")
+    print(f"{scope}：{len(dv):,} 個節點")
     r, resc, dmg, allx = evaluate(model, ck, stoi, rtoi, dv)
     n = r["n"]
     print(f"\n| 指標 | R4 / 現行引擎 | Prototype-001 |")
@@ -292,6 +297,9 @@ def main():
     t.add_argument("--emb", type=int, default=64)
     t.add_argument("--hid", type=int, default=128)
     t.add_argument("--max-rows", type=int, default=0, help="0 = 全部")
+    t.add_argument("--variant", default="full",
+                   choices=["full", "no-interaction", "no-numeric", "context-only"],
+                   help="棒⑰ ablation：切掉哪些輸入區塊")
     t.set_defaults(fn=cmd_train)
 
     e = sub.add_parser("evaluate", help="在 held-out fold 上評估並列出範例")
@@ -301,6 +309,9 @@ def main():
     e.add_argument("--max-rows", type=int, default=0)
     e.add_argument("--examples", type=int, default=20)
     e.add_argument("--dump", default="")
+    e.add_argument("--all-folds", action="store_true",
+                   help="評估整份語料而不只 held-out fold。"
+                        "只在該語料整份都與訓練不重疊時使用（例如獨立驗證集）。")
     e.set_defaults(fn=cmd_evaluate)
 
     p = sub.add_parser("predict", help="對單一節點打分")
