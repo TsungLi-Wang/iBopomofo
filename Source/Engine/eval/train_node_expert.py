@@ -192,6 +192,7 @@ def encode(rows, ci, si):
     cfeat = np.zeros((n, MAX_CANDS, 4), dtype=np.float32)
     cmask = np.zeros((n, MAX_CANDS), dtype=bool)
     gold = np.zeros(n, dtype=np.int64)
+    eng = np.zeros(n, dtype=np.int64)
     for i, r in enumerate(rows):
         lc = utf8_chars(r['left'])[-CTX_CHARS:]
         for j, c in enumerate(lc):
@@ -210,8 +211,10 @@ def encode(rows, ci, si):
             cfeat[i, k] = (u / 10.0, pl, pr, 1.0 if walk else 0.0)
             cmask[i, k] = True
         gold[i] = r['gi']
+        eng[i] = next((k for k, c in enumerate(r['cands'])
+                       if c[0] == r['chosen']), r['gi'])
     return dict(left=left, right=right, syl=syl, rempty=rempty,
-                cchars=cchars, cfeat=cfeat, cmask=cmask, gold=gold)
+                cchars=cchars, cfeat=cfeat, cmask=cmask, gold=gold, eng=eng)
 
 
 def batches(enc, idx, bs, device, weights=None):
@@ -226,7 +229,8 @@ def batches(enc, idx, bs, device, weights=None):
                torch.from_numpy(enc['cchars'][sel].astype(np.int64)).to(device),
                torch.from_numpy(enc['cfeat'][sel]).to(device),
                torch.from_numpy(enc['cmask'][sel]).to(device),
-               torch.from_numpy(enc['gold'][sel]).to(device)) + extra
+               torch.from_numpy(enc['gold'][sel]).to(device),
+               torch.from_numpy(enc['eng'][sel]).to(device)) + extra
 
 
 def main():
@@ -247,6 +251,12 @@ def main():
                     help='要整份排除的 doc_id 清單（audited dev 的文件，防洩漏）')
     ap.add_argument('--min-sentence-len', type=int, default=0,
                     help='句長下限；0＝不過濾')
+    ap.add_argument('--margin-easy-lambda', type=float, default=0.0,
+                    help='B：引擎已選對時，要求 score(engine) 領先次高至少 m 的 hinge 權重')
+    ap.add_argument('--margin-easy-m', type=float, default=1.0)
+    ap.add_argument('--margin-hard-lambda', type=float, default=0.0,
+                    help='A：引擎選錯時，要求 score(gold) 領先 score(engine) 至少 m')
+    ap.add_argument('--margin-hard-m', type=float, default=1.0)
     ap.add_argument('--recipe', default='',
                     help='只是寫進 meta 的標籤，方便對照 R0/R1/R2/R3')
     ap.add_argument('--per-stratum', type=int, default=400,
@@ -391,11 +401,33 @@ def main():
         order = nprng.permutation(pool)
         tot = seen = 0
         t0 = time.time()
-        for *x, g, sw in batches(enc, order, args.batch, device, w):
+        for *x, g, eg, sw in batches(enc, order, args.batch, device, w):
             logits = model(*x)
             # 逐樣本加權：加重難例，但**不動資料的 easy/hard 先驗**
             loss = (F.cross_entropy(logits, g, reduction='none') * sw).sum() \
                 / sw.sum()
+            # ── margin hinge：把訓練目標對準「部署時真正用的量」──
+            # 部署規則是 score(best) − score(engine) > τ，但 cross-entropy
+            # 只要求 argmax 對，對這個差值沒有任何壓力。所以引擎選對時，
+            # 只要有一點擾動就會把差值推過 τ 而誤觸發（作→作·單字 18/18 全改壞）。
+            # 這裡明確地訓練那個差值，不動架構、不動特徵、不動 τ。
+            if args.margin_easy_lambda > 0 or args.margin_hard_lambda > 0:
+                s_gold = logits.gather(1, g[:, None]).squeeze(1)
+                s_eng = logits.gather(1, eg[:, None]).squeeze(1)
+                easy = (g == eg)
+                if args.margin_easy_lambda > 0 and easy.any():
+                    # 引擎選對：要求它領先「最好的其他候選」至少 m
+                    masked = logits.clone()
+                    masked.scatter_(1, eg[:, None], -1e4)
+                    runner = masked.max(dim=1).values
+                    hinge = F.relu(args.margin_easy_m - (s_eng - runner))
+                    loss = loss + args.margin_easy_lambda * (
+                        hinge * easy.float() * sw).sum() / sw.sum()
+                if args.margin_hard_lambda > 0 and (~easy).any():
+                    # 引擎選錯：要求金標領先引擎的選擇至少 m
+                    hinge = F.relu(args.margin_hard_m - (s_gold - s_eng))
+                    loss = loss + args.margin_hard_lambda * (
+                        hinge * (~easy).float() * sw).sum() / sw.sum()
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -409,7 +441,7 @@ def main():
         with torch.no_grad():
             for i in range(0, len(dv_idx), 2048):
                 sel = dv_idx[i:i + 2048]
-                *x, g = next(batches(enc, sel, len(sel), device))
+                *x, g, _eg = next(batches(enc, sel, len(sel), device))
                 pred = model(*x).argmax(1).cpu().numpy()
                 gold = g.cpu().numpy()
                 hard = is_hard[sel]
@@ -425,7 +457,7 @@ def main():
                 sel = grp_dev[i:i + 2048]
                 if not len(sel):
                     break
-                *x, g = next(batches(enc, sel, len(sel), device))
+                *x, g, _eg = next(batches(enc, sel, len(sel), device))
                 pred = model(*x).argmax(1).cpu().numpy()
                 gold = g.cpu().numpy()
                 hard = is_hard[sel]
