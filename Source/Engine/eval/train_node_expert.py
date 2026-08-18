@@ -47,17 +47,30 @@ class NodeExpert(nn.Module):
     才准加大。
     """
 
-    def __init__(self, n_char, n_syl, emb=128, syl_emb=64, hid=256):
+    def __init__(self, n_char, n_syl, emb=128, syl_emb=64, hid=256,
+                 repr_mode='base'):
         super().__init__()
         self.cfg = dict(n_char=n_char, n_syl=n_syl, emb=emb, syl_emb=syl_emb,
-                        hid=hid)
+                        hid=hid, repr_mode=repr_mode)
+        self.repr_mode = repr_mode
         self.char_emb = nn.Embedding(n_char, emb, padding_idx=0)
         self.syl_emb = nn.Embedding(n_syl, syl_emb, padding_idx=0)
+        # ── 棒⑭-I：局部搭配表徵 ──
+        # ⑭-H 量到判別力來自局部詞彙搭配（手作／大作／神作／合作），
+        # 而串接式表徵表達不了「手＋作」這種組合。
+        #   i1：把視窗內**相鄰字對**的交互（逐元素乘積）加進上下文分支
+        #   i2：i1 ＋**候選條件化**的交互（左鄰⊗候選、候選⊗右鄰）——
+        #       候選在推論時是已知的，沒有洩漏
+        # 視窗仍固定 ±6，其他一律不動。
         ctx_in = emb * CTX_CHARS * 2 + syl_emb + 1
+        if repr_mode in ('i1', 'i2'):
+            ctx_in += emb * 2
         self.ctx = nn.Sequential(nn.Linear(ctx_in, hid), nn.GELU(),
                                  nn.Linear(hid, hid))
         # 候選：值的字元 + 三個引擎特徵（unigram、PMI 左、PMI 右）+ 是否 walk 選的
         cand_in = emb * CAND_CHARS + 4
+        if repr_mode == 'i2':
+            cand_in += emb * 2
         self.cand = nn.Sequential(nn.Linear(cand_in, hid), nn.GELU(),
                                   nn.Linear(hid, hid))
         self.head = nn.Sequential(nn.Linear(hid * 2, hid), nn.GELU(),
@@ -66,12 +79,24 @@ class NodeExpert(nn.Module):
     def forward(self, left, right, syl, right_empty, cand_chars, cand_feats,
                 cand_mask):
         b = left.shape[0]
-        l = self.char_emb(left).reshape(b, -1)
-        r = self.char_emb(right).reshape(b, -1)
+        le = self.char_emb(left)                      # [B, CTX, E]
+        re = self.char_emb(right)
+        l = le.reshape(b, -1)
+        r = re.reshape(b, -1)
         s = self.syl_emb(syl).sum(1)
-        h = self.ctx(torch.cat([l, r, s, right_empty[:, None]], dim=-1))
-        c = self.char_emb(cand_chars).reshape(b, cand_chars.shape[1], -1)
-        c = self.cand(torch.cat([c, cand_feats], dim=-1))
+        parts = [l, r, s, right_empty[:, None]]
+        if self.repr_mode in ('i1', 'i2'):
+            parts.append((le[:, :-1] * le[:, 1:]).sum(1))
+            parts.append((re[:, :-1] * re[:, 1:]).sum(1))
+        h = self.ctx(torch.cat(parts, dim=-1))
+        ce = self.char_emb(cand_chars)                # [B, C, CAND, E]
+        c = ce.reshape(b, cand_chars.shape[1], -1)
+        cparts = [c, cand_feats]
+        if self.repr_mode == 'i2':
+            first = ce[:, :, 0]                       # [B, C, E]
+            cparts.append(first * le[:, -1][:, None, :])
+            cparts.append(first * re[:, 0][:, None, :])
+        c = self.cand(torch.cat(cparts, dim=-1))
         hx = h[:, None, :].expand(-1, c.shape[1], -1)
         logits = self.head(torch.cat([hx, c], dim=-1)).squeeze(-1)
         return logits.masked_fill(~cand_mask, -1e4)
@@ -263,6 +288,9 @@ def main():
     ap.add_argument('--margin-hard-lambda', type=float, default=0.0,
                     help='A：引擎選錯時，要求 score(gold) 領先 score(engine) 至少 m')
     ap.add_argument('--margin-hard-m', type=float, default=1.0)
+    ap.add_argument('--repr-mode', default='base', choices=['base', 'i1', 'i2'],
+                    help='棒⑭-I：局部搭配表徵。base=現況；i1=加相鄰字對交互；'
+                         'i2=i1＋候選條件化交互。視窗仍固定 ±6')
     ap.add_argument('--subgroup-lambda', type=float, default=0.0,
                     help='棒⑭-G：**只**對「引擎已選對、單字節點、目標字＝指定字」'
                          '這個子群加 margin penalty。不是 global hinge——'
@@ -416,7 +444,7 @@ def main():
           f'{100 * w[tr_idx][single_tr].sum() / eff_all:.1f}%'
           f'（筆數佔比 {100 * single_tr.mean():.1f}%）')
 
-    model = NodeExpert(len(itos), len(stos)).to(device)
+    model = NodeExpert(len(itos), len(stos), repr_mode=args.repr_mode).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     print(f'參數 {n_params:,}  fp32 {n_params * 4 / 1e6:.1f}MB  device={device}')
 
