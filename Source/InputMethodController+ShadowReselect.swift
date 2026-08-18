@@ -215,12 +215,20 @@ extension McBopomofoInputMethodController {
             _ = LanguageModelManager.noteSoftPersonalization(
                 previous: prevForUOM, reading: reading, word: chosen)
 
-            // R2: correction log with real left context + wrong_char.
-            ManualCorrectionLog.append(
+            // R2: correction log with real left context + engine's own choice.
+            // Schema v2 (baton 19): oldValue is the committed value the engine
+            // produced, captured before the replace — not reconstructed.
+            // The post-commit reselect path has no live lattice here, so the
+            // candidate set is recorded as explicitly unavailable (count -1)
+            // rather than guessed or re-generated.
+            ManualCorrectionLog.appendV2(
                 reading: reading,
                 leftContext: leftContext,
-                wrongChar: oldValue,
-                chosen: chosen)
+                engineChoice: oldValue,
+                userChoice: chosen,
+                source: ManualCorrectionLog.sourceReselect,
+                candidateValues: [],
+                candidateCount: -1)
 
             clearShadowRecomposeContext()
             keyHandler.clear()

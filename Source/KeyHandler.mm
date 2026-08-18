@@ -345,6 +345,46 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
 - (void)fixNodeWithReading:(NSString *)reading value:(NSString *)value originalCursorIndex:(size_t)originalCursorIndex useMoveCursorAfterSelectionSetting:(BOOL)flag
 {
     size_t actualCursor = self.actualCandidateCursorIndex;
+
+    // Baton 19 instrumentation: capture what the ENGINE had chosen, and the
+    // candidate set it offered, BEFORE any override is applied.
+    //
+    // This must happen here and nowhere later: overrideCandidate() calls
+    // Node::selectOverrideUnigram(), which mutates the node in place, and
+    // _latestWalk holds shared_ptrs to those same nodes. Reading the walk
+    // afterwards would return the user's pick and silently label every event
+    // NOOP_RESELECT. Reconstructing it from the post-correction surface is
+    // exactly what baton 18 showed to be unrecoverable.
+    //
+    // Read-only: no walk, no re-ranking, no override. candidatesAt() is the
+    // same lattice lookup the candidate window already performs, and this runs
+    // once per explicit candidate pick — never on the per-keystroke path.
+    NSString *engineChoiceBefore = @"";
+    NSMutableArray<NSString *> *offeredCandidates = [NSMutableArray array];
+    NSInteger offeredCandidateCount = -1;
+    {
+        size_t pastNode = 0;
+        auto beforeIter = _latestWalk.findNodeAt(actualCursor, &pastNode);
+        if (beforeIter != _latestWalk.nodes.cend()) {
+            size_t nodeIndex = static_cast<size_t>(
+                std::distance(_latestWalk.nodes.cbegin(), beforeIter));
+            engineChoiceBefore = @(_latestWalk.chosenValueAt(nodeIndex).c_str());
+        }
+        auto offered = _grid->candidatesAt(actualCursor);
+        std::string wantReading = reading.UTF8String;
+        NSInteger matching = 0;
+        for (const auto &c : offered) {
+            if (c.reading != wantReading) {
+                continue;
+            }
+            ++matching;
+            if (offeredCandidates.count < (NSUInteger)ManualCorrectionLog.maxLoggedCandidates) {
+                [offeredCandidates addObject:@(c.value.c_str())];
+            }
+        }
+        offeredCandidateCount = matching;
+    }
+
     Formosa::Gramambular2::ReadingGrid::Candidate candidate(reading.UTF8String, value.UTF8String);
     if (!_grid->overrideCandidate(actualCursor, candidate)) {
         return;
@@ -367,17 +407,23 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
     }
 
     // Stage-3 feedback: every manual candidate pick is a hard-fork sample.
-    // Schema v1: left_context = full composing surface after pick; wrong_char
-    // empty (composing path has no separate "before" surface to log).
+    // Schema v2 (baton 19): engine_choice now comes from the pre-override walk
+    // captured at the top of this method, so this path is no longer
+    // UNKNOWN_ORIGINAL. left_context keeps its existing v1 meaning (the
+    // composing surface *after* the pick) — deliberately unchanged, so this
+    // adds no new content collection.
     {
         NSMutableString *ctx = [NSMutableString string];
         for (size_t i = 0; i < _latestWalk.nodes.size(); ++i) {
             [ctx appendString:@(_latestWalk.chosenValueAt(i).c_str())];
         }
-        [ManualCorrectionLog appendWithReading:reading
-                                   leftContext:ctx
-                                     wrongChar:@""
-                                        chosen:value];
+        [ManualCorrectionLog appendV2WithReading:reading
+                                     leftContext:ctx
+                                    engineChoice:engineChoiceBefore
+                                      userChoice:value
+                                          source:ManualCorrectionLog.sourceComposing
+                                 candidateValues:offeredCandidates
+                                  candidateCount:offeredCandidateCount];
     }
 
     if (currentNode != nullptr && flag && Preferences.moveCursorAfterSelectingCandidate) {

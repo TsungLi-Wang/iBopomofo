@@ -16,8 +16,12 @@
    `wrong_char = oldValue`（引擎原本的字）、`left_context` 是真正的左文。
    **這才是「引擎錯了、使用者改掉」的事件。**
 
-## 兩種 schema
+## 三種 schema（依欄位數分派，彼此不撞）
 
+* **v2（10 欄，棒⑲ 起）**：`2 \t ISO8601 \t reading \t left_context \t
+  engine_choice \t user_choice \t event_type \t source \t candidate_count \t
+  candidate_values` —— 前 6 欄與 v1 版面對齊，`engine_choice` 就在 v1 的
+  `wrong_char` 位置。**這是唯一能可靠判定引擎原本選什麼的格式。**
 * v1（6 欄）：`schemaVer \t ISO8601 \t reading \t left_context \t wrong_char \t chosen`
 * v0（4 欄，`272f46ee` 之前）：`ISO8601 \t reading \t left_context \t chosen`
   —— 由結構推斷（185 筆中 184 筆的讀音音節數等於第 4 欄長度），標 `INFERRED`。
@@ -63,12 +67,24 @@ def parse(path):
             if not line.strip():
                 continue
             f = line.split("\t")
-            if len(f) == 6 and f[0] == "1":
+            if len(f) == 10 and f[0] == "2":
+                ts, reading, ctx = f[1], f[2], f[3]
+                wrong, chosen = f[4], f[5]
+                ev, src, ccount, cvals = f[6], f[7], f[8], f[9]
+                ver, prov = "v2", "OBSERVED"
+                try:
+                    ccount = int(ccount)
+                except ValueError:
+                    ccount = -1
+                cands = [c for c in cvals.split("|") if c] if cvals else []
+            elif len(f) == 6 and f[0] == "1":
                 ts, reading, ctx, wrong, chosen = f[1], f[2], f[3], f[4], f[5]
                 ver, prov = "v1", "OBSERVED"
+                ev, src, ccount, cands = "", "", -1, []
             elif len(f) == 4 and ISO.match(f[0]):
                 ts, reading, ctx, wrong, chosen = f[0], f[1], f[2], "", f[3]
                 ver, prov = "v0", "INFERRED"
+                ev, src, ccount, cands = "", "", -1, []
             else:
                 rows.append({"lineno": lineno, "schema": "UNKNOWN",
                              "tier": "C", "provenance": "UNPARSEABLE"})
@@ -89,13 +105,23 @@ def parse(path):
                 # 含 chosen 本身；ShadowReselect 的才是真正左文。旗標記下來。
                 "left_context": ctx,
                 "left_context_semantics": (
-                    "true_left_context" if wrong else "composing_surface_after_pick"
+                    "true_left_context" if src == "reselect"
+                    else "composing_surface_after_pick"
                 ),
+                "source": src or ("reselect" if wrong else "composing"),
+                "candidate_count": ccount,
+                "candidate_values": cands,
+                "candidate_truncated": bool(cands) and ccount > len(cands),
+                "user_choice_in_candidates": (chosen in cands) if cands else None,
                 "engine_output": wrong or None,
                 "corrected_value": chosen,
                 # 依 PART 9：這是使用者修正，不是語言學金標
                 "label_status": "USER_CORRECTION",
                 "gold_confidence": "unverified",
+                "event_type": ev or (
+                    "UNKNOWN_ORIGINAL" if not wrong
+                    else "NOOP_RESELECT" if wrong == chosen
+                    else "TRUE_CORRECTION"),
                 "tier": ("A" if (wrong and wrong != chosen)
                          else "A-noop" if wrong else "B"),
                 "is_noop": bool(wrong) and wrong == chosen,
@@ -145,7 +171,16 @@ def main():
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
 
     tier = collections.Counter(r["tier"] for r in rows)
+    ver = collections.Counter(r.get("schema") for r in rows)
+    ev = collections.Counter(r.get("event_type") for r in rows if r["tier"] != "C")
     print(f"事件總數 {len(rows)}")
+    print(f"  schema: " + "、".join(f"{k} {v}" for k, v in sorted(ver.items())))
+    print(f"  event_type: " + "、".join(f"{k} {v}" for k, v in ev.most_common()))
+    cov = [r for r in rows if r.get("user_choice_in_candidates") is not None]
+    if cov:
+        hit = sum(1 for r in cov if r["user_choice_in_candidates"])
+        print(f"  candidate coverage（有候選集的 {len(cov)} 筆）: "
+              f"{hit}/{len(cov)} = {hit/len(cov):.1%}")
     print(f"  A   可完整 replay（引擎真的錯了）  : {tier['A']}")
     print(f"  A-noop 重選了同一個字，非引擎錯誤  : {tier['A-noop']}")
     print(f"  B   部分 replay（無 engine_output）: {tier['B']}")
