@@ -7,7 +7,12 @@
 // 沒有這個區分，就只能把兩者混報成「金標不在該節點候選裡」。
 //
 // 讀一份每行一個 key（讀音，多音節用 `-` 連）的檔，輸出
-//   key<TAB>value1|value2|…
+//   key<TAB>value1:score1|value2:score2|…
+//
+// ⚠️ `ParselessLM::getUnigrams` **不排序** —— 排序是 ReadingGrid 內部的
+//    `ScoreRankedLanguageModel` 做的。所以輸出順序是詞庫列順序，
+//    **不是詞頻名次**。要談名次的下游一定要自己依 score 排序。
+//    （棒⑱ 踩過這個坑；棒⑭-O 只用它判斷「在不在」，與順序無關，結論不受影響。）
 // 只讀 data.txt，不寫任何東西，不碰 production。
 //
 // 用法：lexicon_probe <keys.txt> <data.txt> <out.tsv>
@@ -34,7 +39,7 @@ int main(int argc, char** argv) {
     std::cerr << "FATAL: io\n";
     return 1;
   }
-  out << "key\tvalues\n";
+  out << "key\tvalues\n";  // values = v:score|v:score|…
   std::string key;
   long n = 0, hit = 0;
   while (std::getline(in, key)) {
@@ -48,7 +53,7 @@ int main(int argc, char** argv) {
     out << key << "\t";
     for (size_t i = 0; i < us.size(); ++i) {
       if (i) out << "|";
-      out << us[i].value();
+      out << us[i].value() << ":" << us[i].score();
     }
     out << "\n";
   }
