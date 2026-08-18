@@ -27,7 +27,22 @@ gh issue list                               # 目前開著的工作
 
 ---
 
-## 三行同步狀態（2026-08-18 收工 · 棒⑭-I）
+## 三行同步狀態（2026-08-18 收工 · 棒⑭-J）
+
+1. **`NO-GO / CALIBRATION FAILED`。** 完整掃 τ=0.00–3.00，R4 與 I2 都沒有任何 τ
+   通過事前 gate。原因是結構性的：壓住 `作→作` damage 需 τ≥2.86、保住
+   `作→做` rescue 需 τ≤1.16，**兩區間不相交**；而且加權 net 的 95% 下界
+   **整條曲線都是負的**。細節：
+   `Source/Engine/eval/analysis/node-expert-calibration.md`。
+2. **但表徵這條路本身是對的**：修正估計式後，I2 在**每一個出手量**上的
+   precision 都高於 R4（46–50% vs 38–44%），net 在多數操作點也較高。
+   **representation improvement survives operating-point normalization。**
+3. **⚠️ 更正一個估計式缺陷（會影響先前數字）**：加權 damage 原本用全部 cell 分層，
+   但非對角格常只有 1–3 列，IPW 會把單一事件放大 —— I2 的 3.91% 裡有 **2.09%
+   來自一個 2 列的格子**。已改成只在對角線格上估。
+   **棒⑭-I 報的 I2 加權 net −2.03% 更正為 −0.06%**（R4、I1 幾乎不受影響）。
+
+## 前一棒（2026-08-18 · 棒⑭-I）
 
 1. **表徵改善是真的：把局部搭配明確編碼進去就有效。** I2（候選條件化的
    相鄰字對交互，只多 **5.1%** 參數）在 representation diagnostic 上
