@@ -79,7 +79,10 @@
 //
 // 用法：
 //   path_score_dump <sentences.jsonl> <data.txt> <word-bigrams.tsv>
-//                   <path-char-lstm.bin> <out.tsv> [nbest=10]
+//                   <path-char-lstm.bin> <out.tsv> [nbest=10] [all=0]
+//
+// all=1 連**解對的句子**也倒（棒⑭-R 的對稱誤傷分析需要）。
+// 預設 0 ＝ 只倒解錯的句子，與棒⑭-Q 的輸出逐位相同。
 
 #include <cmath>
 #include <cstdlib>
@@ -103,8 +106,8 @@ using iBopomofo::ParselessLM;
 namespace {
 
 constexpr const char* kHeader =
-    "sid\tpath_idx\tn_err\tis_walk\tis_gold\twalk_score\tunigram_sum\t"
-    "pmi\trnn\tfused\n";
+    "sid\tpath_idx\tn_err\tis_walk\tis_gold\tengine_correct\twalk_score\t"
+    "unigram_sum\tpmi\trnn\tfused\n";
 
 std::vector<std::string> utf8Chars(const std::string& s) {
   std::vector<std::string> out;
@@ -206,6 +209,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   const size_t NB = argc > 6 ? std::stoul(argv[6]) : 10;
+  const bool emitAll = argc > 7 && std::string(argv[7]) == "1";
   const double kNu = 0.75;
 
   ParselessLM lm;
@@ -242,7 +246,8 @@ int main(int argc, char** argv) {
     auto w = grid.walk();
     std::string walkOut;
     for (size_t n = 0; n < w.nodes.size(); ++n) walkOut += w.chosenValueAt(n);
-    if (walkOut == text) continue;   // 只看解錯的句子
+    const bool engineCorrect = (walkOut == text);
+    if (engineCorrect && !emitAll) continue;   // 預設只看解錯的句子
     ++sents;
 
     auto nbest = grid.walkNBest(NB);
@@ -286,7 +291,7 @@ int main(int argc, char** argv) {
       }
       out << sid << "\t" << pi << "\t" << e << "\t"
           << (joined == walkOut ? 1 : 0) << "\t" << (e == 0 ? 1 : 0) << "\t"
-          << rp.walkScore << "\t" << uni << "\t" << (rp.walkScore - uni)
+          << (engineCorrect ? 1 : 0) << "\t" << rp.walkScore << "\t" << uni << "\t" << (rp.walkScore - uni)
           << "\t" << rnns[pi] << "\t" << (rp.walkScore + kNu * rnns[pi])
           << "\n";
     }
