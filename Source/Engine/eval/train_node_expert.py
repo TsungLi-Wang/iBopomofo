@@ -167,8 +167,12 @@ def load_rows(path, itos, stos, args, sid_split=None):
                 # 的訓練樣本。
                 stats['drop_gold_truncated'] += 1
                 continue
+            tgt_i = (reading.split('-').index('ㄗㄨㄛˋ')
+                     if 'ㄗㄨㄛˋ' in reading.split('-') else -1)
             rows.append({
                 'sid': int(f[0]), 'span': int(f[5]),
+                'tgt_char': (chosen[tgt_i] if 0 <= tgt_i < len(chosen)
+                             and len(chosen) == len(reading.split('-')) else ''),
                 'split': split, 'kind': kind, 'reading': reading,
                 'gold': gold, 'chosen': chosen, 'gi': gi, 'cands': cands,
                 'left': f[12], 'right': f[13], 'right_empty': f[14] == '1',
@@ -217,11 +221,13 @@ def encode(rows, ci, si):
                 cchars=cchars, cfeat=cfeat, cmask=cmask, gold=gold, eng=eng)
 
 
-def batches(enc, idx, bs, device, weights=None):
+def batches(enc, idx, bs, device, weights=None, submask=None):
     for i in range(0, len(idx), bs):
         sel = idx[i:i + bs]
         extra = ((torch.from_numpy(weights[sel]).to(device),)
                  if weights is not None else ())
+        if submask is not None:
+            extra = extra + (torch.from_numpy(submask[sel]).to(device),)
         yield (torch.from_numpy(enc['left'][sel].astype(np.int64)).to(device),
                torch.from_numpy(enc['right'][sel].astype(np.int64)).to(device),
                torch.from_numpy(enc['syl'][sel].astype(np.int64)).to(device),
@@ -257,6 +263,12 @@ def main():
     ap.add_argument('--margin-hard-lambda', type=float, default=0.0,
                     help='A：引擎選錯時，要求 score(gold) 領先 score(engine) 至少 m')
     ap.add_argument('--margin-hard-m', type=float, default=1.0)
+    ap.add_argument('--subgroup-lambda', type=float, default=0.0,
+                    help='棒⑭-G：**只**對「引擎已選對、單字節點、目標字＝指定字」'
+                         '這個子群加 margin penalty。不是 global hinge——'
+                         '棒⑭-D 已證明 global 版會把 作→做 的 rescue 一起壓掉')
+    ap.add_argument('--subgroup-m', type=float, default=1.0)
+    ap.add_argument('--subgroup-char', default='作')
     ap.add_argument('--folds', default='',
                     help='folds.json（doc_id→fold）。給了就用 fold 切 train/dev，'
                          '取代 --dev-frac 的固定切法')
@@ -382,6 +394,16 @@ def main():
                   + '、'.join(f'{a}→{b} ×{float(np.clip((med / n) ** 0.5, *args.dir_clip)):.2f}'
                               for (a, b), n in sorted(cnt.items(), key=lambda x: -x[1])))
 
+    # ── 棒⑭-G：子群遮罩（只有這個子群會吃到 margin penalty）──
+    sub_mask = np.array([
+        bool(args.subgroup_lambda > 0 and (not r['hard']) and r['span'] == 1
+             and r['tgt_char'] == args.subgroup_char)
+        for r in rows])
+    if args.subgroup_lambda > 0:
+        print(f'子群（引擎選對·單字·目標字={args.subgroup_char}）：'
+              f'train {int(sub_mask[np.where(~is_dev)[0]].sum()):,} 筆'
+              f'（占 train {100 * sub_mask[np.where(~is_dev)[0]].mean():.2f}%）')
+
     pool = tr_idx
     eff_hard = w[tr_idx][is_hard[tr_idx]].sum()
     eff_all = w[tr_idx].sum()
@@ -421,7 +443,8 @@ def main():
         order = nprng.permutation(pool)
         tot = seen = 0
         t0 = time.time()
-        for *x, g, eg, sw in batches(enc, order, args.batch, device, w):
+        for *x, g, eg, sw, sm in batches(enc, order, args.batch, device, w,
+                                         sub_mask):
             logits = model(*x)
             # 逐樣本加權：加重難例，但**不動資料的 easy/hard 先驗**
             loss = (F.cross_entropy(logits, g, reduction='none') * sw).sum() \
@@ -431,6 +454,17 @@ def main():
             # 只要求 argmax 對，對這個差值沒有任何壓力。所以引擎選對時，
             # 只要有一點擾動就會把差值推過 τ 而誤觸發（作→作·單字 18/18 全改壞）。
             # 這裡明確地訓練那個差值，不動架構、不動特徵、不動 τ。
+            if args.subgroup_lambda > 0 and sm.any():
+                # 只在這個子群上要求「引擎的選擇要領先次高至少 m」。
+                # 其他所有樣本（含 作→做／作→座／做→X 的 hard 例）完全不受影響，
+                # 所以它們的 rescue signal 不會像 global hinge 那樣被壓掉。
+                masked = logits.clone()
+                masked.scatter_(1, eg[:, None], -1e4)
+                runner = masked.max(dim=1).values
+                s_eng2 = logits.gather(1, eg[:, None]).squeeze(1)
+                hinge = F.relu(args.subgroup_m - (s_eng2 - runner))
+                loss = loss + args.subgroup_lambda * (
+                    hinge * sm.float() * sw).sum() / sw.sum()
             if args.margin_easy_lambda > 0 or args.margin_hard_lambda > 0:
                 s_gold = logits.gather(1, g[:, None]).squeeze(1)
                 s_eng = logits.gather(1, eg[:, None]).squeeze(1)
