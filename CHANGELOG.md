@@ -8,6 +8,41 @@
 
 ## [Unreleased]
 
+### 內部（棒⑭-K～⑲ · 2026-08-17～18）：四條選字機制線收斂 → 全部關閉；改補產品側 instrumentation
+
+**使用者可見行為：零。未發版、未 merge、未 enable。**
+`Source/Data/`、`path-char-lstm.bin`、`reading_grid.{cpp,h}`、`NeuralLMPathScorer.cpp`、
+`NodeHomophoneExpert.{h,cpp}`、`ship-gate.sh`、`model-ab.sh` sha256 全程未變。
+
+分母統一為 **D2 ＝ 自然驗證集 74,649 字位中的 3,192 個 walk 錯字（4.28%）**。
+
+- **⑭-K～⑭-T（純分析）**：把節點層與路徑層量到底。
+  通用 Node Expert 條件 AUC **0.459**（低於隨機）→ DROP；
+  方向專屬 Node Expert 系統貢獻 **0.082% of D2** → DROP；
+  固定 top-10 的 learned reranker net **+53** < 權重 baseline **+69** → NO-GO。
+  `walkNBest` 是 beam DP（`kNBestHypK=8`），所以⑭-P 的「43.1% 連 top-200 都沒有」
+  不能當 scoring ceiling 讀；⑭-T 解開後：**73.3% 的錯誤是打分器真的偏好錯的那一句**。
+- **⑮（純分析）**：`a·unigram+b·pmi+c·rnn` 掃遍 5,022 組 ＝ **整個線性重打分家族的上界
+  只有 +85 字（0.114% 字位）**；放寬 beam 上限 **+41 字（0.055%）**。
+  四條線同時封頂的共同原因：`walkScore` 對 gold 的中位 Δ 是 **−1.06**。
+- **⑯–⑰（prototype，不上線）**：新增 `prototype/ccd/`（964k 參數、CPU 42 秒）。
+  訓練語料 document-held-out net **+1,543**，**跨語料 −266**；
+  ablation 顯示拿掉核心的 candidate×context interaction **net 反而上升** → NO-GO。
+- **⑱（產品資料盤點）**：新增 `Source/Engine/eval/build_product_benchmark.py`。
+  真實 `manual-correction.log` 584 筆只有 **15 筆**可完整 replay；
+  **六組研究目標只佔真實修正的 12.4%，87.6% 在六組外**；
+  日誌只在修正時寫入，**正確率結構上不可計算**。
+- **⑲（production instrumentation，本段唯一動到 production 的一棒）**：
+  correction log 新增 **schema v2**（v1 版面的嚴格超集，依欄位數分派 v2=10/v1=6/v0=4），
+  讓「打字中選字」路徑第一次記得下 `engine_choice`、`event_type`、候選集。
+  擷取點必須在 `overrideCandidate` **之前**（`selectOverrideUnigram` 會就地改 node）。
+  同時把 log writer 改成真正 fail-open（`FileHandle.write(_:)` 會拋 ObjC 例外，
+  Swift 接不到，等於一個診斷 log 可以弄掛輸入法）。
+  **選字行為未改，既有測試 165 項全綠**，新增 11 項測試。
+
+死路與方法學教訓已寫進 `docs/dead-ends.md`（B 節四條、E 節一整段）。
+完整報告在 `Source/Engine/eval/analysis/`。
+
 ### 內部（棒⑭ · 2026-08-17）：修正 Node Expert 的 training recipe，**仍 NO-GO**。零使用者可見行為、未發版
 
 引擎 C++ 一行未動（`NodeHomophoneExpert.{h,cpp}` 與棒⑬ 相同），
