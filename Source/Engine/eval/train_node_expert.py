@@ -257,6 +257,10 @@ def main():
     ap.add_argument('--margin-hard-lambda', type=float, default=0.0,
                     help='A：引擎選錯時，要求 score(gold) 領先 score(engine) 至少 m')
     ap.add_argument('--margin-hard-m', type=float, default=1.0)
+    ap.add_argument('--folds', default='',
+                    help='folds.json（doc_id→fold）。給了就用 fold 切 train/dev，'
+                         '取代 --dev-frac 的固定切法')
+    ap.add_argument('--fold', type=int, default=-1, help='這一輪拿哪個 fold 當 dev')
     ap.add_argument('--recipe', default='',
                     help='只是寫進 meta 的標籤，方便對照 R0/R1/R2/R3')
     ap.add_argument('--per-stratum', type=int, default=400,
@@ -274,8 +278,24 @@ def main():
                                           torch.backends.mps.is_available())
                           else 'cpu')
     itos, stos = build_vocab(args.nodes)
-    sid_split = (load_split_override(args.sentences, args.dev_frac)
-                 if args.sentences else None)
+    if args.folds:
+        # ── document-level k-fold（棒⑭-F）──
+        # 固定切法會把稀有方向一次吃光（做→坐 可訓練 0）；改成 fold 之後
+        # 每個節點在 k−1 個 fold 裡是訓練、在 1 個 fold 裡是 dev，
+        # 同一份文件永遠不跨邊。這是本棒**唯一**改動的東西。
+        fj = json.load(open(args.folds, encoding='utf-8'))
+        assign = fj['assign']
+        sid_split = {}
+        with open(args.sentences, encoding='utf-8') as fh:
+            for i, line in enumerate(fh, start=1):
+                d = json.loads(line)['doc_id']
+                sid_split[i] = ('dev' if assign.get(d, -1) == args.fold
+                                else 'train')
+        print(f'fold {args.fold}/{fj["k"]}（seed={fj["seed"]}）'
+              f'：dev 文件 {sum(1 for v in assign.values() if v == args.fold):,}')
+    else:
+        sid_split = (load_split_override(args.sentences, args.dev_frac)
+                     if args.sentences else None)
     rows, stats, ci, si = load_rows(args.nodes, itos, stos, args, sid_split)
     print(json.dumps(dict(stats), ensure_ascii=False, indent=2))
 
