@@ -8,6 +8,31 @@
 
 ## [Unreleased]
 
+### 內部（棒㉒-B · 2026-08-19）：個人化選字方法調查 —— UOM abstraction 判 DROP
+
+**使用者可見行為：零。純研究，未改任何一行 production 程式碼。**
+
+派 grok 做外部文獻與 production IME 調查（26 條引用），統治局做 repo 現況、
+selection-bias 分析與最終裁決，並**下載原文抽驗承重引用**：
+Adhikary & Vertanen 2023（`BG + PPM-12 = 0.75, 0.25`）、
+Wang et al. 2019（表 1 `B=5,L=0.1 → 0.024`、`L=1.0 → −0.019`、>500,000 clients）
+**皆逐項吻合，未發現捏造引用**。
+
+- **既有 user override model 判 DROP（不當主路徑）**：細 key ＋ 加分 ＋ correction-only，
+  三個各自已知會失敗的選擇疊在一起。**但 UOM 沒有 bug** —— 來回測試是綠的，
+  只是 observe/suggest 用同一個 grid，測的是「完全相同脈絡再現」，那正是規格本身。
+  **下一棒不要去抓蟲，要換的是 abstraction。**
+- **`用 correction 學排序` 整個家族判掉**：correction log 是 MNAR 樣本；
+  IPS／反事實 LTR 需要 propensity，而那正是缺的分母 —— 識別條件不成立。
+  → correction log 唯一安全用法是**否決票**，不是偏好票。
+- **下一個值得驗的機制**：吃**已定案全文**的 recency cache／PPM ＋ 小 λ 插值 ＋ 衝突讀音棄權；
+  統治局另補「負向記憶護欄」（外勤引了 Jiang 2019 退化迴圈卻沒套用到自己的第一名）。
+- **沒有任何一個判 GO**：全部卡在沒有 decision denominator。
+  這是**第四條**獨立推理路徑指向 `docs/decisions/0009` 的同一個動作。
+
+新增 `docs/research/`（調查報告＋外勤原始回報歸檔）。未 merge、未 enable、未發版。
+
+
 ### 內部（棒⑳ · 2026-08-19）：Research-to-Product Decision Gate —— 三個候選方向拍板
 
 **使用者可見行為：零。只動文件，未改任何一行 production 程式碼。**

@@ -210,6 +210,16 @@
   `SHIP_GATE_STATUS=CORE`（數字還跟 v2.17.0 一模一樣）。
   換權重要用模型對模型的逐題配對（McNemar），CORE 只是出貨的必要條件。
 
+- **用 correction log 去學「使用者偏好」再改排序（2026-08-19 棒㉒-B，整個家族 DROP）。**
+  日誌只在使用者出手時寫入 → 是 MNAR／sample-selection 樣本，不是偏好樣本。
+  文獻上的校正法（IPS／反事實 LTR／MNAR）全都需要 propensity
+  `P(這次決策被寫進 log)`，而那正是我們沒有的分母 —— **這是識別條件不成立，不是效率差**，
+  換更好的估計量沒有用。連 self-normalized IPS 都缺正規化常數。
+  → **correction log 唯一安全的用法是當否決票（「這個值曾被改掉」），不能當偏好票。**
+  這一條同時判掉 per-reading entropy gate（閘門本身建在有偏母體上）與 L1 back-off 的原始動機。
+  證據：`docs/research/personalization-methods-survey.md` §9.3（Joachims 2017、Saito 2020、
+  Swaminathan & Joachims 2015、Paulik 2021 皆已抽驗）。
+
 - **拿隨機語料句或「難例挖掘」訓 v2d。** 15.5 萬隨機句＝沒學到（送分題）；
   8,762 挖掘難例＝封存集 −12。3,262 題的 EX1166 train 反而 +16。
   **決定成敗的是訓練資料的分布，不是量也不是乾淨度。**

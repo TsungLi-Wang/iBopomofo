@@ -52,6 +52,13 @@ gh issue list                               # 目前開著的工作
    （擷取點必須在 `overrideCandidate` **之前**，見 `Source/Engine/eval/analysis/baton19-product-instrumentation.md`），
    並順手把 log writer 改成真正 fail-open。既有測試 165 項全綠、行為未變、未發版。
 
+5. **㉒-B：個人化方法調查（派 grok 外部研究，統治局抽驗＋裁決）。**
+   **既有 UOM 這個 abstraction 判 DROP（不當主路徑）**，`用 correction 學排序` **整個家族判掉**
+   —— 沒有 propensity 就是識別條件不成立（`dead-ends` B 節新條目）。
+   下一個值得驗的機制換了訊號：**吃已定案全文**做 recency cache／PPM ＋ 小 λ 插值 ＋ 衝突讀音棄權，
+   外加統治局補的負向記憶護欄。**但沒有任何一個判 GO** —— 全部卡在同一個地方：沒有分母算不出 damage。
+   文件：`docs/research/personalization-methods-survey.md`。
+
 4. **⑳：decision gate，不寫模型、不改行為。** 三個候選方向拍板（見下），
    並查出六個「文件說的 ≠ 機器上的」落差，最重要的是 **D1：⑲ 的儀器根本沒裝上**。
    本棒只動文件。
