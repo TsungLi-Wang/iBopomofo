@@ -85,6 +85,11 @@ gh issue list                               # 目前開著的工作
    分析時 **2026-08-19T04:21 之前的 v2 事件一律排除**。
 3. **census 的分子是「使用者手選次數」，不是「引擎錯誤數」。** 沒察覺的錯不在分子裡。
    **這仍然不是引擎正確率。**
+4. **真實資料起點 = `2026-08-19T05:06:35Z`**（棒㉔ 健檢確認）。在此之前的
+   census 與 v2 correction 全是測試／自動化產物，分析時一律排除。
+5. **分母用 census 的 `n_nodes`，分子用 correction log 的 v2 事件（兩種 source 都算）。**
+   census 自帶的 `n_user_picks` **只涵蓋 composing 路徑** —— 定案後的 reselect 修正
+   寫進 correction log，但那次定案的 census 行早就寫出去了。它不是完整分子。
 
 **下一棒該做的是等，不是做。** 累積到
 **≥ 300 筆 TRUE_CORRECTION 或滿 21 天（先到者為準）** 才開始分析，產出第一版

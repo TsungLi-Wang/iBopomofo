@@ -8,6 +8,25 @@
 
 ## [Unreleased]
 
+### 內部（棒㉔ · 2026-08-19）：instrumentation 健檢 —— **HEALTHY**
+
+**未修改任何 production 程式碼。** 純驗收。
+
+- **測試污染檢查通過（本棒最重要的一項）**：跑完 170 項測試，
+  `decision-census.log` 與 `manual-correction.log` 的 **SHA256 完全未變**。
+- **真實資料起點確定為 `2026-08-19T05:06:35Z`**。在此之前的全是測試／自動化產物：
+  ⑲ 的 XCTest host（v2 ×4）、棒㉓ 測試套件（v2 ×2）、棒㉓ 的 e2e 腳本（census ×2）。
+  **schema v2 至今 0 筆真實使用者 correction。**
+- **關鍵性質已在真實使用下驗證**：13:06 那筆是被動接受引擎輸出 ——
+  census +1 而 correction log 不變。**分母不只在修正時增加。**
+- **記錄一個語意限制（不是 bug）**：定案後的 reselect 修正不計入 census 的
+  `n_user_picks`。分析時分母用 census `n_nodes`、分子用 correction log 的 v2 事件。
+- 尚未實機驗證：手選候選、reselect、NOOP_RESELECT。現有工具不支援候選窗操作，
+  依 `dead-ends` F 節不為此蠻幹。
+
+判定與完整數據見 `docs/decisions/0010`。**下一步是等資料，不是做東西。**
+
+
 ### 內部（棒㉓ · 2026-08-19）：decision census 上線 —— 錯誤率第一次有分母
 
 **使用者可見行為：零。** 未改選字、ranking、候選生成、decoding、LM、beam。
