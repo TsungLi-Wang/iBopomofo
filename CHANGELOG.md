@@ -35,6 +35,20 @@
 **不是警訊，但也還不是證據**。判定因此收斂為
 **分母 HEALTHY、分子未經 production 證實**。
 
+**第三次量測（棒㉕ · 14:16，快照 `2026-08-19T06:16:34Z`）**：
+**棒㉔ 的懸念解除 —— 分子路徑會動。** 真實 v2 出現 3 筆
+（`TRUE_CORRECTION` 1、`NOOP_RESELECT` 2），census 真實定案 13 → **75**。
+
+逐筆核對三筆真實 v2：`engine_choice` 皆非空、分類與 `engine==user` 皆一致、
+候選截斷可偵測（cand=45 那筆列出 16 個）、`user_choice` 皆在候選集內。
+
+**分子／分母交叉驗證通過**：census 的 composing 手選數 **3** ＝ 真實 v2 事件數 **3**。
+兩個獨立寫入點（census 由定案觸發、correction 由手選觸發）數到同一個數字 ——
+這比任何單邊檢查都硬。
+
+判定升為 **INSTRUMENTATION HEALTHY（分母＋分子）**。
+但進度是 `TRUE_CORRECTION` **1 / 300**、第 **1 / 21** 天 —— **WAIT**。
+
 判定與完整數據見 `docs/decisions/0010`。**下一步是等資料，不是做東西。**
 
 
