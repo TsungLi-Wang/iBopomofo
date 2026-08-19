@@ -14,6 +14,17 @@
   冷 UOM 下引擎本來就選「你好」（−5.18 > −6.09）。**別再去查詞庫或 ranking。**
   證據：CHANGELOG v2.17.1；修法＝XCTest 環境不 load／save UOM 檔 + 每測清空。
 
+- **新增「會寫檔」的 instrumentation 時，XCTest 會把假資料寫進你自己的真實檔（2026-08-19 棒㉓ 踩到）。**
+  單元測試會驅動真的 KeyHandler commit／選字路徑，所以 log 的寫入端在測試中照樣開火：
+  一次測試跑完，`decision-census.log` 多了 **17 筆假定案**，`manual-correction.log`
+  多了 **2 筆假 v2 事件**。回頭查才發現 **⑲ 那 4 筆「實機驗證」的 v2 事件也是測試產物** ——
+  也就是說 v2 至今**沒有任何一筆真實使用者資料**。
+  這是本檔 A 節第一條（UOM 檔被測試污染）的同一個病，換到新的檔案上。
+  → **凡是新增寫使用者資料檔的程式碼，第一件事就是加
+  `getenv("XCTestConfigurationFilePath")` 防護**（既有寫法見
+  `LanguageModelManager.mm` 的 `LTIsRunningUnitTests`），
+  **並且驗收時要實際比對「測試前後檔案行數不變」**，不能只看測試綠。
+
 - **「測試綠、碼寫好」不代表儀器真的在收資料（2026-08-19 棒⑳ 查出）。**
   ⑲ 的 schema v2 instrumentation 寫好、11 項新測試＋165 項既有測試全綠、文件寫完 ——
   但**從來沒有裝進實際在用的輸入法**。安裝中的是 build 2325（`strings` 搜 `appendV2` 命中 0），

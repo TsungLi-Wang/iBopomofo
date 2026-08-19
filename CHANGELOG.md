@@ -29,6 +29,15 @@
 - 為什麼要這個：⑱ 量到正確率結構上不可計算；㉒-B 進一步確立 correction-only
   是 MNAR 樣本，**事後任何估計量都救不回來**。只能去數決策本身。
 
+- **同棒修掉一個 ⑲ 遺留的資料污染洞**：單元測試會驅動真的 commit／選字路徑，
+  所以兩個 log 的寫入端在 XCTest 下照樣開火。實測一次測試跑完，
+  census 多 17 筆假定案、correction log 多 2 筆假 v2 事件。
+  回頭查證：**⑲ 文件裡那 4 筆「實機驗證」的 v2 事件同樣是測試產物** ——
+  v2 至今沒有任何一筆真實使用者資料。
+  兩個 log 都補上 `XCTestConfigurationFilePath` 防護
+  （沿用 `LanguageModelManager.mm` 既有的 `LTIsRunningUnitTests` 寫法），
+  並以「測試前後檔案行數不變」實際驗收。已清掉被污染的 census 檔。
+
 測試 **170 項全綠**（原 165 ＋ 新增 5）。`ship-gate.sh` **CORE 全過**
 （自然語料救1壞0、X 語料救3壞0）。doc-check 全過。
 

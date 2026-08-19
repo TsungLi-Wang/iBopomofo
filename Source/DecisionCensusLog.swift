@@ -55,6 +55,16 @@ final class DecisionCensusLog: NSObject {
         return base.appendingPathComponent("decision-census.log", isDirectory: false).path
     }
 
+    /// The XCTest host sets this. Unit tests drive the real KeyHandler commit
+    /// path, so without this guard a test run appends fabricated events to the
+    /// developer's own log — which is precisely the data this instrumentation
+    /// exists to make trustworthy. Same guard as the user override cache
+    /// (`LTIsRunningUnitTests` in LanguageModelManager.mm); see dead-ends.md A
+    /// for the earlier round of this exact bug polluting the UOM file.
+    private static var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     /// Record one committed composing buffer.
     ///
     /// `nodeCount` is the denominator contribution; `overriddenCount` is the
@@ -64,6 +74,7 @@ final class DecisionCensusLog: NSObject {
     ///
     /// Best-effort: any failure returns silently.
     @objc static func append(nodeCount: Int, charCount: Int, overriddenCount: Int) {
+        guard !isRunningUnitTests else { return }
         guard Preferences.enableManualCorrectionLog else { return }
         guard nodeCount > 0 else { return }
         let ts = ISO8601DateFormatter().string(from: Date())

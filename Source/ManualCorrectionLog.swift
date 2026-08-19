@@ -67,12 +67,24 @@ final class ManualCorrectionLog: NSObject {
     }
 
     /// Schema v1: schemaVer \t ISO8601 \t reading \t left_context \t wrong_char \t chosen
+
+    /// The XCTest host sets this. Unit tests drive the real KeyHandler commit
+    /// path, so without this guard a test run appends fabricated events to the
+    /// developer's own log — which is precisely the data this instrumentation
+    /// exists to make trustworthy. Same guard as the user override cache
+    /// (`LTIsRunningUnitTests` in LanguageModelManager.mm); see dead-ends.md A
+    /// for the earlier round of this exact bug polluting the UOM file.
+    private static var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     @objc static func append(
         reading: String,
         leftContext: String,
         wrongChar: String,
         chosen: String
     ) {
+        guard !isRunningUnitTests else { return }
         guard Preferences.enableManualCorrectionLog else { return }
         guard !reading.isEmpty, !chosen.isEmpty else { return }
         let esc: (String) -> String = {
@@ -102,6 +114,7 @@ final class ManualCorrectionLog: NSObject {
         candidateValues: [String],
         candidateCount: Int
     ) {
+        guard !isRunningUnitTests else { return }
         guard Preferences.enableManualCorrectionLog else { return }
         guard !reading.isEmpty, !userChoice.isEmpty else { return }
         let eventType = classify(engineChoice: engineChoice, userChoice: userChoice)
