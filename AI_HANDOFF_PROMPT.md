@@ -87,7 +87,11 @@ gh issue list                               # 目前開著的工作
    **這仍然不是引擎正確率。**
 4. **真實資料起點 = `2026-08-19T05:06:35Z`**（棒㉔ 健檢確認）。在此之前的
    census 與 v2 correction 全是測試／自動化產物，分析時一律排除。
-5. **分母用 census 的 `n_nodes`，分子用 correction log 的 v2 事件（兩種 source 都算）。**
+5. **累積期間唯一要盯的事：第一筆真實 v2 correction 何時出現。**
+   棒㉔ 第二次量測：census 已有 13 筆真實定案，但 correction v2 **0 筆**，
+   分子路徑在此 build 上還沒有 production 證據（0 筆在統計上正常，不是警訊）。
+   **若滿 48 小時仍為 0 而 census 持續增加，才需要查分子路徑。**
+6. **分母用 census 的 `n_nodes`，分子用 correction log 的 v2 事件（兩種 source 都算）。**
    census 自帶的 `n_user_picks` **只涵蓋 composing 路徑** —— 定案後的 reselect 修正
    寫進 correction log，但那次定案的 census 行早就寫出去了。它不是完整分子。
 
