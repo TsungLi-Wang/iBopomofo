@@ -27,7 +27,7 @@ gh issue list                               # 目前開著的工作
 
 ---
 
-## 三行同步狀態（2026-08-18 收工 · 棒⑲）
+## 三行同步狀態（2026-08-19 收工 · 棒⑳ decision gate）
 
 1. **⑭–⑮：四條選字機制線全部量到上限，全部關閉。** 分母是 D2 ＝ 自然驗證集
    74,649 字位中的 3,192 個 walk 錯字（4.28%）。通用 Node Expert **DROP**
@@ -52,19 +52,44 @@ gh issue list                               # 目前開著的工作
    （擷取點必須在 `overrideCandidate` **之前**，見 `Source/Engine/eval/analysis/baton19-product-instrumentation.md`），
    並順手把 log writer 改成真正 fail-open。既有測試 165 項全綠、行為未變、未發版。
 
+4. **⑳：decision gate，不寫模型、不改行為。** 三個候選方向拍板（見下），
+   並查出六個「文件說的 ≠ 機器上的」落差，最重要的是 **D1：⑲ 的儀器根本沒裝上**。
+   本棒只動文件。
+
 ## 下一刀
 
-**不要再開第五條選字機制線。** 證據已經很一致：
-可爭取空間都在「全語料字位 0.1% 量級」，而真實使用者修正的分布跟 PTT 語料研究的六組**幾乎不重疊**。
+**不要再開第五條選字機制線。** 證據已經很一致：可爭取空間都在「全語料字位 0.1% 量級」，
+而真實使用者修正的分布跟 PTT 語料研究的六組**幾乎不重疊**。
 
-下一步的合理選項（依成本排序，**尚未拍板**）：
+**棒⑳ 已經把三個候選方向拍板了 —— 判定寫在
+[`docs/decisions/0009`](docs/decisions/0009-下一個產品方向是先讓儀器上線.md)，動手前讀那份。**
 
-1. **讓 ⑲ 的 v2 資料累積起來**（零成本，只要繼續用）。目前 552 筆歷史事件是
-   `UNKNOWN_ORIGINAL` 無法回填；新事件開始就有 `engine_choice` 與候選集。
-2. **決定要不要補「正確率分母」**。沒有它就永遠算不出 net／damage。
-   這是產品／隱私決策，不是研究題。
-3. 若要再碰模型，證據指向的不是重排器，而是**語言模型本身**
-   —— 但 ⑭-T 顯示 73.3% 的錯誤是打分器真的偏好錯的那句，那是大工程。
+```
+A 讓 v2 資料累積 ＋ B 補正確率分母  →  GO（合併成同一個 build）
+C 動語言模型本身                    →  WAIT
+SEI（本棒指令提出，repo 內零記錄）  →  WAIT
+```
+
+**拍板的關鍵是一個文件與機器的落差**：⑲ 的 instrumentation 寫好、測綠了，
+**但從來沒進到實際在用的輸入法**（安裝中的是 2.17.1 / build 2325，`strings` 搜 `appendV2` 命中 0，
+log 內 v2 只有 4 筆測試事件）。所以「零成本，只要繼續用」實際上是 **0 筆／天**——
+而使用者每天真的在產約 **40 筆**修正，全被記成沒有 `engine_choice` 的舊格式。
+**資料不是沒有，是格式錯；每過一天就再損失約 40 筆。**
+
+**下一棒要做的事（規格在 0009 第 10 節，已寫到可直接開工）**：
+
+1. 實作分母計數器（在 `Source/` 下新增 DecisionCensusLog.swift，**尚未存在**；純計數、零文字），
+   掛在 `KeyHandler.mm` 三處現成的 `snapshotCharacterShadowUnits` 之後。
+   **刻意不在 commit 路徑上呼叫 `candidatesAt()`**（會加 O(n) lattice 查詢）。
+2. 補 `scripts/correction-census.sh` 認得 schema v2（現在把 v2 行歸到「舊格式」）。
+3. 全測試 ＋ `e2e-typing-check.sh` ＋ `ship-gate.sh` ＋ 量 commit 延遲。
+4. **請 Johnny 拍板**是否把這個 build 裝成日常輸入法（研究分支上線 = 他的決定）。
+5. 裝上後**等資料**。滿 300 筆 `TRUE_CORRECTION` 或 21 天才開始分析，
+   **在那之前不要開新的研究線**。
+
+**停止條件**：打字延遲或穩定度退步 → 立刻退版。
+滿 21 天且 `TRUE_CORRECTION` < 100 → 回頭檢討 `docs/decisions/0003` 的賭注本身，
+**不要再換一種記錄方式**。
 
 **全系列產物**：`Source/Engine/eval/analysis/`（`baton15-product-improvement.md` 起共 12 份）、
 `node-expert-*.md`、`full-*.md`、`path-*.md`、`gold-path-forced-score.md`。

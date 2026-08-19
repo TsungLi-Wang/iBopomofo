@@ -8,6 +8,32 @@
 
 ## [Unreleased]
 
+### 內部（棒⑳ · 2026-08-19）：Research-to-Product Decision Gate —— 三個候選方向拍板
+
+**使用者可見行為：零。只動文件，未改任何一行 production 程式碼。**
+
+把 `AI_HANDOFF_PROMPT.md` 留下的三個未拍板方向做完決策分析，判定寫進
+`docs/decisions/0009`：**A（讓 ⑲ 的 v2 資料累積）＋ B（補正確率分母）＝ GO，合併成同一個 build；
+C（動語言模型本身）＝ WAIT；SEI ＝ WAIT。**
+
+拍板的關鍵是本棒把文件主張逐條拿去對機器，查出六個落差，其中決定性的是：
+
+- **D1：⑲ 的 instrumentation 從來沒有裝進實際在用的輸入法。**
+  安裝檔是 build 2325（`strings` 搜 `appendV2` 命中 0），log 內 v2 只有 4 筆測試事件。
+  所以交班檔寫的「零成本，只要繼續用」，實際累積速率是 **0 筆／天**。
+- **D2：使用者每天真的在產約 40 筆修正事件**（v1 405 筆／10 個活躍日），
+  全被記成沒有 `engine_choice` 的舊格式。**資料不是沒有，是格式錯。**
+- **D3**：`scripts/correction-census.sh` 不認得 schema v2，把 v2 行歸進「舊格式」。
+- **D5**：SEI 在 repo 內零記錄，它不是 repo 曾經記過的候選。
+
+⑲ 的 Decision Census 盤點結果：`engine_choice`／`user_choice`／`event_type`／
+`candidate_count` 都已具備（碼層面），**唯一缺的是總 decision 數（分母）**，
+最小補法（純計數、零文字、commit 路徑單一 hook）已寫成可直接開工的規格。
+
+**未動**：`Source/` 全部、`Source/Data/`、模型權重、`ship-gate.sh`。
+未 merge、未 enable、未發版。
+
+
 ### 內部（棒⑭-K～⑲ · 2026-08-17～18）：四條選字機制線收斂 → 全部關閉；改補產品側 instrumentation
 
 **使用者可見行為：零。未發版、未 merge、未 enable。**
