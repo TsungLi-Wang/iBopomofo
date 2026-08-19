@@ -65,6 +65,43 @@ gh issue list                               # 目前開著的工作
 
 ## 下一刀
 
+**棒㉓ 已經把儀器裝上了（2026-08-19）。分母從今天開始累積，不要再重做這件事。**
+
+```
+安裝中的 build  GitRevision = 5ba17a96（棒㉓ 最後一個動到程式碼的 commit；之後只有文件 commit）
+分母            ~/Library/Application Support/iBopomofo/decision-census.log
+分子            manual-correction.log 的 schema v2
+查看            ./scripts/correction-census.sh
+```
+
+**⚠️ 三件會咬人的事**
+
+1. **版本號分不出新舊 build。** 安裝的是 2.17.1 / 2325，跟官方發布版**號碼相同**。
+   要確認哪個 build 在跑，看已安裝 app bundle 內 Info.plist 的 GitRevision 欄位，或
+   `strings … | grep DecisionCensusLog`。**若重裝官方 DMG 會換回沒有儀器的 build，
+   而版本號看不出差別。**
+2. **schema v2 至今沒有任何一筆真實使用者資料。** ⑲ 文件裡那 4 筆「實機驗證」
+   與棒㉓ 測試中產生的 2 筆，**全部是 XCTest 產物**（已補防護，不會再發生）。
+   分析時 **2026-08-19T04:21 之前的 v2 事件一律排除**。
+3. **census 的分子是「使用者手選次數」，不是「引擎錯誤數」。** 沒察覺的錯不在分子裡。
+   **這仍然不是引擎正確率。**
+
+**下一棒該做的是等，不是做。** 累積到
+**≥ 300 筆 TRUE_CORRECTION 或滿 21 天（先到者為準）** 才開始分析，產出第一版
+Product Error Map（規格見 [`docs/decisions/0009`](docs/decisions/0009-下一個產品方向是先讓儀器上線.md) §11）。
+在那之前**不要開新的研究線**。
+
+分析時的方向已由棒㉒-B 收斂（[`docs/research/personalization-methods-survey.md`](docs/research/personalization-methods-survey.md)）：
+**不要用 correction 學排序**（整個家族已 DROP），候選機制是
+「吃已定案全文的 recency cache／PPM ＋ 小 λ 插值 ＋ 衝突讀音棄權 ＋ 負向記憶護欄」。
+
+**停止條件**：打字延遲或穩定度退步 → 立刻退回舊 build。
+滿 21 天且 `TRUE_CORRECTION` < 100 → 回頭檢討 `docs/decisions/0003` 的賭注本身。
+
+---
+
+## 上一刀（棒⑳ 拍板，已由棒㉓ 執行完畢）
+
 **不要再開第五條選字機制線。** 證據已經很一致：可爭取空間都在「全語料字位 0.1% 量級」，
 而真實使用者修正的分布跟 PTT 語料研究的六組**幾乎不重疊**。
 
