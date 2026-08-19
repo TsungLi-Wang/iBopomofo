@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		FACE0211FACE0211FACE0211 /* RerankDiffLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0210FACE0210FACE0210 /* RerankDiffLog.swift */; };
 		FACE0311FACE0311FACE0311 /* ManualCorrectionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0310FACE0310FACE0310 /* ManualCorrectionLog.swift */; };
+		FACE2008FACE2008FACE2008 /* DecisionCensusLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE2007FACE2007FACE2007 /* DecisionCensusLog.swift */; };
 		FACE0321FACE0321FACE0321 /* ShadowReselect.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0320FACE0320FACE0320 /* ShadowReselect.swift */; };
 		FACE0323FACE0323FACE0323 /* InputMethodController+ShadowReselect.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0322FACE0322FACE0322 /* InputMethodController+ShadowReselect.swift */; };
 		FACE0313FACE0313FACE0313 /* PostCommitReselect.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0312FACE0312FACE0312 /* PostCommitReselect.swift */; };
@@ -93,6 +94,7 @@
 		FACE0105FACE0105FACE0105 /* WhisperServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0106FACE0106FACE0106 /* WhisperServerManager.swift */; };
 		FACE0129FACE0129FACE0129 /* ContextualWalkPunctuationRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */; };
 		FACE0135FACE0135FACE0135 /* ManualCorrectionLogV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0136FACE0136FACE0136 /* ManualCorrectionLogV2Tests.swift */; };
+		FACE2010FACE2010FACE2010 /* DecisionCensusLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE2009FACE2009FACE2009 /* DecisionCensusLogTests.swift */; };
 		FACE033DFACE033DFACE033D /* CommitContractGoldenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE033EFACE033EFACE033E /* CommitContractGoldenTests.swift */; };
 		FACE0041FACE0041FACE0041 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
 		FACE0042FACE0042FACE0042 /* QuarantineHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */; };
@@ -158,6 +160,7 @@
 /* Begin PBXFileReference section */
 		FACE0210FACE0210FACE0210 /* RerankDiffLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RerankDiffLog.swift; sourceTree = "<group>"; };
 		FACE0310FACE0310FACE0310 /* ManualCorrectionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualCorrectionLog.swift; sourceTree = "<group>"; };
+		FACE2007FACE2007FACE2007 /* DecisionCensusLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionCensusLog.swift; sourceTree = "<group>"; };
 		FACE0320FACE0320FACE0320 /* ShadowReselect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShadowReselect.swift; sourceTree = "<group>"; };
 		FACE0322FACE0322FACE0322 /* InputMethodController+ShadowReselect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InputMethodController+ShadowReselect.swift"; sourceTree = "<group>"; };
 		FACE0312FACE0312FACE0312 /* PostCommitReselect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostCommitReselect.swift; sourceTree = "<group>"; };
@@ -278,6 +281,7 @@
 		FACE0106FACE0106FACE0106 /* WhisperServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperServerManager.swift; sourceTree = "<group>"; };
 		FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextualWalkPunctuationRegressionTests.swift; sourceTree = "<group>"; };
 		FACE0136FACE0136FACE0136 /* ManualCorrectionLogV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualCorrectionLogV2Tests.swift; sourceTree = "<group>"; };
+		FACE2009FACE2009FACE2009 /* DecisionCensusLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionCensusLogTests.swift; sourceTree = "<group>"; };
 		FACE033EFACE033EFACE033E /* CommitContractGoldenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitContractGoldenTests.swift; sourceTree = "<group>"; };
 		FACE0040FACE0040FACE0040 /* QuarantineHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuarantineHelper.swift; sourceTree = "<group>"; };
 		D44FB74B2792189A003C80A6 /* PhraseReplacementMap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PhraseReplacementMap.cpp; sourceTree = "<group>"; };
@@ -423,6 +427,7 @@
 				FACE0020FACE0020FACE0020 /* AICorrectionError.swift */,
 				FACE0210FACE0210FACE0210 /* RerankDiffLog.swift */,
 				FACE0310FACE0310FACE0310 /* ManualCorrectionLog.swift */,
+				FACE2007FACE2007FACE2007 /* DecisionCensusLog.swift */,
 				FACE0320FACE0320FACE0320 /* ShadowReselect.swift */,
 				FACE0322FACE0322FACE0322 /* InputMethodController+ShadowReselect.swift */,
 				FACE0312FACE0312FACE0312 /* PostCommitReselect.swift */,
@@ -624,6 +629,7 @@
 			children = (
 				FACE012AFACE012AFACE012A /* ContextualWalkPunctuationRegressionTests.swift */,
 				FACE0136FACE0136FACE0136 /* ManualCorrectionLogV2Tests.swift */,
+				FACE2009FACE2009FACE2009 /* DecisionCensusLogTests.swift */,
 				FACE033EFACE033EFACE033E /* CommitContractGoldenTests.swift */,
 				D436E23E2CD20B9E00C6155D /* AssociatedPhrasesTests.swift */,
 				D47D73A327A5D43900255A50 /* KeyHandlerBopomofoTests.swift */,
@@ -954,6 +960,7 @@
 				FACE0021FACE0021FACE0021 /* AICorrectionError.swift in Sources */,
 				FACE0211FACE0211FACE0211 /* RerankDiffLog.swift in Sources */,
 				FACE0311FACE0311FACE0311 /* ManualCorrectionLog.swift in Sources */,
+				FACE2008FACE2008FACE2008 /* DecisionCensusLog.swift in Sources */,
 				FACE0321FACE0321FACE0321 /* ShadowReselect.swift in Sources */,
 				FACE0323FACE0323FACE0323 /* InputMethodController+ShadowReselect.swift in Sources */,
 				FACE0313FACE0313FACE0313 /* PostCommitReselect.swift in Sources */,
@@ -996,6 +1003,7 @@
 				D4A8E43627A9E982002F7A07 /* KeyHandlerPlainBopomofoTests.swift in Sources */,
 				FACE0129FACE0129FACE0129 /* ContextualWalkPunctuationRegressionTests.swift in Sources */,
 				FACE0135FACE0135FACE0135 /* ManualCorrectionLogV2Tests.swift in Sources */,
+				FACE2010FACE2010FACE2010 /* DecisionCensusLogTests.swift in Sources */,
 				FACE033DFACE033DFACE033D /* CommitContractGoldenTests.swift in Sources */,
 				D436E23F2CD20BA700C6155D /* AssociatedPhrasesTests.swift in Sources */,
 				D449AD5F2B393C00000C5812 /* InputMacroTests.swift in Sources */,

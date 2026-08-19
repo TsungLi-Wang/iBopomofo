@@ -107,6 +107,36 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
     return _lastHardCommitShadowUnits;
 }
 
+// Baton 23 instrumentation: the DENOMINATOR. Counts the decisions the engine
+// actually committed, so the correction log finally has a population to divide
+// by. Read-only and text-free: it walks nodes we already hold, records three
+// integers, and never calls candidatesAt() (that would add an O(n) lattice
+// lookup to the commit path). Runs once per hard commit, never per keystroke.
+- (void)logDecisionCensusAtCommit
+{
+    if (_latestWalk.nodes.empty()) {
+        return;
+    }
+    NSInteger nodeCount = 0;
+    NSInteger charCount = 0;
+    NSInteger overriddenCount = 0;
+    for (size_t ni = 0; ni < _latestWalk.nodes.size(); ++ni) {
+        auto node = _latestWalk.nodes[ni];
+        if (node == nullptr) {
+            continue;
+        }
+        ++nodeCount;
+        charCount += static_cast<NSInteger>(
+            iBopomofo::Split(_latestWalk.chosenValueAt(ni)).size());
+        if (node->isOverridden()) {
+            ++overriddenCount;
+        }
+    }
+    [DecisionCensusLog appendWithNodeCount:nodeCount
+                                 charCount:charCount
+                           overriddenCount:overriddenCount];
+}
+
 - (NSArray<NSDictionary<NSString *, NSString *> *> *)snapshotCharacterShadowUnits
 {
     NSMutableArray<NSDictionary<NSString *, NSString *> *> *out = [NSMutableArray array];
@@ -581,6 +611,7 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
 
     // Snapshot per-char readings *before* clear for shadow reselect after 定案.
     _lastHardCommitShadowUnits = [self snapshotCharacterShadowUnits];
+    [self logDecisionCensusAtCommit];
     _softFinalized = NO;
     [self clear];
 
@@ -612,6 +643,7 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
     _bpmfReadingBuffer->clear();
     InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
     _lastHardCommitShadowUnits = [self snapshotCharacterShadowUnits];
+    [self logDecisionCensusAtCommit];
     [self clear];
 
     InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:inputting.composingBuffer];
@@ -1644,6 +1676,7 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
         [RerankDiffLog appendIfChangedWithWalk:walkBuffer reranked:composingBuffer];
     }
     _lastHardCommitShadowUnits = [self snapshotCharacterShadowUnits];
+    [self logDecisionCensusAtCommit];
     _softFinalized = NO;
     [self clear];
     InputStateCommitting *committing = [[InputStateCommitting alloc] initWithPoppedText:composingBuffer];

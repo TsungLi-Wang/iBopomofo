@@ -55,7 +55,22 @@ census_one() {
     awk -F'\t' -v top="$TOP" '
     {
         total++
-        if ($1 == "1" && NF == 6) {
+        if ($1 == "2" && NF == 10) {
+            # schema v2（棒⑲）：engine_choice 在第 5 欄、user_choice 在第 6 欄，
+            # 版面是 v1 的嚴格超集，所以配對統計與 v1 完全共用。
+            # 以前這裡沒有 v2 分派，v2 的行會被算進「v1 之前的舊格式」。
+            v2++
+            reading = $3; wrong = $5; chosen = $6
+            etype[$7]++
+            if (chosen != "") has_chosen++
+            if (wrong == "") empty_wrong++
+            if (wrong != "" && chosen != "") {
+                npair++
+                if (wrong == chosen) same++
+                else { pair[wrong "→" chosen]++; nreal++ }
+            }
+            if (reading != "") readings[reading]++
+        } else if ($1 == "1" && NF == 6) {
             v1++
             reading = $3; wrong = $5; chosen = $6
             if (chosen != "") has_chosen++
@@ -77,8 +92,13 @@ census_one() {
         }
     }
     END {
-        printf "  總行數 %d（schema v1 %d、v1 之前的舊格式 %d）\n", total, v1, legacy
-        if (v1 == 0) { print "  沒有 v1 行，以下不統計。"; print ""; exit }
+        printf "  總行數 %d（schema v2 %d、v1 %d、v1 之前的舊格式 %d）\n", total, v2 + 0, v1, legacy
+        if (v2 + 0 > 0) {
+            printf "  v2 event_type："
+            for (e in etype) printf " %s=%d", e, etype[e]
+            printf "\n"
+        }
+        if (v1 + v2 == 0) { print "  沒有 v1/v2 行，以下不統計。"; print ""; exit }
         printf "  有 chosen %d 筆；wrong_char 空白 %d 筆\n", has_chosen, empty_wrong
         printf "  可成對（wrong→chosen 兩欄都有）%d 筆\n", npair
         printf "  其中 wrong == chosen（選回同一個字，**不是校正**）%d 筆\n", same + 0
@@ -108,6 +128,31 @@ echo "手動校正 log 普查（只有次數與字對，沒有任何原文）"
 echo
 census_one "iBopomofo（現役）" "$HOME/Library/Application Support/iBopomofo/manual-correction.log"
 census_one "McBopomofo（棒⑥ 改名前的舊資料目錄）" "$HOME/Library/Application Support/McBopomofo/manual-correction.log"
+
+# ── 分母（棒㉓ decision census）──
+# 沒有這一段，上面的配對數只是分子；錯誤率在結構上算不出來。
+census_denominator() {
+    local path="$HOME/Library/Application Support/iBopomofo/decision-census.log"
+    echo "── 決策分母（decision-census.log）──"
+    if [ ! -e "$path" ]; then
+        echo "  （還沒有這個檔 —— 帶 decision census 的 build 尚未安裝，或還沒定案過）"
+        echo "  ⚠️ 沒有分母就只有分子：錯誤率不可計算。"
+        echo
+        return
+    fi
+    awk -F'\t' '
+    $1 == "1" && NF == 5 { commits++; nodes += $3; chars += $4; ov += $5 }
+    END {
+        if (commits == 0) { print "  檔在但沒有可解析的行。"; print ""; exit }
+        printf "  定案次數 %d，引擎決策（節點）%d，字數 %d\n", commits, nodes, chars
+        printf "  其中被使用者覆寫的節點 %d\n", ov
+        printf "  ▶ 節點層修正率 %.3f%%（%d / %d）\n", (nodes ? 100 * ov / nodes : 0), ov, nodes
+        print "  註：這是「使用者出手改過」的比率，不是引擎正確率 —— 沒察覺的錯不在分子裡。"
+        print ""
+    }' "$path"
+}
+
+census_denominator
 
 if [ "$found" -eq 0 ]; then
     echo "兩個位置都沒讀到 log。"

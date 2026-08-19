@@ -8,6 +8,31 @@
 
 ## [Unreleased]
 
+### 內部（棒㉓ · 2026-08-19）：decision census 上線 —— 錯誤率第一次有分母
+
+**使用者可見行為：零。** 未改選字、ranking、候選生成、decoding、LM、beam。
+新增的程式碼只讀節點並寫一個純計數的本機檔。
+
+- **新增 `Source/DecisionCensusLog.swift`**：每次定案寫一行
+  `schemaVer \t ISO8601 \t n_nodes \t n_chars \t n_overridden`。
+  **完全沒有文字** —— 三個整數加時間戳，收集範圍嚴格小於既有的 correction log。
+  沿用既有 `Preferences.enableManualCorrectionLog` 開關與 fail-open writer。
+- **`Source/KeyHandler.mm`**：新增 `logDecisionCensusAtCommit`，掛在**三處既有的**
+  `snapshotCharacterShadowUnits` 之後、`clear` 之前（`hardCommitSentence`、
+  `handleForceCommit`、rerank 定案路徑）。
+  **刻意不呼叫 `candidatesAt()`** —— 那會在 commit 路徑上加 O(n) 次 lattice 查詢；
+  節點歧義度可事後從 correction log 的 `candidate_count` 補回來。
+- **分子與分母記在同一個事件裡**（`n_overridden` 來自 `node->isOverridden()`，
+  節點本來就在迭代，零額外成本）。之後算修正率不必跨檔做 timestamp join。
+- **`scripts/correction-census.sh`**：補上 schema v2 分派（先前把 v2 行歸進
+  「v1 之前的舊格式」），並新增分母普查段。
+- 為什麼要這個：⑱ 量到正確率結構上不可計算；㉒-B 進一步確立 correction-only
+  是 MNAR 樣本，**事後任何估計量都救不回來**。只能去數決策本身。
+
+測試 **170 項全綠**（原 165 ＋ 新增 5）。`ship-gate.sh` **CORE 全過**
+（自然語料救1壞0、X 語料救3壞0）。doc-check 全過。
+
+
 ### 內部（棒㉒-B · 2026-08-19）：個人化選字方法調查 —— UOM abstraction 判 DROP
 
 **使用者可見行為：零。純研究，未改任何一行 production 程式碼。**
