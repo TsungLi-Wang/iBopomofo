@@ -155,6 +155,16 @@ git status            # must show clean for product files
 
 Menu **「顯示目前生效設定…」** shows `version` + `build` + `GitRevision` from the running bundle.
 
+### 安裝研究 build 當日常輸入法（2026-08-19 棒㉓ 起）
+
+- **就地 `ditto` 覆蓋，絕不 `rm -rf` 再放** —— 會被踢出輸入法選單列
+  （`docs/dead-ends.md` F 節）。`scripts/install.sh` 走的是 DMG＋`rm -rf`，
+  **不能拿來裝研究 build**。
+- **版本號分不出新舊**：研究 build 與已發布版同為當前版號。
+  要確認哪個 build 在跑，看已安裝 bundle 內 Info.plist 的 `GitRevision`，
+  或 `strings … | grep DecisionCensusLog`。
+- ⚠️ **重裝官方 DMG 會靜默換回沒有 instrumentation 的 build，而版本號看不出差別。**
+
 ## 架構鐵則：誰做什麼（任何 AI 接手都一樣）
 
 ```
@@ -433,7 +443,11 @@ For detailed architecture and algorithm documentation, see:
 | `Source/Data/path-char-lstm.bin` | 出貨神經權重（**v2d int8**；架構 v2c） |
 | `Source/Data/confusion-alphas.tsv` | 頻率先驗壓縮表（機制仍在；**條目已清空**，2026-08-11 停用） |
 | `scripts/ship-gate.sh` | 出貨 CORE（語料＋ctest）；E2E 預設關。`SHIP_GATE_STATUS=CORE` 可出貨 |
+| `Source/ManualCorrectionLog.swift` | 修正事件（分子）：schema v2 帶 `engine_choice`／`event_type`／候選集 |
+| `Source/DecisionCensusLog.swift` | 決策普查（**分母**）：每次定案一行純計數，零文字。沒有它錯誤率不可計算 |
+| `scripts/correction-census.sh` | 兩個 log 的彙總普查（只印次數與字對，**永不印原文**） |
 | `docs/dead-ends.md` | **已證明無效的路，動手前必讀**（兩頁內） |
+| `docs/research/` | 外部文獻／方法調查與外勤原始回報。要選下一個機制時才讀 |
 | `docs/decisions/` | 決策脈絡：為什麼這樣做、試過什麼。要動該領域時才讀 |
 | `Source/Engine/eval/benchmarks/出題管線.md` | 新北極星題庫怎麼生（prompt＋轉換腳本契約） |
 
@@ -513,6 +527,29 @@ For detailed architecture and algorithm documentation, see:
   use `key code`, never `keystroke`) in `docs/e2e-typing-verification.md`.
   Unit tests alone have missed real-device failures before (v2.1.1); use this
   before telling the user a typing-time change works.
+
+### ⛔ 新增「會寫使用者資料檔」的程式碼（2026-08-19 棒㉓ 踩過）
+
+單元測試會驅動真的 `KeyHandler` commit／選字路徑，所以 log 的寫入端**在 XCTest 下照樣開火**。
+棒㉓ 一次測試就往真實檔寫了 17 筆假定案＋2 筆假 correction；回頭查才發現
+⑲ 標為「實機驗證」的 4 筆 v2 事件也是測試產物。
+
+**規則**：任何新增寫使用者資料檔的程式碼，第一件事是加防護 ——
+`getenv("XCTestConfigurationFilePath")`（既有寫法見 `LanguageModelManager.mm`
+的 `LTIsRunningUnitTests`；Swift 側見 `ManualCorrectionLog` / `DecisionCensusLog`
+的 `isRunningUnitTests`）。
+
+**驗收方式不是「測試綠」，是比對測試前後檔案的 SHA256 未變。**
+
+### ⛔ instrumentation 的分子不可用 `Node::isOverridden()`（2026-08-19 棒㉓ 踩過）
+
+它對 `kOverrideValueWithHighScore` / `kOverrideValueWithScoreFromTopUnigram`
+**兩種都回 true**，所以引擎自己施加的覆寫（UOM 的 `forceHighScoreOverride`、
+associated phrases、prefix candidate）也會被算成使用者修正 ——
+純被動打字實測跑出 100% 的「修正率」。
+要數使用者手選，就在 `fixNodeWithReading` 真的完成手選時明確計數。
+
+**這類語意錯誤只有實機才看得出來，單元測試全綠。**
 
 ### Dictionary Data Modifications
 
