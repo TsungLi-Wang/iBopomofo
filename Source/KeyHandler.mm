@@ -90,6 +90,13 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
     // Soft-finalize: smart selection done; stay composing without underline so
     // the user can still move the cursor and re-pick candidates (stage 2).
     BOOL _softFinalized;
+    // Baton 23: how many nodes in the current composing buffer the USER
+    // explicitly re-picked. Deliberately NOT derived from Node::isOverridden()
+    // — that returns true for engine-applied overrides too (the UOM's
+    // forceHighScoreOverride, associated phrases, prefix candidates), so it
+    // would report engine actions as user corrections. Measured live: a purely
+    // passive typing run reported 2/2 "corrections" with zero user picks.
+    NSInteger _userPicksThisComposition;
     NSArray<NSDictionary<NSString *, NSString *> *> *_lastHardCommitShadowUnits;
 
     NSString *_inputMode;
@@ -119,7 +126,6 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
     }
     NSInteger nodeCount = 0;
     NSInteger charCount = 0;
-    NSInteger overriddenCount = 0;
     for (size_t ni = 0; ni < _latestWalk.nodes.size(); ++ni) {
         auto node = _latestWalk.nodes[ni];
         if (node == nullptr) {
@@ -128,13 +134,10 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
         ++nodeCount;
         charCount += static_cast<NSInteger>(
             iBopomofo::Split(_latestWalk.chosenValueAt(ni)).size());
-        if (node->isOverridden()) {
-            ++overriddenCount;
-        }
     }
     [DecisionCensusLog appendWithNodeCount:nodeCount
                                  charCount:charCount
-                           overriddenCount:overriddenCount];
+                           overriddenCount:_userPicksThisComposition];
 }
 
 - (NSArray<NSDictionary<NSString *, NSString *> *> *)snapshotCharacterShadowUnits
@@ -454,6 +457,7 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
                                           source:ManualCorrectionLog.sourceComposing
                                  candidateValues:offeredCandidates
                                   candidateCount:offeredCandidateCount];
+        ++_userPicksThisComposition;
     }
 
     if (currentNode != nullptr && flag && Preferences.moveCursorAfterSelectingCandidate) {
@@ -565,6 +569,7 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
     _latestWalk = Formosa::Gramambular2::ReadingGrid::WalkResult {};
     _lastTabPinnedBuffer = nil;
     _softFinalized = NO;
+    _userPicksThisComposition = 0;
     if (_particleRule != nullptr) {
         _particleRule->reset();
     }
