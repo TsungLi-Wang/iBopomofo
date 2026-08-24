@@ -3028,7 +3028,8 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
     //    這個相依是刻意的，寫在這裡才看得見。
     p.confusionAlphas = p.neuralRerank && _confusionAlphas != nullptr &&
                         !_confusionAlphas->empty();
-    p.grammarRules = (_particleRule != nullptr && _particleRule->isLoaded());
+    p.grammarRules = Preferences.enableParticleRules &&
+        (_particleRule != nullptr && _particleRule->isLoaded());
     return p;
 }
 
@@ -3079,6 +3080,8 @@ InputMode InputModePlainBopomofo = @"io.ibopomofo.inputmethod.iBopomofo.PlainBop
         dispatch_once(&compositeOnce, ^{
             sharedComposite = new iBopomofo::CompositeContextModel();
         });
+        // μ=1.5 (kDefaultMuUser): log10-space userScore, not the old ln·4
+        // which let two corrections (+4.39) drown corpus PMI.
         sharedComposite->configure(globalModel, userModel,
                                    iBopomofo::UserOverrideModel::kDefaultMuUser,
                                    now);

@@ -1,19 +1,12 @@
 # 小麥注音輸入法演算法說明
 
-> ## ⚠️ 本文件已過時（2026-08-12 標注）
+> 最後核對：2026-08-24T16:03:30+08:00。詞庫編譯、Parseless 二元搜尋、頻率計算仍以本檔為準。
+> **解碼／選字現況以本節「兩條 walk」與 `AGENTS.md`「選字的四個角色」為準**，不要只讀舊的 Unigram DAG 段。
 >
-> 這份只描述**最底層的 lattice walk 與詞庫**，而且仍寫著「目前僅使用 Unigram」。
-> 它**沒有涵蓋**現在實際生效的四層機制：
->
-> | 沒寫到的 | 在哪裡看 |
-> |---|---|
-> | 情境 word-bigram + UOM（`CompositeContextModel`） | `CHANGELOG.md` v2.2.0 段 |
-> | 定案時 char-LSTM N-best 重排（v2d） | `AI_HANDOFF_PROMPT.md` 路線 C |
-> | 節點層的／得規則與警察 v1 | `CHANGELOG.md` v2.16.3 段 |
-> | 定案後 ↓ 重選（Shadow / 1→1 置換） | `AGENTS.md` 產品 UX 總表 |
->
-> **要理解現在的解碼行為，請以 `CHANGELOG.md` 與 `AI_HANDOFF_PROMPT.md` 為準。**
-> 本檔重寫排在 Phase 4，尚未進行。
+> 2026-08-12 曾在檔頭寫「本文件已過時、重寫排 Phase 4」。那則警告把 word-bigram 列成
+> 「沒寫到的四層」之一，顧問會讀成「Viterbi 只有 unigram、外面再疊四層補丁」。
+> **那不是現役架構。** 詞 bigram + UOM 從 v2.3.0 起就在 `walk()` 的 DP 邊權裡
+> （預設 `EnableContextualWalk=true`）。本檔 2026-08-24 已改寫 walk 段，與碼對齊。
 
 本文件詳細說明小麥注音輸入法的核心演算法，包括注音符號到中文字詞的預測轉換機制、語言模型架構、以及字典資料的生成與使用方式。
 
@@ -42,7 +35,7 @@
     - [演算法流程](#演算法流程)
       - [插入注音時的處理](#插入注音時的處理)
       - [節點更新機制](#節點更新機制)
-      - [最佳路徑演算法：DAG 最短路徑](#最佳路徑演算法dag-最短路徑)
+      - [最佳路徑演算法：兩條 Viterbi（`walk()`）](#最佳路徑演算法兩條-viterbiwalk)
     - [實際範例](#實際範例)
   - [語言模型架構](#語言模型架構)
     - [McBopomofoLM：統一介面](#mcbopomofolm統一介面)
@@ -98,8 +91,8 @@
 2. **注音驗證**：透過 `Mandarin` 模組驗證是否為合法注音符號
 3. **語言模型查詢**：向 `McBopomofoLM` 查詢符合注音的字詞
 4. **建立候選網格**：將字詞插入 `ReadingGrid`
-5. **路徑計算**：`ReadingGrid` 執行 walk 演算法找出最佳組合
-6. **結果輸出**：將結果回傳至使用者正在輸入的應用程式
+5. **路徑計算**：`KeyHandler._walk` 先掛上 `CompositeContextModel`（若有），再呼叫 `ReadingGrid::walk()`
+6. **結果輸出**：讀 `WalkResult::chosenValueAt(i)`（不是 `node->value()`），畫到底線或定案送出
 
 ---
 
@@ -109,10 +102,26 @@ Gramambular 是小麥注音的核心選字引擎，負責從多組注音符號�
 
 ### 基本概念
 
-小麥注音目前僅使用 **Unigram 語言模型**，這意味著：
-- 每個字詞都有獨立的出現機率（不考慮上下文）
-- 透過最大似然估計（Maximum Likelihood Estimation）找出最佳路徑
-- 使用 **對數機率**（log probability）避免數值下溢問題
+**詞庫介面 `LanguageModel` 仍然只有 unigram**（`getUnigrams` / `hasUnigrams`，沒有 `getBigram()`）。
+每個候選是「這個讀音下的一個字詞 + 對數機率」。上下文**不**從這個介面查。
+
+**出貨的 `walk()` 卻不是純 unigram。** 有兩條路徑：
+
+| 何時 | 路徑 | 邊權重 |
+|------|------|--------|
+| `contextModel_ == nullptr` | 快路徑：每個節點只認 top unigram（或手選 override） | `node->score()` |
+| **有 ContextModel（出貨預設）** | 狀態＝`(讀音位置, 末詞)` 的 bigram Viterbi，遍歷節點內每一個 unigram | `u.score() + ContextModel::scoreWithReading(prev, reading, word)` |
+
+出貨掛的是 `CompositeContextModel`：
+
+```
+trans = λ·PMI_log10(prev, word)  +  μ_user · log10(1+count) · decay
+```
+
+λ 預設 0.75，μ 預設 1.5。表在 `Source/Data/word-bigrams.tsv`。沒見過的 pair 貢獻 0，仍由 unigram 決定。C_min=2 時使用者加分約 +0.72，與中位 λ·PMI 同量級。
+這是 **DAG 邊權重**，在 `walk()` 裡算，不是 walk 完再貼。
+
+沒有 `Relax()`、沒有 `TopologicalSort()`、沒有 `Vertex`。那些是更早一版 Gramambular 的 API，現役 `reading_grid.cpp` 裡不存在。快路徑用位置 Viterbi；情境路徑用 `(位置, 末詞)` DP。
 
 ### 資料結構
 
@@ -162,7 +171,9 @@ class ReadingGrid {
     std::vector<std::string> readings_;    // 使用者輸入的注音序列
     std::vector<Span> spans_;              // 每個位置的 Span
     size_t cursor_;                        // 游標位置
-    ScoreRankedLanguageModel lm_;          // 語言模型介面
+    ScoreRankedLanguageModel lm_;          // 只提供 getUnigrams
+    ContextModel* contextModel_;           // 可選；出貨掛 CompositeContextModel
+    PathScorer* pathScorer_;               // 可選；只在定案／Tab 掛 char-LSTM
 };
 ```
 
@@ -224,108 +235,38 @@ void ReadingGrid::update() {
 }
 ```
 
-#### 最佳路徑演算法：DAG 最短路徑
+#### 最佳路徑演算法：兩條 Viterbi（`walk()`）
 
-`walk()` 方法使用 **有向無環圖（DAG）最短路徑演算法** 找出分數最高的路徑（`reading_grid.cpp:216`）：
+完整函數：`Source/Engine/gramambular2/reading_grid.cpp` 的 `ReadingGrid::walk()`（約第 147–416 行）。
+掛載點：`Source/KeyHandler.mm` 的 `_walk`（先 `setContextModel`，再 `_grid->walk()`）。
 
-**步驟 1：建立 DAG**
+**沒有 `Relax()`。** 邊的更新就是 DP 迴圈直接寫格子。
 
-```cpp
-ReadingGrid::WalkResult ReadingGrid::walk() {
-    // 1. 將所有 Node 轉換為圖的 Vertex（頂點）
-    std::vector<VertexSpan> vspans(spans_.size());
-    for (size_t i = 0; i < spans_.size(); i++) {
-        const Span& span = spans_[i];
-        for (size_t j = 1; j <= span.maxLength(); j++) {
-            NodePtr node = span.nodeOf(j);
-            if (node != nullptr) {
-                vspans[i].emplace_back(Vertex(node));
-            }
-        }
-    }
-
-    // 2. 建立邊（Edge）：連接相鄰節點
-    for (size_t i = 0; i < vspans.size(); i++) {
-        for (Vertex& v : vspans[i]) {
-            size_t nextPos = i + v.node->spanningLength();
-            // 連接到下一個位置的所有節點
-            for (Vertex& nv : vspans[nextPos]) {
-                v.edges.push_back(&nv);
-            }
-        }
-    }
-```
-
-**步驟 2：拓撲排序**
-
-使用非遞迴的深度優先搜尋（DFS）進行拓撲排序（`reading_grid.cpp:166`）：
+**快路徑**（`contextModel_ == nullptr`）：狀態＝讀音位置，邊權＝`node->score()`（該節點 top unigram 或 override）。
 
 ```cpp
-std::vector<Vertex*> TopologicalSort(Vertex* root) {
-    std::vector<Vertex*> result;
-    std::stack<State> stack;
-    stack.emplace(root);
-
-    while (!stack.empty()) {
-        State& state = stack.top();
-        Vertex* v = state.v;
-
-        if (state.edgeIter != v->edges.end()) {
-            Vertex* nv = *state.edgeIter;
-            ++state.edgeIter;
-            if (!nv->topologicallySorted) {
-                stack.emplace(nv);
-                continue;
-            }
-        }
-
-        v->topologicallySorted = true;
-        result.push_back(v);
-        stack.pop();
-    }
-    return result;
+double score = viterbi[i].maxScore + node->score();
+if (score > viterbi[i + spanLen].maxScore) {
+    viterbi[i + spanLen] = {i, node, score};
 }
 ```
 
-**步驟 3：鬆弛演算法（Relaxation）**
-
-對拓撲排序後的頂點依序執行鬆弛操作，找出最大權重路徑（`reading_grid.cpp:134`）：
+**情境路徑**（出貨預設）：狀態＝`(位置, 末詞)`，對節點內**每一個** unigram 放鬆：
 
 ```cpp
-void Relax(Vertex* u, Vertex* v) {
-    double w = v->node->score();  // 獲取節點的對數機率
-
-    // 因為我們要找最大權重，所以用 > 而非 <
-    if (v->distance < u->distance + w) {
-        v->distance = u->distance + w;
-        v->prev = u;  // 記錄前驅節點
-    }
-}
-
-// 主流程
-std::vector<Vertex*> ordered = TopologicalSort(&root);
-for (auto it = ordered.rbegin(); it != ordered.rend(); ++it) {
-    Vertex* u = *it;
-    for (Vertex* v : u->edges) {
-        Relax(u, v);
-    }
-}
+double trans = contextModel_->scoreWithReading(
+    prevWord, nodeReading, u.value(), state);
+double sc = cell.score
+    + (nodeOverridden ? overriddenScore : u.score())
+    + trans;
+// 同一位置、同一末詞取最高分
 ```
 
-**步驟 4：回溯路徑**
+選中的字記在 `WalkResult::selectedUnigramIndices`，**不寫回** `node->value()`。
+讀路徑只能用 `chosenValueAt(i)`（手選 override ＞ DP 索引 ＞ `node->value()`）。
 
-從終點回溯找出完整路徑：
-
-```cpp
-std::vector<NodePtr> walked;
-Vertex* it = &terminal;
-while (it->prev != nullptr) {
-    walked.push_back(it->prev->node);
-    it = it->prev;
-}
-// 反轉得到正確順序
-result.nodes = std::vector<NodePtr>(walked.rbegin() + 1, walked.rend());
-```
+定案／Tab 才另外掛 `PathScorer`（char-LSTM），在同一支 `walk()` 末段對 n-best 重排。
+組字中不跑 LSTM。的／得規則在 `_walk` 裡、`walk()` **之後**，只改節點既有候選。
 
 ### 實際範例
 
@@ -346,7 +287,9 @@ result.nodes = std::vector<NodePtr>(walked.rbegin() + 1, walked.rend());
 2. **在 → 我 → 平 → 繁**：-2.24 + -2.27 + -3.27 + -4.14 = -11.92
 3. **再 → 我 → 平凡**：-4.12 + -2.27 + -5.14 = -11.53
 
-演算法選擇分數最高的路徑「在我平凡」作為輸出結果。
+這張表是**快路徑**的加法：只把各節點 top unigram 的分數相加。出貨情境路徑還會加上 `λ·PMI(前詞, 本詞)`，所以「在／再」這種同音可以靠前文翻盤，不單看 `-2.24` vs `-4.12`。
+
+演算法選擇分數最高的路徑作為輸出（快路徑上是「在我平凡」）。
 
 ---
 
@@ -890,12 +833,14 @@ LC_ALL=C sort -o phrase.occ phrase.occ
 
 | 功能 | 檔案路徑 | 關鍵函式/類別 |
 |------|----------|---------------|
-| Reading Grid 主邏輯 | `Source/Engine/gramambular2/reading_grid.h` | `ReadingGrid` |
-| 插入注音處理 | `Source/Engine/gramambular2/reading_grid.cpp:51` | `insertReading()` |
-| 節點更新 | `Source/Engine/gramambular2/reading_grid.cpp:417` | `update()` |
-| 最佳路徑演算法 | `Source/Engine/gramambular2/reading_grid.cpp:216` | `walk()` |
-| 拓撲排序 | `Source/Engine/gramambular2/reading_grid.cpp:166` | `TopologicalSort()` |
-| 鬆弛演算法 | `Source/Engine/gramambular2/reading_grid.cpp:134` | `Relax()` |
+| Reading Grid 主邏輯 | `Source/Engine/gramambular2/reading_grid.h` | `ReadingGrid`、`ContextModel` |
+| 插入注音處理 | `Source/Engine/gramambular2/reading_grid.cpp` | `insertReading()` |
+| 節點更新 | `Source/Engine/gramambular2/reading_grid.cpp` | `update()` |
+| 最佳路徑（兩條 Viterbi） | `Source/Engine/gramambular2/reading_grid.cpp` | `walk()` |
+| 詞 bigram PMI | `Source/Engine/CorpusBigramContextModel.{h,cpp}` | `score(prev, word)` |
+| bigram + UOM 合成 | `Source/Engine/CompositeContextModel.{h,cpp}` | `scoreWithReading` |
+| 掛到 grid | `Source/KeyHandler.mm` | `_walk`（`setContextModel` 後再 `walk()`） |
+| 讀路徑文字 | `reading_grid.cpp` | `WalkResult::chosenValueAt` |
 
 ### 語言模型
 

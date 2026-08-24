@@ -161,6 +161,11 @@ class McBopomofoInputMethodController: IMKInputController {
             action: #selector(toggleNeuralPathRerankEnabled(_:)), keyEquivalent: "")
         neuralPathItem.state = Preferences.enableNeuralPathRerank.state
 
+        let particleRulesItem = menu.addItem(
+            withTitle: NSLocalizedString("Particle Rules (的/得)", comment: ""),
+            action: #selector(toggleParticleRulesEnabled(_:)), keyEquivalent: "")
+        particleRulesItem.state = Preferences.enableParticleRules.state
+
         let diffLogItem = menu.addItem(
             withTitle: Preferences.enableRerankDiffLog
                 ? "記錄重排差異 (ON)"
@@ -466,6 +471,10 @@ class McBopomofoInputMethodController: IMKInputController {
 
     @objc func toggleNeuralPathRerankEnabled(_ sender: Any?) {
         _ = Preferences.toggleNeuralPathRerankEnabled()
+    }
+
+    @objc func toggleParticleRulesEnabled(_ sender: Any?) {
+        _ = Preferences.toggleParticleRulesEnabled()
     }
 
     @objc func toggleRerankDiffLog(_ sender: Any?) {

@@ -194,6 +194,7 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
     std::reverse(result.nodes.begin(), result.nodes.end());
     assert(totalReadingLen == readingLen);
     result.totalReadings = totalReadingLen;
+    glueDictionaryPhrases(result);
     result.elapsedMicroseconds = GetEpochNowInMicroseconds() - start;
     return result;
   }
@@ -410,6 +411,7 @@ ReadingGrid::WalkResult ReadingGrid::walk() {
     }
   }
 
+  glueDictionaryPhrases(result);
   result.elapsedMicroseconds = GetEpochNowInMicroseconds() - start;
   return result;
 }
@@ -605,6 +607,66 @@ bool ReadingGrid::overrideCandidate(
     size_t loc, const std::string& candidate,
     ReadingGrid::Node::OverrideType overrideType) {
   return overrideCandidate(loc, nullptr, candidate, overrideType);
+}
+
+void ReadingGrid::glueDictionaryPhrases(WalkResult& result) const {
+  if (result.nodes.size() < 2 || spans_.empty()) {
+    return;
+  }
+
+  std::vector<NodePtr> newNodes;
+  std::vector<size_t> newIdx;
+  newNodes.reserve(result.nodes.size());
+  newIdx.reserve(result.nodes.size());
+
+  const bool hadIdx =
+      result.selectedUnigramIndices.size() == result.nodes.size();
+  size_t pos = 0;
+  size_t i = 0;
+  while (i < result.nodes.size()) {
+    size_t run = 0;
+    while (i + run < result.nodes.size()) {
+      const NodePtr& n = result.nodes[i + run];
+      if (n->spanningLength() != 1 || n->isOverridden()) {
+        break;
+      }
+      ++run;
+    }
+
+    NodePtr glued;
+    size_t gluedLen = 0;
+    if (run >= 2 && pos < spans_.size()) {
+      const Span& span = spans_[pos];
+      const size_t maxLen = std::min(span.maxLength(), run);
+      for (size_t len = maxLen; len >= 2; --len) {
+        const NodePtr& p = span.nodeOf(len);
+        if (p != nullptr && !p->unigrams().empty()) {
+          glued = p;
+          gluedLen = len;
+          break;
+        }
+      }
+    }
+
+    if (glued) {
+      newNodes.push_back(glued);
+      newIdx.push_back(0);
+      pos += gluedLen;
+      i += gluedLen;
+      continue;
+    }
+
+    newNodes.push_back(result.nodes[i]);
+    newIdx.push_back(hadIdx ? result.selectedUnigramIndices[i] : 0);
+    pos += result.nodes[i]->spanningLength();
+    ++i;
+  }
+
+  if (newNodes.size() == result.nodes.size()) {
+    return;
+  }
+  result.nodes = std::move(newNodes);
+  result.selectedUnigramIndices = std::move(newIdx);
 }
 
 void ReadingGrid::expandGridAt(size_t loc) {

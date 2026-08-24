@@ -59,6 +59,7 @@ private let kUseCustomUserPhraseLocation = "UseCustomUserPhraseLocation"
 private let kCustomUserPhraseLocation = "CustomUserPhraseLocation"
 private let kEnableContextualWalkKey = "EnableContextualWalk"
 private let kEnableNeuralPathRerankKey = "EnableNeuralPathRerank"
+private let kEnableParticleRulesKey = "EnableParticleRules"
 private let kNeuralPathRerankNuKey = "NeuralPathRerankNu"
 private let kPrefsSchemaVersionKey = "PrefsSchemaVersion"
 private let kEnableRerankDiffLogKey = "EnableRerankDiffLog"
@@ -264,6 +265,7 @@ class Preferences: NSObject {
             kCustomUserPhraseLocation,
             kEnableContextualWalkKey,
             kEnableNeuralPathRerankKey,
+            kEnableParticleRulesKey,
         ]
     }
 
@@ -296,6 +298,8 @@ class Preferences: NSObject {
         Preferences.allowMovingCursorWhenChoosingCandidates =
             Preferences.allowMovingCursorWhenChoosingCandidates
         Preferences.enableContextualWalk = Preferences.enableContextualWalk
+        Preferences.enableNeuralPathRerank = Preferences.enableNeuralPathRerank
+        Preferences.enableParticleRules = Preferences.enableParticleRules
     }
 
 
@@ -641,6 +645,18 @@ extension Preferences {
         return enableNeuralPathRerank
     }
 
+    /// 的／得 node-layer grammar (`ParticleRuleDisambiguator` + particle-rules.tsv
+    /// / police-de-v1.tsv). Default ON to match shipping since v2.15.0. Toggle
+    /// from the input menu for A/B: does not unload the table, only skips
+    /// rescoreWalk. Independent of Contextual Walk and Neural Path Rerank.
+    @UserDefault(key: kEnableParticleRulesKey, defaultValue: true)
+    @objc static var enableParticleRules: Bool
+
+    @objc static func toggleParticleRulesEnabled() -> Bool {
+        enableParticleRules = !enableParticleRules
+        return enableParticleRules
+    }
+
     /// Interpolation weight ν for final_score = walk_score + ν · path_scorer.
     /// Default 0.75 since v2.6.0: peak on tw538 for the shipped v2c reranker
     /// (nu 0.5→386, 0.75→387, 1.0→385; see shipping-latency-pareto-tw538.md).
@@ -929,6 +945,9 @@ extension Preferences {
         )
         lines.append(
             "  - Neural Path Rerank: \(Preferences.enableNeuralPathRerank ? "Enabled" : "Disabled") ν=\(Preferences.neuralPathRerankNu)"
+        )
+        lines.append(
+            "  - Particle Rules (的/得): \(Preferences.enableParticleRules ? "Enabled" : "Disabled")"
         )
         return lines.joined(separator: "\n")
     }

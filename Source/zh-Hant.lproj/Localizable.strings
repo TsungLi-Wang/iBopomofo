@@ -190,6 +190,7 @@
 "Neural Candidate Rerank (Experimental)" = "AI 神經候選重排（實驗）";
 "Contextual Selection" = "情境化選字";
 "Neural Path Rerank (Experimental)" = "神經路徑重排（實驗）";
+"Particle Rules (的/得)" = "的／得規則";
 
 /* Used in the notification when L1 AI needs the local server to finish starting. */
 /* Used in the notification when L2 auto-correction needs the local server to finish starting. */

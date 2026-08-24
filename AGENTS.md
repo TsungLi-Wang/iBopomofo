@@ -15,7 +15,7 @@ Internal identifiers were unified to `iBopomofo` on 2026-08-12 (baton 6), taken 
 | 種類 | 是什麼 | 需要 GUI／輸入法？ | 誰該跑 |
 |------|--------|-------------------|--------|
 | **CORE**（關卡 1＋2） | 真實語料淨傷害＋引擎 ctest | **否**（純離線） | 每次發版／改選字必跑 |
-| **E2E**（關卡 3） | TextEdit 模擬打字 | **是** | 僅 `SHIP_GATE_E2E=1` 且 Johnny／人在場 |
+| **E2E**（關卡 3） | TextEdit 模擬打字 | **是** | 僅 `SHIP_GATE_E2E=1` 且有人在場 |
 
 - `SHIP_GATE_STATUS=CORE`＝可出貨依據（語料齊且 1＋2 過）。  
 - `FULL`＝CORE＋E2E 都過。`FAIL`＝CORE 掛，或你強制 E2E 卻掛。  
@@ -106,8 +106,8 @@ This is a **permanent** rule, not a one-off cleanup.
    - (c) Record that version’s **commit range** in CHANGELOG.
 2. Version numbers must not stagnate: once behavior-changing work accumulates, do not keep shipping under an old label (anti-pattern: months of work still labeled `2.7.0-dogfood`).
 3. Pure research / harness / docs batons need not bump the product version, but still leave an **internal** CHANGELOG line with commit hash.
-4. **Johnny** decides major/minor; executors propose with rationale only.
-5. This rule must not be removed or weakened without Johnny’s explicit approval.
+4. The **maintainer** decides major/minor; executors propose with rationale only.
+5. This rule must not be removed or weakened without the maintainer’s explicit approval.
 
 ### 收工必更新清單（2026-08-10 新增 — 這條是為了止住「版本敘事漂移」）
 
@@ -168,7 +168,7 @@ Menu **「顯示目前生效設定…」** shows `version` + `build` + `GitRevis
 ## 架構鐵則：誰做什麼（任何 AI 接手都一樣）
 
 ```
-Johnny 說要改什麼
+維護者說要改什麼
     → AI（Codex / Grok / Claude…）：理解、改碼、本機必要檢查
     → git commit + git push
     → GitHub Actions（寫死、每次一樣）：Build / Test / CodeQL …
@@ -190,7 +190,7 @@ Johnny 說要改什麼
 
 ## 同步到 Git（sync）—— 標準流程
 
-**觸發語**：Johnny 說「幫我更新／同步到 Git」「推上去」＝ **commit → push → 查 CI**，三件一組。
+**觸發語**：維護者說「幫我更新／同步到 Git」「推上去」＝ **commit → push → 查 CI**，三件一組。
 
 ⛔ **同步不是發布。** 一句「同步」**不准** bump 版號、不准打 tag、不准跑 `package-dmg` 當發版、不准建 GitHub Release。
 
@@ -242,14 +242,30 @@ gh run watch <run-id>          # 失敗時：gh run view <run-id> --log-failed
 **只改 `.md` 文件時，上面前三支都不會跑。** 這時 Stage 3 的誠實說法是
 **「未觸發任何 workflow」**，不是「CI 通過」。
 
-### 安全規則（要違反就先停手問 Johnny）
+### GitHub Actions 的定位：品質閘門，不是部署工具
+
+本專案的 Actions **不是 deployment 管道**，而是回歸閘門：每次 push／PR 自動把整套
+regression suite 跑一遍，確保先前修好的東西沒被弄壞。目標是「**紅燈＝真的有問題**」
+的可信度，不是有跑就好。
+
+**現況（別再說要「導入」）**：`continuous-integration-workflow-xcode-latest.yml`（名稱 "Build"）
+就是這個閘門——3 組 C++ 引擎測試 + 6 個 Swift 套件測試 + 完整 Xcode 單元測試
++ Release 編譯 ×2 + 詞庫檢查，macos-15／macos-26 並行，約 10 分鐘。
+
+**唯一缺口**：`ship-gate.sh` 的「真實語料不得淨傷害」關卡**進不了 CI** —— 兩份語料在
+維護者本機（未進 repo，隱私紅線），CI 只能跑 SUBSET。**選字品質目前沒有被自動守住**，
+仍靠本機跑 ship-gate。這是下一個值得補的洞。
+
+→ 所以 CI 紅了要當回事、當場修到綠，不要放著累積成「反正它一直紅」。
+
+### 安全規則（要違反就先停手問維護者）
 
 - 禁 `git push --force` / `--force-with-lease`（master 是共用歷史）
 - 禁 `git reset --hard`、`git clean -fd`、`git checkout -- .`：會吃掉還沒存的工
 - 禁 `git add .` / `git add -A`：逐檔指定，避免掃進 build 產物、log、cache
 - **永不 commit**：`user-override-cache.dat`、`rerank-diff.log`、`manual-correction.log`、
   `.env`、任何 token 或金鑰（隱私紅線見上面 Privacy 節）
-- CI 紅燈 → **回報，不要開「自動改碼再推」的循環**。最多分析原因＋提案，動手要 Johnny 點頭。
+- CI 紅燈 → **回報，不要開「自動改碼再推」的循環**。最多分析原因＋提案，動手要維護者點頭。
 - 只在被要求時建 PR；平常直接推 `master`（本專案現行習慣）
 
 ### 三態回報文案（照抄，不要美化）
@@ -261,7 +277,7 @@ gh run watch <run-id>          # 失敗時：gh run view <run-id> --log-failed
 
 ## 正式發布（release）—— 標準流程
 
-**觸發語**：Johnny 明說「幫我正式發布 vX.Y.Z」／「發版」—— **不是**「同步到 Git」。
+**觸發語**：維護者明說「幫我正式發布 vX.Y.Z」／「發版」—— **不是**「同步到 Git」。
 
 ```
 本機確認 plist = X.Y.Z、doc-check、（建議）ship-gate 有語料時 CORE
@@ -283,7 +299,7 @@ gh run watch <run-id>          # 失敗時：gh run view <run-id> --log-failed
 | 簽章 | ad-hoc／未公證；notes 照實寫 |
 | 禁 force tag | `git tag -f`／`push --force` 一律禁止 |
 
-**AI 發版前檢查清單（缺一停手問 Johnny）：**
+**AI 發版前檢查清單（缺一停手問維護者）：**
 
 1. `git status` 乾淨（或已明確 commit 完本版）
 2. 兩份 plist `CFBundleShortVersionString` = 目標版
@@ -398,14 +414,14 @@ iBopomofo uses a three-layer architecture (Swift/Objective-C++/C++).
 |------|--------|--------|
 | **walk** | 詞圖 lattice ＋ Viterbi ＋ 詞庫 unigram/bigram 情境。以**詞**為單位看前後文，是四十年注音輸入法的地基 | 每一次按鍵 |
 | **v2c** | 句末小型 char-LSTM，對 walk 的 n-best **路徑**重排。完全離線、約 45ms、int8 | 定案當下跑一次 |
-| **節點層規則** | `ParticleRuleDisambiguator`：走完路徑後在**節點既有候選裡**改選，不碰使用者手選 | walk 之後 |
+| **節點層規則** | `ParticleRuleDisambiguator`：走完路徑後在**節點既有候選裡**改選，不碰使用者手選。輸入法選單可關（預設開） | walk 之後 |
 | **UOM** | 個人化 soft 偏好，進 DP 打分 | 每一次 walk |
 
 - **v2c 是路徑層模型**：它的天花板是「正解那條路徑進不進得了 N-best」。節點層機制（規則、
   未來的神經專家）才看得到節點內的候選。兩者天花板差很多（85.3% vs 95.9%），
   接線位置選錯就白做 —— 見 `docs/decisions/0001-同音消歧不是語言生成.md`。
 - **UOM 參數**：`user-override-cache.dat`，capacity 500 LRU、halflife 7 天、
-  soft 門檻 count≥2、cap 4.0、μ_user 4.0，**key ＝ 前詞＋讀音＋詞**。
+  soft 門檻 count≥2、cap 4.0、μ_user 1.5，userScore＝log10(1+count)（與 PMI 同底），**key ＝ 前詞＋讀音＋詞**。
   當下 hand-pick 永遠壓過 soft。學習很專一（只在該特定前文生效）。
 - **`cond`（zenz 式條件模型，讀音當硬約束）是研究線，不出貨**，而且權重是 epoch-1 殘缺品
   （訓練中途崩、bug 已修但未重訓）。所有 cond 數字都在殘缺權重下量的，日後值得乾淨重訓重量。

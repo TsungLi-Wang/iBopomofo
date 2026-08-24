@@ -47,11 +47,13 @@ namespace iBopomofo {
 // can be persisted to a private user-data file (never bundled / never git).
 class UserOverrideModel {
  public:
-  // Soft-score policy (Johnny-approved §6).
+  // Soft-score policy. userScore is log10(1+count) so it shares a base with
+  // unigram scores and corpus PMI. μ=1.5 → at C_min=2 the DP addend is
+  // 1.5·log10(3)≈+0.72, same order as median λ·PMI (~1.07), not +4.39.
   static constexpr size_t kMinSoftCount = 2;
   static constexpr double kSoftScoreCap = 4.0;
   static constexpr double kBeta1 = 0.0;  // L1 reserved, disabled
-  static constexpr double kDefaultMuUser = 4.0;
+  static constexpr double kDefaultMuUser = 1.5;
   // Fully decay after ~20 half-lives (same spirit as the hard-path Score).
   static constexpr double kDecayThreshold = 1.0 / 1048576.0;
 
@@ -100,7 +102,7 @@ class UserOverrideModel {
                                  const std::string& headReading,
                                  const std::string& word, double timestamp);
 
-  // Soft score for DP: min(kSoftScoreCap, log(1+count)) * decay, or 0 if
+  // Soft score for DP: min(kSoftScoreCap, log10(1+count)) * decay, or 0 if
   // count < kMinSoftCount or fully decayed. L1 backoff is reserved (returns
   // 0 when L0 misses; beta1 = 0).
   [[nodiscard]] double userScore(const std::string& prevValue,

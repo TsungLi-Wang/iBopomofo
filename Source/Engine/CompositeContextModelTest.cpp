@@ -41,16 +41,18 @@ namespace {
 using Formosa::Gramambular2::LanguageModel;
 using Formosa::Gramambular2::ReadingGrid;
 
-// Moderate unigram gap (~3.0): with mu=4 and count=2,
-// userScore = log(3)≈1.099 → 4.39 > 3.0 so S1 flips at C_min.
-// Still requires soft boost (top unigram wins without it).
+// Close unigram gap (~0.50): with μ=1.5 and count=2,
+// userScore = log10(3)≈0.477 → 0.72 > 0.50 so S1 flips at C_min.
+// A 3.0 gap (the old synthetic) is no longer flippable by two corrections;
+// that was the UOM-stomps-PMI bug. Still requires soft boost (top unigram
+// wins without it).
 class SoftFlipFakeLM : public LanguageModel {
  public:
   std::vector<Unigram> getUnigrams(const std::string& reading) override {
     if (reading == "ㄊㄚ") return {Unigram("他", -3.0)};
     if (reading == "ㄆㄠˇ") return {Unigram("跑", -3.8)};
     if (reading == "ㄉㄜ˙") {
-      return {Unigram("的", -2.0), Unigram("得", -5.0), Unigram("地", -6.0)};
+      return {Unigram("的", -2.0), Unigram("得", -2.5), Unigram("地", -6.0)};
     }
     if (reading == "ㄏㄣˇ") return {Unigram("很", -3.0)};
     if (reading == "ㄎㄨㄞˋ") return {Unigram("快", -3.0)};
@@ -94,7 +96,8 @@ TEST(CompositeContextModelTest, ColdEmptyNeverNeedsAttach) {
   UserOverrideModel uom(32, 604800.0);
   EXPECT_FALSE(uom.hasUsableSoftEvidence(1000.0));
   CompositeContextModel composite;
-  composite.configure(/*global=*/nullptr, /*user=*/nullptr, 4.0, 1000.0);
+  composite.configure(/*global=*/nullptr, /*user=*/nullptr,
+                      UserOverrideModel::kDefaultMuUser, 1000.0);
   EXPECT_FALSE(composite.isActive());
 }
 
@@ -107,7 +110,7 @@ TEST(CompositeContextModelTest, SoftEvidenceAfterCmin) {
   EXPECT_TRUE(uom.hasUsableSoftEvidence(t + 1));
 }
 
-// --- S1: learn 得 under 跑, flip at k>=C_min with mu=4 ---
+// --- S1: learn 得 under 跑, flip at k>=C_min with μ=1.5 ---
 
 TEST(CompositeContextModelTest, S1_LearnsAndFlipsAtCmin) {
   const double t = 5000.0;
@@ -126,6 +129,39 @@ TEST(CompositeContextModelTest, S1_LearnsAndFlipsAtCmin) {
   composite.configure(nullptr, &uom, UserOverrideModel::kDefaultMuUser, t + 10);
   EXPECT_EQ(chosenJoined(walkTaPaoDe(&composite)), "他跑得很快")
       << "S1: after k=C_min=2, soft must flip 的→得 under prev=跑";
+}
+
+// Two corrections must not buy a 3.0 unigram gap (old μ·ln scale did).
+class LargeGapFakeLM : public LanguageModel {
+ public:
+  std::vector<Unigram> getUnigrams(const std::string& reading) override {
+    if (reading == "ㄊㄚ") return {Unigram("他", -3.0)};
+    if (reading == "ㄆㄠˇ") return {Unigram("跑", -3.8)};
+    if (reading == "ㄉㄜ˙") {
+      return {Unigram("的", -2.0), Unigram("得", -5.0), Unigram("地", -6.0)};
+    }
+    if (reading == "ㄏㄣˇ") return {Unigram("很", -3.0)};
+    if (reading == "ㄎㄨㄞˋ") return {Unigram("快", -3.0)};
+    return {};
+  }
+  bool hasUnigrams(const std::string& reading) override {
+    return !getUnigrams(reading).empty();
+  }
+};
+
+TEST(CompositeContextModelTest, CminDoesNotStompThreePointUnigramGap) {
+  const double t = 5000.0;
+  UserOverrideModel uom(32, 604800.0);
+  trainSoftDe(&uom, /*k=*/2, t);
+  CompositeContextModel composite;
+  composite.configure(nullptr, &uom, UserOverrideModel::kDefaultMuUser, t + 10);
+  ReadingGrid grid(std::make_shared<LargeGapFakeLM>());
+  for (const auto& r : {"ㄊㄚ", "ㄆㄠˇ", "ㄉㄜ˙", "ㄏㄣˇ", "ㄎㄨㄞˋ"}) {
+    grid.insertReading(r);
+  }
+  grid.setContextModel(&composite);
+  EXPECT_EQ(grid.walk().chosenValueAt(2), "的")
+      << "μ·log10(3)≈0.72 must not beat a 3.0 unigram gap";
 }
 
 // --- S2: no spill to unrelated prev ---
@@ -214,7 +250,7 @@ TEST(CompositeContextModelTest, S6_HardOverrideBeatsSoft) {
 
 TEST(CompositeContextModelTest, PromotionGate_MuSweep) {
   const double t = 12000.0;
-  const std::vector<double> mus = {2.0, 3.0, 4.0, 5.0, 6.0};
+  const std::vector<double> mus = {0.8, 1.2, 1.5, 2.0, 2.5};
   double bestMu = -1;
   double bestAdoption = -1;
   double bestSpill = 1.0;
@@ -247,7 +283,7 @@ TEST(CompositeContextModelTest, PromotionGate_MuSweep) {
     std::printf("mu=%.1f  adoption=%.0f%% (%d/%d)  spill=%.0f%% (%d/%d)\n", mu,
                 100.0 * adoption, adoptOk, adoptN, 100.0 * spillRate, spillHit,
                 spillN);
-    // Prefer full adoption with zero spill; among those, prefer default 4.0.
+    // Prefer full adoption with zero spill; among those, prefer default μ.
     if (adoption >= bestAdoption && spillRate <= bestSpill) {
       if (adoption > bestAdoption || spillRate < bestSpill ||
           (adoption == bestAdoption && spillRate == bestSpill &&
@@ -262,9 +298,9 @@ TEST(CompositeContextModelTest, PromotionGate_MuSweep) {
   std::printf("best mu=%.1f adoption=%.0f%% spill=%.0f%%\n", bestMu,
               100.0 * bestAdoption, 100.0 * bestSpill);
   ASSERT_EQ(bestAdoption, 1.0)
-      << "Promotion gate: must reach 100% adoption for some mu in 2..6";
+      << "Promotion gate: must reach 100% adoption for some mu in 0.8..2.5";
   ASSERT_EQ(bestSpill, 0.0) << "Promotion gate: spill must stay 0%";
-  // Default mu=4.0 must itself pass (not only some other mu).
+  // Default μ=1.5 must itself pass (not only some other mu).
   {
     UserOverrideModel uom(32, 604800.0);
     trainSoftDe(&uom, static_cast<int>(UserOverrideModel::kMinSoftCount), t);
@@ -284,7 +320,7 @@ TEST(CompositeContextModelTest, PromotionGate_MuSweep) {
 // mathematical neutrality of userScore=0 path via null user).
 TEST(CompositeContextModelTest, NullUserCompositeMatchesUnigram) {
   CompositeContextModel composite;
-  composite.configure(nullptr, nullptr, 4.0, 0.0);
+  composite.configure(nullptr, nullptr, UserOverrideModel::kDefaultMuUser, 0.0);
   // isActive false — callers must not attach; if forced, score is 0.
   double state = 0;
   EXPECT_DOUBLE_EQ(composite.scoreWithReading("跑", "ㄉㄜ˙", "得", state), 0.0);
@@ -306,6 +342,86 @@ TEST(CompositeContextModelTest, S7_ForceHighScoreFlagPreserved) {
   // winning override row.
   s = uom.suggest(key, t + 1);
   EXPECT_EQ(s.candidate, "字彙");
+}
+
+// 理解 vs 裡解: sentence-start UOM on 裡 (count>=2) used to split the
+// dictionary word 理解 into 裡+解. Glue must restore 理解. A hand override
+// of 裡 this composition must still win (do not glue over isOverridden).
+class LiJieFakeLM : public LanguageModel {
+ public:
+  std::vector<Unigram> getUnigrams(const std::string& reading) override {
+    if (reading == "ㄌㄧˇ") {
+      return {Unigram("理", -2.94), Unigram("裡", -3.04)};
+    }
+    if (reading == "ㄐㄧㄝˇ") {
+      return {Unigram("解", -3.21)};
+    }
+    if (reading == "ㄌㄧˇ-ㄐㄧㄝˇ") {
+      return {Unigram("理解", -4.35)};
+    }
+    if (reading == "ㄋㄚˇ") {
+      return {Unigram("哪", -3.75)};
+    }
+    if (reading == "ㄋㄚˇ-ㄌㄧˇ") {
+      return {Unigram("哪裡", -4.15)};
+    }
+    return {};
+  }
+  bool hasUnigrams(const std::string& reading) override {
+    return !getUnigrams(reading).empty();
+  }
+};
+
+ReadingGrid::WalkResult walkLiJie(ReadingGrid::ContextModel* model) {
+  ReadingGrid grid(std::make_shared<LiJieFakeLM>());
+  grid.setReadingSeparator("-");
+  EXPECT_TRUE(grid.insertReading("ㄌㄧˇ"));
+  EXPECT_TRUE(grid.insertReading("ㄐㄧㄝˇ"));
+  grid.setContextModel(model);
+  return grid.walk();
+}
+
+TEST(CompositeContextModelTest, DictionaryWordNotSplitBySingleCharUOM) {
+  const double t = 8000.0;
+  EXPECT_EQ(chosenJoined(walkLiJie(nullptr)), "理解");
+
+  UserOverrideModel uom(32, 604800.0);
+  uom.noteSoftObservationStrong("", "ㄌㄧˇ", "裡", t);
+  CompositeContextModel composite;
+  composite.configure(nullptr, &uom, UserOverrideModel::kDefaultMuUser, t + 10);
+  auto w = walkLiJie(&composite);
+  EXPECT_EQ(chosenJoined(w), "理解")
+      << "UOM 裡 at empty prev must not split 理解 into 裡+解";
+  EXPECT_EQ(w.nodes.size(), 1u);
+}
+
+TEST(CompositeContextModelTest, DictionaryWordGlueHonorsHandOverride) {
+  const double t = 8000.0;
+  UserOverrideModel uom(32, 604800.0);
+  uom.noteSoftObservationStrong("", "ㄌㄧˇ", "裡", t);
+  CompositeContextModel composite;
+  composite.configure(nullptr, &uom, UserOverrideModel::kDefaultMuUser, t + 10);
+
+  ReadingGrid grid(std::make_shared<LiJieFakeLM>());
+  grid.setReadingSeparator("-");
+  ASSERT_TRUE(grid.insertReading("ㄌㄧˇ"));
+  ASSERT_TRUE(grid.insertReading("ㄐㄧㄝˇ"));
+  grid.setContextModel(&composite);
+  ASSERT_TRUE(grid.overrideCandidate(/*loc=*/0, "裡"));
+  auto w = grid.walk();
+  EXPECT_EQ(chosenJoined(w), "裡解")
+      << "hand-picked 裡 this composition must not be glued back to 理解";
+}
+
+TEST(CompositeContextModelTest, DictionaryWordGlueDoesNotBreakNali) {
+  ReadingGrid grid(std::make_shared<LiJieFakeLM>());
+  grid.setReadingSeparator("-");
+  ASSERT_TRUE(grid.insertReading("ㄋㄚˇ"));
+  ASSERT_TRUE(grid.insertReading("ㄌㄧˇ"));
+  ASSERT_TRUE(grid.insertReading("ㄐㄧㄝˇ"));
+  auto w = grid.walk();
+  EXPECT_EQ(chosenJoined(w), "哪裡解")
+      << "哪裡 as a 2-char node must not be broken to make 理解";
 }
 
 }  // namespace

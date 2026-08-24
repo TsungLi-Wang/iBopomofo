@@ -47,11 +47,13 @@ namespace Formosa::Gramambular2 {
 // segmentation: in that case, the observations are Mandarin words, and the
 // hidden values are the most likely groupings.
 //
-// While we use the terminology from hidden Markov model (HMM), the actual
-// implementation is a much simpler Bayesian inference, since the underlying
-// language model consists of only unigrams. Once we have put all plausible
-// unigrams as nodes on the grid, a simple DAG shortest-path walk will give us
-// the maximum likelihood estimation (MLE) for the hidden values.
+// LanguageModel still only supplies unigrams. When contextModel_ is null,
+// walk() is a position-Viterbi using each node's top unigram (or override).
+// When a ContextModel is attached (shipping default: CompositeContextModel),
+// walk() expands state to (position, last word) and adds
+// scoreWithReading(prev, reading, word) onto each unigram's edge — bigram
+// participates in path selection, it is not a post-walk patch. Read the
+// chosen surface via WalkResult::chosenValueAt, not node->value().
 class ReadingGrid {
  public:
   explicit ReadingGrid(std::shared_ptr<LanguageModel> lm)
@@ -372,6 +374,10 @@ class ReadingGrid {
   void expandGridAt(size_t loc);
   void shrinkGridAt(size_t loc);
   void removeAffectedNodes(size_t loc);
+  // After DP: if consecutive 1-char walk nodes sit on a longer lattice
+  // phrase, take the phrase. UOM boosting a single character (裡) must
+  // not split a dictionary word (理解) unless the user overrode a char.
+  void glueDictionaryPhrases(WalkResult& result) const;
   void insert(size_t loc, const NodePtr& node);
   std::string combineReading(std::vector<std::string>::const_iterator begin,
                              std::vector<std::string>::const_iterator end);

@@ -209,6 +209,15 @@ final class PreferencesTests {
         #expect(Preferences.enableNeuralPathRerank == true)
     }
 
+    @Test("Test particle rules toggle")
+    func testEnableParticleRules() {
+        #expect(Preferences.enableParticleRules == true)
+        Preferences.enableParticleRules = false
+        #expect(Preferences.enableParticleRules == false)
+        _ = Preferences.toggleParticleRulesEnabled()
+        #expect(Preferences.enableParticleRules == true)
+    }
+
     @Test("Test purge of removed feature preference keys")
     func testPurgeRemovedFeaturePreferences() {
         UserDefaults.standard.set(true, forKey: "EnableGlobalNeuralRerank")

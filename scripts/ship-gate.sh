@@ -42,6 +42,9 @@
 #   IBOPOMOFO_CORPUS_DIR  預設 $HOME/Documents/i注音-語料/EX1166-題庫
 #   IBOPOMOFO_EVAL_BIN    預設 bin/newstar_homophone_eval
 #   SHIP_GATE_E2E         預設 0（不跑實機打字）。設 1 才跑關卡 3。
+#   SHIP_GATE_ABLATION    預設 0。設 1 時在關卡 1 之外加跑四種組合
+#                         （Contextual 皆開；LSTM × 的/得）相對「底層硬扛」的救/壞/淨。
+#                         只印表，不改 CORE 出貨判定（CORE 仍是「出貨配置 vs 規則關」）。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -50,6 +53,7 @@ CORPUS_DIR="${IBOPOMOFO_CORPUS_DIR:-$HOME/Documents/i注音-語料/EX1166-題庫
 SAMPLE_JSONL="Source/Engine/eval/benchmarks/newstar_sample.jsonl"
 # 預設 0：AI／背景／擦屁股 session 不准為了「選不到輸入法」耗掉整晚。
 SHIP_GATE_E2E="${SHIP_GATE_E2E:-0}"
+SHIP_GATE_ABLATION="${SHIP_GATE_ABLATION:-0}"
 
 if [ ! -x "$EVAL" ]; then
     echo "先建置評分機：IBOPOMOFO_EVAL_BIN=$EVAL 不存在或不可執行"
@@ -113,6 +117,67 @@ PY
     else
         printf "  ✅ %s：救 %s、壞 %s\n" "$name" "$g" "$w"
     fi
+}
+
+# 四種組合（Contextual Walk 皆開）。eval 的 LSTM 用 mode+nu 控；的/得用規則表有無。
+#   A 全開     shipping ν=0.75 + particle-rules + police-de-v1
+#   B 關 LSTM  walk ν=0       + 規則
+#   C 關的/得  shipping ν=0.75
+#   D 底層硬扛 walk ν=0
+eval_combo() {
+    local items="$1" dump="$2" mode="$3" nu="$4"
+    shift 4
+    "$EVAL" "$items" Source/Data/data.txt Source/Data/word-bigrams.tsv \
+        Source/Data/path-char-lstm.bin "$mode" 0.75 "$nu" "" "$dump" "$@" >/dev/null 2>&1
+}
+
+compare_dumps() {
+    local a="$1" b="$2"
+    python3 - "$a" "$b" <<'PY'
+import sys
+def load(p):
+    d={}
+    for k,l in enumerate(open(p,encoding='utf-8')):
+        if k:
+            f=l.rstrip('\n').split('\t')
+            if len(f)>=4: d[f[0]]=int(f[3])
+    return d
+a,b=load(sys.argv[1]),load(sys.argv[2])
+ks=set(a)&set(b)
+g=sum(1 for k in ks if b[k] and not a[k])
+w=sum(1 for k in ks if a[k] and not b[k])
+print(g, w, g-w)
+PY
+}
+
+run_ablation_matrix() {
+    local name="$1"
+    local items="$CORPUS_DIR/$name.jsonl"
+    local dir="/tmp/gate-ablation"
+    mkdir -p "$dir"
+    local d="$dir/${name}-D.tsv"
+    local b="$dir/${name}-B.tsv"
+    local c="$dir/${name}-C.tsv"
+    local a="$dir/${name}-A.tsv"
+    echo "  ${name}："
+    if ! eval_combo "$items" "$d" walk 0 \
+       || ! eval_combo "$items" "$b" walk 0 \
+            Source/Data/particle-rules.tsv Source/Data/police-de-v1.tsv \
+       || ! eval_combo "$items" "$c" shipping 0.75 \
+       || ! eval_combo "$items" "$a" shipping 0.75 \
+            Source/Data/particle-rules.tsv Source/Data/police-de-v1.tsv \
+       || [ ! -s "$d" ] || [ ! -s "$b" ] || [ ! -s "$c" ] || [ ! -s "$a" ]; then
+        echo "    ❌ 評分機執行失敗，這份語料的消融表不採信"
+        fail=1
+        return
+    fi
+    # 相對 D（底層硬扛）：正淨＝該層有幫忙
+    read -r g_b w_b n_b <<<"$(compare_dumps "$d" "$b")"
+    read -r g_c w_c n_c <<<"$(compare_dumps "$d" "$c")"
+    read -r g_a w_a n_a <<<"$(compare_dumps "$d" "$a")"
+    printf "    vs D 底層硬扛 →  B 關LSTM/開的得  救 %s 壞 %s 淨 %+d\n" "$g_b" "$w_b" "$n_b"
+    printf "                   C 開LSTM/關的得  救 %s 壞 %s 淨 %+d\n" "$g_c" "$w_c" "$n_c"
+    printf "                   A 全開            救 %s 壞 %s 淨 %+d\n" "$g_a" "$w_a" "$n_a"
 }
 
 run_ctest() {
@@ -241,6 +306,13 @@ if [ "$corpus_present" -eq "$corpus_total" ]; then
     for name in "${corpus_names[@]}"; do
         run_corpus_pair "$name"
     done
+    if [ "$SHIP_GATE_ABLATION" = "1" ]; then
+        echo "── 消融（SHIP_GATE_ABLATION=1 · 只印表，不改 CORE 判定）──"
+        echo "  四種組合皆開 Contextual Walk；相對 D＝LSTM 關、的/得 關"
+        for name in "${corpus_names[@]}"; do
+            run_ablation_matrix "$name"
+        done
+    fi
     echo "── 關卡 2／2：引擎單元測試 ──"
     run_ctest
 

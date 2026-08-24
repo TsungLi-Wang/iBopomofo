@@ -289,7 +289,9 @@ double UserOverrideModel::userScore(const std::string& prevValue,
     if (e.count >= kMinSoftCount) {
       double decay = DecayWeight(e.timestamp, timestamp, decayExponent_);
       if (decay > 0.0) {
-        double raw = std::log(1.0 + static_cast<double>(e.count));
+        // Same log10 base as unigram scores and corpus PMI. ln mixed with
+        // log10 made count=2 at μ=4 worth +4.39, stomping median λ·PMI (~1.07).
+        double raw = std::log10(1.0 + static_cast<double>(e.count));
         if (raw > kSoftScoreCap) {
           raw = kSoftScoreCap;
         }
