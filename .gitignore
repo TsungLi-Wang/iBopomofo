@@ -81,3 +81,6 @@ Source/Engine/build-*/
 # AI 派工緩衝艙（本機用，永不入 git）
 # 放現役派遣票與外勤回報。收工歸檔或刪除，不留隔夜信。
 /.ai-handoff/
+
+# Claude Code 本機權限（機器相依，不入 repo）
+/.claude/settings.local.json
